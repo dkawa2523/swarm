@@ -1,0 +1,42 @@
+preprocess:
+  energy_min: null          # eV, clip low end (null to disable)
+  energy_max: null          # eV, clip high end (null to disable)
+  log_mad_sigma: 4.0        # reject outliers in log10(EEDF) beyond this MAD-scaled sigma
+  log_floor: 1.0e-30        # floor before taking log
+  log_floor_factor: 10.0    # dynamic floor = min_positive_eedf * factor (drop lowest decade)
+  smooth:
+    enabled: true
+    window: 11              # Savitzky-Golay window length (odd)
+    polyorder: 2
+  resample_points: 800      # uniform grid size for fitting (0 to disable)
+  tail_area_rel_threshold: 1.0e-4
+  tail_min_energy_quantile: 0.9
+  tail_rel_keep: 1.0e-4
+  tail_keep_min_quantile: 0.75
+  tail_keep_min_points: 100  # ensure enough bins remain before trimming
+
+model:
+  max_components: 3         # upper bound for mixture components
+  num_starts: 6             # initial guesses per component count
+  random_seed: 12345
+  alpha_bounds: [-2.0, 4.0] # power-law exponent bounds
+  beta_bounds: [0.2, 4.0]   # stretched-exponential exponent bounds
+  amplitude_min: 1.0e-30
+  e_c_max_factor: 10.0      # upper bound multiplier for characteristic energy vs max(E)
+  e_c_mean_energy_factor: 5.0   # upper bound multiplier vs mean energy guess
+  shift_bounds_relative: [-0.3, 0.3]  # relative to max(E) for global shift
+  shift_bounds_absolute: null         # if set to [min, max], overrides relative
+
+selection:
+  criterion: AICc           # model selection metric (fixed to AICc)
+
+plot:
+  y_min: null               # set to a value to force lower limit; null keeps auto
+  y_max: null               # set to a value to force upper limit; null keeps auto
+  y_margin_factor: 0.1      # expand percentile-based range by this fraction
+  y_clip_percentiles: [0.1, 99.9]  # percentile clip before setting ylim to avoid extreme outliers
+
+weights:
+  low_energy_boost:
+    amplitude: 1.0          # >0 to emphasize low-energy region; 0 disables
+    scale_rel_to_max: 0.2   # decay scale as fraction of max energy
