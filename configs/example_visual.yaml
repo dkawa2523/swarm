@@ -1,0 +1,79 @@
+experiment:
+  name: ar_n2_en_scan
+  output_root: outputs
+  base_name: Ar_N2
+  output_format: csv
+  parallel_workers: 1           # 並列プロセス数（1で逐次実行）
+  plotting:
+    summary: true
+    first_run: true
+    save: true
+    save_dir: outputs/ar_n2_en_scan/plots
+
+base_config:
+  input_gases:
+    gases: ["Ar", "N2"]
+    paths_to_cross_section_files:
+      - cross_sections/Ar_Biagi.txt
+      - cross_sections/N2_Biagi.txt
+    fractions: [0.3, 0.7]
+    max_cross_section_energy: 1e3
+
+  output:
+    output_directory: outputs/
+    base_name: Ar_N2
+    save_simulation_pickle: false
+    save_temporal_evolution: true
+    save_swarm_parameters: true
+    save_energy_distribution: true
+    output_format: csv
+
+  physical_conditions:
+    EN: 300
+    pressure: 1e6
+    temperature: 300
+
+  initial_state:
+    num_e_initial: 1e4
+    initial_pos_electrons: [0, 0, 0]
+    initial_std_electrons: [0, 0, 0]
+
+  simulation_settings:
+    num_energy_bins: 2000
+    energy_sharing_factor: 0.5
+    energy_sharing_floor: null        # optional: soften sharing at low energies
+    energy_sharing_taper_energy: 10.0 # eV scale for blending to the floor
+    scattering_transition_low: 1.0    # eV lower bound for anisotropic blend
+    scattering_transition_high: 5.0   # eV upper bound for anisotropic blend
+    isotropic_scattering: true
+    conserve: false
+    num_e_max: 5e6
+    max_ionization_growth_factor: null # optional per-step growth cap (relative)
+    num_e_throttle_ratio: null         # optional soft-throttle start (fraction of num_e_max)
+    num_e_throttle_min_factor: 0.0     # floor for throttle factor
+    timestep_min: null                 # optional lower/upper dt bounds (s)
+    timestep_max: null
+    sst_min_window: 30
+    sst_max_window: 50
+    sst_energy_slope_tol: 0.02
+    sst_energy_resid_tol: 0.08
+    sst_transport_slope_tol: 0.02
+    sst_transport_resid_tol: 0.1
+    dn_block_size: 20
+    dn_step_skip: 1
+    dn_use_jackknife: false            # opt-in for DN jackknife
+    log_every_k: 1                     # downsample logging stride
+    use_jit: true                      # enable numba JIT path when available
+    profile_per_step: true             # record per-step timing CSV
+    seed: random                       # can be int or "random" or "run_id"
+
+  end_conditions:
+    w_tol: 0.05
+    DN_tol: 0.05
+    num_col_max: 5e4
+
+sweep:
+  param: EN
+  start: 50
+  stop: 300
+  step: 50

@@ -1,0 +1,87 @@
+experiment:
+  name: ar_n2_en_scan_jit
+  output_root: outputs
+  base_name: Ar_N2
+  output_format: csv
+  parallel_workers: 4          # 2 並列で実行
+  plotting:
+    summary: true
+    first_run: true
+    save: true
+    save_dir: outputs/ar_n2_en_scan_jit/plots
+
+base_config:
+  input_gases:
+    gases: ["Ar", "N2"]
+    paths_to_cross_section_files:
+      - cross_sections/Ar_Biagi.txt
+      - cross_sections/N2_Biagi.txt
+    fractions: [0.3, 0.7]
+    max_cross_section_energy: 1e3
+
+  output:
+    output_directory: outputs/
+    base_name: Ar_N2
+    save_simulation_pickle: false
+    save_temporal_evolution: true
+    save_swarm_parameters: true
+    save_energy_distribution: true
+    output_format: csv
+
+  physical_conditions:
+    EN: 300
+    pressure: 1e6
+    temperature: 300
+
+  initial_state:
+    num_e_initial: 1e4
+    initial_pos_electrons: [0, 0, 0]
+    initial_std_electrons: [0, 0, 0]
+
+  simulation_settings:
+    num_energy_bins: 2000
+    energy_sharing_factor: 0.5
+    energy_sharing_floor: null
+    energy_sharing_taper_energy: 10.0
+    scattering_transition_low: 1.0
+    scattering_transition_high: 5.0
+    isotropic_scattering: true
+    conserve: false
+    num_e_max: 5e6
+    max_ionization_growth_factor: null
+    num_e_throttle_ratio: null
+    num_e_throttle_min_factor: 0.0
+    timestep_min: null
+    timestep_max: null
+    sst_min_window: 30
+    sst_max_window: 50
+    sst_energy_slope_tol: 0.02
+    sst_energy_resid_tol: 0.08
+    sst_transport_slope_tol: 0.02
+    sst_transport_resid_tol: 0.1
+    dn_block_size: 20
+    dn_step_skip: 1
+    dn_use_jackknife: false
+    log_every_k: 1
+    use_velocity_lut: true
+    use_scatter_lut: true
+    use_aniso_scatter_lut: true
+    use_max_coll_lut: true
+    max_coll_lut_size: 256
+    use_jit_energy_loss: false
+    use_jit_collision_classify: false
+    jit_parallel_threshold: 2000
+    use_jit: true               # JIT 有効
+    profile_per_step: true      # per-step 計測を保存
+    seed: random
+
+  end_conditions:
+    w_tol: 0.05
+    DN_tol: 0.05
+    num_col_max: 5e4
+
+sweep:
+  param: EN
+  start: 50
+  stop: 500
+  step: 50

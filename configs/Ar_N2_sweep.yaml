@@ -1,0 +1,51 @@
+experiment:
+  name: ar_n2_en_scan
+  output_root: outputs
+  base_name: Ar_N2
+  output_format: csv
+
+base_config:
+  input_gases:
+    gases: ["Ar", "N2"]
+    paths_to_cross_section_files:
+      - cross_sections/Ar_Biagi.txt
+      - cross_sections/N2_Biagi.txt
+    fractions: [0.3, 0.7]
+    max_cross_section_energy: 1e3
+
+  output:
+    output_directory: outputs/
+    base_name: Ar_N2
+    save_simulation_pickle: false
+    save_temporal_evolution: true
+    save_swarm_parameters: true
+    save_energy_distribution: true
+    output_format: csv
+
+  physical_conditions:
+    EN: 50
+    pressure: 1e6
+    temperature: 300
+
+  initial_state:
+    num_e_initial: 1e4
+    initial_pos_electrons: [0, 0, 0]
+    initial_std_electrons: [0, 0, 0]
+
+  simulation_settings:
+    num_energy_bins: 2000
+    energy_sharing_factor: 0.5
+    isotropic_scattering: true
+    conserve: false
+    num_e_max: 5e6
+
+  end_conditions:
+    w_tol: 0.05
+    DN_tol: 0.05
+    num_col_max: 5e4
+
+sweep:
+  param: EN
+  start: 50
+  stop: 300
+  step: 50
