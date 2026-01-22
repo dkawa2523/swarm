@@ -1,0 +1,2 @@
+[console_scripts]
+swarm-comsol-export = swarm_comsol_export.cli:main

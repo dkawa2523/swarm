@@ -1,0 +1,66 @@
+Metadata-Version: 2.4
+Name: swarm-comsol-export
+Version: 0.1.0
+Summary: Convert electron swarm (Boltzmann / swarm) results into COMSOL Plasma Module interpolation tables.
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.20
+Requires-Dist: pandas>=1.5
+Requires-Dist: pyyaml>=6.0
+
+# swarm-comsol-export
+
+Swarm（電子Swarm / Boltzmann / Monte-Carloなど）の後処理として、**COMSOL Plasma Module** にインポート可能な補間テーブル（Interpolation Function用）へ変換するユーティリティです。
+
+- **1D 補間（平均電子エネルギー ε̄[eV] → μ, D, k）**
+- **2D 補間（電子エネルギー ε[eV], 平均電子エネルギー ε̄[eV] → EEDF f(ε;ε̄)）**
+
+## できること（出力）
+出力ディレクトリ（例: `<run_dir>/comsol/`）に、以下を生成します。
+
+- `comsol_transport.csv`  
+  `ε̄[eV], μ[m^2/(V·s)], D[m^2/s]` を 1ファイルにまとめて出力（COMSOL側で列位置を指定して複数関数として読み込めます）
+- `comsol_rates.csv`  
+  `ε̄[eV], k_reaction1, k_reaction2, ...` を 1ファイルにまとめて出力
+- `comsol_eedf.csv`  
+  `ε[eV], ε̄[eV], f(ε;ε̄)[eV^(-3/2)]` の 3列（Spreadsheet形式）で出力  
+- `comsol_export_report.json`  
+  変換サマリ（範囲、点数、検証結果など）
+
+## クイックスタート
+1) 例の設定をコピーして編集します。
+
+```bash
+cp examples/comsol_export.yaml my_export.yaml
+```
+
+2) Swarmの出力ディレクトリを指定して実行します。
+
+```bash
+python -m swarm_comsol_export --config my_export.yaml --run-dir /path/to/swarm/output
+```
+
+（インストールする場合）
+```bash
+pip install -e .
+swarm-comsol-export --config my_export.yaml --run-dir /path/to/swarm/output
+```
+
+## COMSOL側の読み込み（概要）
+COMSOLの **Global Definitions > Functions > Interpolation** で `Data source = File` を選び、以下の設定で読み込みます。
+
+- `comsol_transport.csv`: Number of arguments = 1  
+  1列目が ε̄、2列目が μ、3列目が D（Position in fileで列を選択）
+- `comsol_rates.csv`: Number of arguments = 1  
+  1列目が ε̄、2列目以降が各反応の k（Position in fileで列を選択）
+- `comsol_eedf.csv`: Number of arguments = 2  
+  1列目が ε（電子エネルギー）、2列目が ε̄（平均電子エネルギー）、3列目が f（EEDF）
+
+詳細は `docs/COMSOL_IMPORT_GUIDE.md` を参照してください。
+
+## 入力ファイル（Swarm出力）について
+本ツールはリポジトリ差分を吸収できるように、入力側を **設定(YAML)で定義**します。
+- 既に `transport.csv` / `rates.csv` / `eedf.csv` のようなCSVがある場合 → それを指定
+- EEDFが平均エネルギーごとに複数ファイルに分割されている場合 → glob と正規表現で束ねて2D化
+
+`examples/comsol_export.yaml` に典型例があります。

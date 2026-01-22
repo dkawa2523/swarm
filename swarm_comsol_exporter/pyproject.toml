@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "swarm-comsol-export"
+version = "0.1.0"
+description = "Convert electron swarm (Boltzmann / swarm) results into COMSOL Plasma Module interpolation tables."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "numpy>=1.20",
+  "pandas>=1.5",
+  "pyyaml>=6.0",
+]
+
+[project.scripts]
+swarm-comsol-export = "swarm_comsol_export.cli:main"

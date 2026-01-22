@@ -1,0 +1,35 @@
+{
+  "run_dir": "../outputs/ar_cl2_en_scan_jit2",
+  "output_dir": "../outputs/ar_cl2_en_scan_jit2/comsol",
+  "transport": {
+    "source": "../outputs/ar_cl2_en_scan_jit2/summary.csv",
+    "rows": 25,
+    "epsbar_min": 2.1412257730335815,
+    "epsbar_max": 5.794128140347937
+  },
+  "rates": {
+    "source": "../outputs/ar_cl2_en_scan_jit2/summary.csv",
+    "rows": 25,
+    "epsbar_min": 2.1412257730335815,
+    "epsbar_max": 5.794128140347937,
+    "rate_columns": [
+      "effective ionization rate coeff. (counted) (m3.s-1)",
+      "ionization rate coeff. (counted) (m3.s-1)",
+      "attachment rate coeff. (counted) (m3.s-1)",
+      "effective ionization rate coeff. (convolution) (m3.s-1)",
+      "ionization rate coeff. (convolution) (m3.s-1)",
+      "attachment rate coeff. (convolution) (m3.s-1)"
+    ]
+  },
+  "eedf": {
+    "mode": "stacked_csv",
+    "source": "../outputs/ar_cl2_en_scan_jit2/eedf_table.csv",
+    "rows": 49975,
+    "eps_min": 0.0019573968993793,
+    "eps_max": 46.04818889182331,
+    "epsbar_min": 2.1412257730335815,
+    "epsbar_max": 5.794128140347937,
+    "output_unit_note": "f_eV_m32 is intended as eV^(-3/2) (COMSOL blog/user guide convention)."
+  },
+  "timestamp_utc": "2026-01-22T03:54:05.052002Z"
+}

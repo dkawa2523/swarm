@@ -1,0 +1,14 @@
+% COMSOL Interpolation (Spreadsheet) | args: epsbar_eV | cols: epsbar_eV, mu_m2_V_s, De_m2_s
+% Source: ../outputs/ar_cl2_en_scan_jit/summary.csv
+% Note: mu source column='bulk drift velocity (m.s-1)' (velocity). Check units before COMSOL import.
+% Note: De source column='bulk L diffusion coeff. * N (m-1.s-1)' (D*N). Check units before COMSOL import.
+2.51824092e+00,5.07968959e+04,1.18065342e+24
+3.01773886e+00,7.47767238e+04,9.09906055e+23
+3.43509167e+00,6.91404721e+04,7.14341505e+23
+3.76221119e+00,7.84667200e+04,5.28647665e+23
+3.84008781e+00,9.14440527e+04,6.89365509e+23
+4.25269829e+00,1.23124600e+05,8.07056118e+23
+4.60980408e+00,1.54150275e+05,9.25760321e+23
+5.21378003e+00,1.84563995e+05,1.21552212e+24
+5.80569003e+00,1.88030503e+05,1.38949276e+24
+6.23629492e+00,2.51245886e+05,1.63709519e+24

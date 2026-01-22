@@ -1,0 +1,913 @@
+LXCat, www.lxcat.net
+Generated on 22 Jan 2026. All rights reserved.
+
+RECOMMENDED REFERENCE FORMAT
+- SIGLO database, www.lxcat.net, retrieved on January 22, 2026.
+
+CROSS SECTION DATA FORMAT
+In downloaded files, each collision process is defined by a block consisting of
+1st line
+Keyword in capitals indicating the type of the collision. Possible collision types are elastic, effective, excitation,
+ionization, or attachment (capital letters required, key words are case sensitive), where "elastic" is used to denote
+the elastic momentum transfer cross section and where "effective" denotes the total momentum transfer cross section (sum
+of elastic momentum transfer and total inelastic cross sections).  The latter is useful for solving the Boltzmann
+equation in the 2-term approximation.
+2nd line
+Name of the target particle species. This name is a character string, freely chosen by the user, e.g. "Ar". Optionally
+for excitation processes, the name of the corresponding excited state can be specified on the same line, separated from
+the first name either by arrow "->" (dash + greater than) or by double-head arrow "<->" (less than + dash +
+greater than), e.g. "Ar -> Ar*" and "Ar <-> Ar*", respectively. In the later case BOLSIG+ will automatically
+define the inverse superelastic process, constructing the superelastic cross-section by detailed balancing, and
+considering the indicated excited state as the target. In this case, the ratio of statistical weights must be input in
+the 3rd line (see below).
+3rd line
+For elastic and effective collisions, the ratio of the electron mass to the target particle mass. For excitation or
+ionization collisions, the electron energy loss (nominally the threshold energy) in eV. For attachment, the 3rd line is
+missing. In case of an excitation process where an excited state has been indicated on the 2nd line using double-head
+arrow "<->", the 3rd line must specify also ratio of the statistical weights of the final state to the initial state
+as the second parameter in 3rd line this is needed by BOLSIG+ to calculate the de-excitation cross-section. The
+statistical weight ratio, if given, will also be used by the automatic superelastics option in BOLSIG+. If this ratio is
+not provided then BOLSIG+ will assume it unity.
+from 4th line (optionally)
+User comments and reference information, maximum 100 lines. The only constraint on format is that these comment lines
+must not start with a number.
+Finally
+Table of the cross section as a function of energy. The table starts and ends by a line of dashes "------" (at least 5),
+and has otherwise two numbers per line: the energy in eV and the cross section in m2.
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+DATABASE:         SIGLO database
+PERMLINK:         www.lxcat.net/SIGLO
+DESCRIPTION:      The SIGLO database is the "in-house" data  used by the group GREPHE at LAPLACE in Toulouse. The data
+                  are taken from different sources as indicated for each gas. Please refer to original sources in
+                  publications.  
+                  An early version of this data file, "siglo.sec", was distributed with BOLSIG.  The main changes in the
+                  present version are :
+                  The format has been changed to be compatible with BOLSIG+.
+                  Scale factors have been incorporated in the data and no longer appear explicitly.
+                  We have removed the CF4 cross section data because of their limited precision (probably due to
+                  digitization errors).  For the moment our recommendation is to use the dataset in the Morgan
+                  database.
+                  He : The present data are from the compilation of A.V. Phelps (see reference in the Phelps data
+                  base).
+                  O2 : We recommend using the data in the Phelps database for this species.
+                  H2 : We recommend using the data in the Phelps database for this species.
+                  Cl2 : The present data are an updated compilation (Jan 2012) by J Gregorio and LC Pitchford.    
+                  Cu : Feb 2012. Digitized from Tkachev A N, Fedenev A A and Yakovlenko S I, Laser Phys. vol.17, p. 775
+                  (2007)
+                  Kr :  Nov 2012.  We re-digitized the data from figs. 1 and 5 in H. Date, Y. Sakai and H. Tagashira, J.
+                  Phys. D 22 1478 (1989).  With respect to the previous data from this same reference in the SIGLO
+                  database, there are some changes in the threshold values and in the magnitudes of the inelastic cross
+                  sections.
+CONTACT:          LC Pitchford and JP Boeuf 
+                  pitchford@@laplace.univ-tlse.fr and jpb@@laplace.univ-tlse.fr
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+************************************************************************************************************************
+
+COMMENT: Compilation from J Gregorio and LC Pitchford, 2012. Swarm parameters calculated with these cross sections (with linear
+         interpolation) using the two-term Boltzmann solver BOLSIG+ are reasonably consistent with available measurements.
+
+********************************************************** Cl2 **********************************************************
+
+ELASTIC
+Cl2
+ 7.680000e-6
+SPECIES: e / Cl2
+PROCESS: E + Cl2 -> E + Cl2, Elastic
+PARAM.:  m/M = 0.00000768, complete set
+COMMENT: Elastic momentum transfer Rescigno T N 1994 Phys. Rev. A 50 1382 + Qtotal from
+COMMENT: Christophorou L G and Olthoff J K 1999 J. Phys. Chem. Ref. Data 28 131.
+UPDATED: 2012-04-13 11:43:20
+COLUMNS: Energy (eV) | Cross section (m2)
+-----------------------------
+ 1.983000e-2	4.029000e-19
+ 2.391000e-2	3.853000e-19
+ 2.797000e-2	3.720000e-19
+ 3.204000e-2	3.428000e-19
+ 3.603000e-2	3.092000e-19
+ 4.011000e-2	2.725000e-19
+ 4.386000e-2	2.291000e-19
+ 4.741000e-2	1.886000e-19
+ 5.175000e-2	1.550000e-19
+ 5.705000e-2	1.261000e-19
+ 5.878000e-2	1.073000e-19
+ 6.353000e-2	9.020000e-20
+ 6.810000e-2	7.674000e-20
+ 7.216000e-2	7.338000e-20
+ 7.812000e-2	8.328000e-20
+ 8.527000e-2	9.562000e-20
+ 8.961000e-2	1.048000e-19
+ 9.401000e-2	1.012000e-19
+ 1.016000e-1	9.451000e-20
+ 1.100000e-1	9.020000e-20
+ 1.225000e-1	9.126000e-20
+ 1.311000e-1	9.903000e-20
+ 1.419000e-1	9.903000e-20
+ 1.519000e-1	8.709000e-20
+ 1.658000e-1	7.764000e-20
+ 1.777000e-1	6.466000e-20
+ 1.864000e-1	5.632000e-20
+ 1.921000e-1	4.500000e-20
+ 2.000000e-1	3.800000e-20
+ 2.100000e-1	2.800000e-20
+ 2.200000e-1	2.000000e-20
+ 2.300000e-1	1.700000e-20
+ 2.400000e-1	1.550000e-20
+ 2.500000e-1	1.450000e-20
+ 3.359000e-1	1.531000e-20
+ 4.655000e-1	1.886000e-20
+ 5.858000e-1	2.448000e-20
+ 7.639000e-1	3.375000e-20
+ 1.041000e+0	4.902000e-20
+ 1.405000e+0	6.765000e-20
+ 2.003000e+0	8.936000e-20
+ 3.254000e+0	1.169000e-19
+ 5.062000e+0	1.368000e-19
+ 6.314000e+0	1.531000e-19
+ 8.456000e+0	1.869000e-19
+ 1.093000e+1	2.022000e-19
+ 1.528000e+1	1.902000e-19
+ 2.178000e+1	1.571000e-19
+ 2.917000e+1	1.276000e-19
+-----------------------------
+
+EXCITATION
+Cl2 -> Cl2(v)
+ 6.900000e-2
+SPECIES: e / Cl2
+PROCESS: E + Cl2 -> E + Cl2(v), Excitation
+PARAM.:  E = 0.069 eV, complete set
+COMMENT: Obtained from measured total cross section by subtraction, J Gregorio and L C Pitchford
+COMMENT: 2012 consistent with first peak in Ruf M-W 2004 J. Phys. B: At. Mol. Opt. Phys. 37 41.
+UPDATED: 2012-02-01 05:35:21
+COLUMNS: Energy (eV) | Cross section (m2)
+-----------------------------
+ 0.000000e+0	0.000000e+0
+ 6.900000e-2	0.000000e+0
+ 8.000000e-2	7.000000e-23
+ 8.100000e-2	8.830000e-23
+ 8.200000e-2	1.069000e-22
+ 8.300000e-2	1.300000e-22
+ 8.400000e-2	1.533000e-22
+ 8.500000e-2	1.767000e-22
+ 8.600000e-2	2.000000e-22
+ 8.700000e-2	2.250000e-22
+ 8.800000e-2	2.500000e-22
+ 8.900000e-2	2.750000e-22
+ 9.000000e-2	3.000000e-22
+ 9.100000e-2	3.269000e-22
+ 9.200000e-2	3.537000e-22
+ 9.300000e-2	3.806000e-22
+ 9.400000e-2	4.075000e-22
+ 9.500000e-2	4.344000e-22
+ 9.600000e-2	4.612000e-22
+ 9.700000e-2	4.881000e-22
+ 9.800000e-2	5.149000e-22
+ 9.900000e-2	5.417000e-22
+ 1.000000e-1	5.686000e-22
+ 1.100000e-1	9.024000e-22
+ 1.200000e-1	1.290000e-21
+ 1.300000e-1	1.741000e-21
+ 1.400000e-1	2.235000e-21
+ 1.500000e-1	2.686000e-21
+ 1.600000e-1	3.126000e-21
+ 1.700000e-1	3.579000e-21
+ 1.800000e-1	4.057000e-21
+ 1.900000e-1	4.466000e-21
+ 2.000000e-1	4.870000e-21
+ 2.100000e-1	5.213000e-21
+ 2.200000e-1	5.534000e-21
+ 2.300000e-1	5.855000e-21
+ 2.400000e-1	6.162000e-21
+ 2.500000e-1	6.465000e-21
+ 2.600000e-1	6.739000e-21
+ 2.700000e-1	6.972000e-21
+ 2.800000e-1	7.202000e-21
+ 2.900000e-1	7.431000e-21
+ 3.000000e-1	7.659000e-21
+ 3.100000e-1	7.886000e-21
+ 3.200000e-1	8.056000e-21
+ 3.300000e-1	8.190000e-21
+ 3.400000e-1	8.320000e-21
+ 3.500000e-1	8.452000e-21
+ 3.600000e-1	8.582000e-21
+ 3.700000e-1	8.711000e-21
+ 3.800000e-1	8.841000e-21
+ 3.900000e-1	8.969000e-21
+ 4.000000e-1	9.097000e-21
+ 4.100000e-1	9.225000e-21
+ 4.200000e-1	9.347000e-21
+ 4.300000e-1	9.442000e-21
+ 4.400000e-1	9.534000e-21
+ 4.500000e-1	9.625000e-21
+ 4.600000e-1	9.716000e-21
+ 4.700000e-1	9.807000e-21
+ 4.800000e-1	9.896000e-21
+ 4.900000e-1	9.979000e-21
+ 5.000000e-1	1.006000e-20
+ 5.100000e-1	1.018000e-20
+ 5.200000e-1	1.026000e-20
+ 5.300000e-1	1.035000e-20
+ 5.400000e-1	1.044000e-20
+ 5.500000e-1	1.048000e-20
+ 5.600000e-1	1.051000e-20
+ 5.700000e-1	1.054000e-20
+ 5.800000e-1	1.057000e-20
+ 5.900000e-1	1.060000e-20
+ 6.000000e-1	1.062000e-20
+ 6.100000e-1	1.065000e-20
+ 6.200000e-1	1.067000e-20
+ 6.300000e-1	1.066000e-20
+ 6.400000e-1	1.065000e-20
+ 6.500000e-1	1.065000e-20
+ 6.600000e-1	1.064000e-20
+ 6.700000e-1	1.063000e-20
+ 6.800000e-1	1.061000e-20
+ 6.900000e-1	1.060000e-20
+ 7.000000e-1	1.056000e-20
+ 7.100000e-1	1.049000e-20
+ 7.200000e-1	1.042000e-20
+ 7.300000e-1	1.035000e-20
+ 7.400000e-1	1.028000e-20
+ 7.500000e-1	1.021000e-20
+ 7.600000e-1	1.014000e-20
+ 7.700000e-1	9.999000e-21
+ 7.800000e-1	9.861000e-21
+ 7.900000e-1	9.717000e-21
+ 8.000000e-1	9.574000e-21
+ 8.100000e-1	9.431000e-21
+ 8.200000e-1	9.292000e-21
+ 8.300000e-1	9.118000e-21
+ 8.400000e-1	8.863000e-21
+ 8.500000e-1	8.609000e-21
+ 8.600000e-1	8.352000e-21
+ 8.700000e-1	8.107000e-21
+ 8.800000e-1	7.849000e-21
+ 8.900000e-1	7.567000e-21
+ 9.000000e-1	7.274000e-21
+ 9.100000e-1	6.984000e-21
+ 9.200000e-1	6.696000e-21
+ 9.300000e-1	6.337000e-21
+ 9.400000e-1	5.953000e-21
+ 9.500000e-1	5.582000e-21
+ 9.600000e-1	5.099000e-21
+ 9.700000e-1	4.612000e-21
+ 9.800000e-1	4.129000e-21
+ 9.900000e-1	3.720000e-21
+ 1.000000e+0	3.323000e-21
+ 1.010000e+0	2.968000e-21
+ 1.020000e+0	2.559000e-21
+ 1.030000e+0	2.096000e-21
+ 1.032000e+0	2.027000e-21
+ 1.034000e+0	1.958000e-21
+ 1.036000e+0	1.874000e-21
+ 1.038000e+0	1.774000e-21
+ 1.040000e+0	1.674000e-21
+ 1.042000e+0	1.583000e-21
+ 1.044000e+0	1.500000e-21
+ 1.046000e+0	1.418000e-21
+ 1.048000e+0	1.338000e-21
+ 1.050000e+0	1.259000e-21
+ 1.051000e+0	1.224000e-21
+ 1.052000e+0	1.188000e-21
+ 1.053000e+0	1.153000e-21
+ 1.054000e+0	1.118000e-21
+ 1.055000e+0	7.782000e-22
+ 1.056000e+0	7.820000e-22
+ 1.057000e+0	7.859000e-22
+ 1.059000e+0	0.000000e+0
+-----------------------------
+
+EXCITATION
+Cl2 -> Cl2(v)
+ 1.390000e-1
+SPECIES: e / Cl2
+PROCESS: E + Cl2 -> E + Cl2(v), Excitation
+PARAM.:  E = 0.139 eV, complete set
+COMMENT: Obtained from measured total cross section by subtraction, J Gregorio L C Pitchford 2012.
+UPDATED: 2012-02-01 04:29:31
+COLUMNS: Energy (eV) | Cross section (m2)
+-----------------------------
+ 0.000000e+0	0.000000e+0
+ 1.390000e-1	0.000000e+0
+ 2.450000e+0	0.000000e+0
+ 2.500000e+0	2.220000e-22
+ 2.600000e+0	3.210000e-22
+ 2.700000e+0	8.360000e-22
+ 2.800000e+0	1.451000e-21
+ 2.900000e+0	2.079000e-21
+ 3.000000e+0	2.708000e-21
+ 3.100000e+0	3.836000e-21
+ 3.200000e+0	4.964000e-21
+ 3.300000e+0	5.979000e-21
+ 3.400000e+0	7.094000e-21
+ 3.500000e+0	8.199000e-21
+ 3.600000e+0	9.305000e-21
+ 3.700000e+0	1.030000e-20
+ 3.800000e+0	1.149000e-20
+ 3.900000e+0	1.288000e-20
+ 4.000000e+0	1.437000e-20
+ 4.100000e+0	1.635000e-20
+ 4.200000e+0	1.843000e-20
+ 4.300000e+0	2.041000e-20
+ 4.400000e+0	2.151000e-20
+ 4.500000e+0	2.351000e-20
+ 4.600000e+0	2.617000e-20
+ 4.700000e+0	2.897000e-20
+ 4.800000e+0	3.176000e-20
+ 4.900000e+0	3.466000e-20
+ 5.000000e+0	3.775000e-20
+ 5.100000e+0	4.345000e-20
+ 5.200000e+0	4.909000e-20
+ 5.300000e+0	5.483000e-20
+ 5.400000e+0	6.058000e-20
+ 5.500000e+0	6.623000e-20
+ 5.600000e+0	7.198000e-20
+ 5.700000e+0	7.773000e-20
+ 5.800000e+0	8.339000e-20
+ 5.900000e+0	8.906000e-20
+ 6.000000e+0	9.483000e-20
+ 6.100000e+0	9.949000e-20
+ 6.200000e+0	1.043000e-19
+ 6.300000e+0	1.089000e-19
+ 6.400000e+0	1.137000e-19
+ 6.500000e+0	1.184000e-19
+ 6.600000e+0	1.230000e-19
+ 6.700000e+0	1.278000e-19
+ 6.800000e+0	1.324000e-19
+ 6.900000e+0	1.372000e-19
+ 7.000000e+0	1.418000e-19
+ 7.100000e+0	1.415000e-19
+ 7.200000e+0	1.393000e-19
+ 7.300000e+0	1.383000e-19
+ 7.400000e+0	1.372000e-19
+ 7.500000e+0	1.363000e-19
+ 7.600000e+0	1.352000e-19
+ 7.700000e+0	1.344000e-19
+ 7.800000e+0	1.335000e-19
+ 7.900000e+0	1.325000e-19
+ 8.000000e+0	1.316000e-19
+ 8.100000e+0	1.273000e-19
+ 8.200000e+0	1.232000e-19
+ 8.300000e+0	1.192000e-19
+ 8.400000e+0	1.152000e-19
+ 8.500000e+0	1.111000e-19
+ 8.600000e+0	1.077000e-19
+ 8.700000e+0	1.044000e-19
+ 8.800000e+0	1.010000e-19
+ 8.900000e+0	9.769000e-20
+ 9.000000e+0	9.429000e-20
+ 9.100000e+0	9.199000e-20
+ 9.200000e+0	8.980000e-20
+ 9.300000e+0	8.750000e-20
+ 9.400000e+0	8.530000e-20
+ 9.500000e+0	8.300000e-20
+ 9.600000e+0	8.130000e-20
+ 9.700000e+0	7.980000e-20
+ 9.800000e+0	7.840000e-20
+ 9.900000e+0	7.690000e-20
+ 1.000000e+1	7.550000e-20
+ 1.050000e+1	7.077000e-20
+ 1.100000e+1	6.569000e-20
+ 1.150000e+1	6.084000e-20
+ 1.200000e+1	5.685000e-20
+ 1.250000e+1	5.110000e-20
+ 1.300000e+1	4.533000e-20
+ 1.350000e+1	4.131000e-20
+ 1.400000e+1	3.711000e-20
+ 1.450000e+1	3.104000e-20
+ 1.500000e+1	2.482000e-20
+ 1.550000e+1	1.920000e-20
+ 1.600000e+1	1.449000e-20
+ 1.650000e+1	1.063000e-20
+ 1.700000e+1	6.862000e-21
+ 1.750000e+1	3.169000e-21
+ 1.800000e+1	0.000000e+0
+-----------------------------
+
+EXCITATION
+Cl2 -> Cl2(3PI_u)
+ 3.360000e+0
+SPECIES: e / Cl2
+PROCESS: E + Cl2 -> E + Cl2(3PI_u), Excitation
+PARAM.:  E = 3.36 eV, complete set
+COMMENT: Dissociative electronic excitation 3pi_u  Rescigno T N 1994 Phys. Rev. A 50 1382 (x 1.3).
+UPDATED: 2012-02-01 05:52:15
+COLUMNS: Energy (eV) | Cross section (m2)
+-----------------------------
+ 0.000000e+0	0.000000e+0
+ 3.360000e+0	0.000000e+0
+ 4.366000e+0	8.450000e-22
+ 4.584000e+0	1.208000e-21
+ 4.998000e+0	1.544000e-21
+ 5.503000e+0	1.940000e-21
+ 6.007000e+0	2.332000e-21
+ 6.390000e+0	2.672000e-21
+ 7.240000e+0	3.597000e-21
+ 7.558000e+0	3.904000e-21
+ 8.095000e+0	4.159000e-21
+ 1.002000e+1	5.112000e-21
+ 1.211000e+1	5.225000e-21
+ 1.505000e+1	6.099000e-21
+ 2.004000e+1	5.617000e-21
+ 2.504000e+1	5.112000e-21
+ 3.000000e+1	4.300000e-21
+ 4.740000e+1	2.080000e-21
+ 9.740000e+1	8.710000e-22
+-----------------------------
+
+EXCITATION
+Cl2 -> Cl2(1PI_u)
+ 4.300000e+0
+SPECIES: e / Cl2
+PROCESS: E + Cl2 -> E + Cl2(1PI_u), Excitation
+PARAM.:  E = 4.3 eV, complete set
+COMMENT: Dissociative electronic excitation 1pi_u  Rescigno T N 1994 Phys. Rev. A 50 1382 (x 1.3).
+UPDATED: 2012-02-01 05:52:29
+COLUMNS: Energy (eV) | Cross section (m2)
+-----------------------------
+ 0.000000e+0	0.000000e+0
+ 4.300000e+0	0.000000e+0
+ 4.393000e+0	1.680000e-22
+ 4.551000e+0	4.995000e-22
+ 5.115000e+0	1.055000e-21
+ 5.553000e+0	1.307000e-21
+ 6.117000e+0	1.638000e-21
+ 6.528000e+0	1.806000e-21
+ 7.309000e+0	2.390000e-21
+ 7.562000e+0	2.665000e-21
+ 8.063000e+0	2.973000e-21
+ 1.004000e+1	4.387000e-21
+ 1.211000e+1	4.084000e-21
+ 1.509000e+1	4.387000e-21
+ 2.002000e+1	2.833000e-21
+ 2.504000e+1	3.556000e-21
+ 3.000000e+1	2.082000e-21
+ 4.740000e+1	1.040000e-21
+ 9.740000e+1	4.810000e-22
+-----------------------------
+
+EXCITATION
+Cl2 -> Cl2(3PI_g)
+ 6.380000e+0
+SPECIES: e / Cl2
+PROCESS: E + Cl2 -> E + Cl2(3PI_g), Excitation
+PARAM.:  E = 6.38 eV, complete set
+COMMENT: Dissociative electronic excitation 3pi_g  Rescigno T N 1994 Phys. Rev. A 50 1382 (x 1.3).
+UPDATED: 2012-02-01 05:52:40
+COLUMNS: Energy (eV) | Cross section (m2)
+-----------------------------
+ 0.000000e+0	0.000000e+0
+ 6.380000e+0	0.000000e+0
+ 7.127000e+0	1.090000e-21
+ 7.351000e+0	1.485000e-21
+ 7.984000e+0	1.621000e-21
+ 1.004000e+1	1.513000e-21
+ 1.194000e+1	1.260000e-21
+ 1.502000e+1	2.966000e-21
+ 2.012000e+1	3.412000e-21
+ 2.512000e+1	4.169000e-21
+ 3.000000e+1	3.412000e-21
+ 4.740000e+1	1.690000e-21
+ 9.740000e+1	7.410000e-22
+-----------------------------
+
+EXCITATION
+Cl2 -> Cl2(1PI_g)
+ 7.010000e+0
+SPECIES: e / Cl2
+PROCESS: E + Cl2 -> E + Cl2(1PI_g), Excitation
+PARAM.:  E = 7.01 eV, complete set
+COMMENT: Dissociative electronic excitation 1pi_g  Rescigno T N 1994 Phys. Rev. A 50 1382 (x 1.3).
+UPDATED: 2012-02-01 05:52:59
+COLUMNS: Energy (eV) | Cross section (m2)
+-----------------------------
+ 0.000000e+0	0.000000e+0
+ 7.100000e+0	0.000000e+0
+ 8.048000e+0	2.259000e-22
+ 1.001000e+1	3.671000e-22
+ 1.204000e+1	1.205000e-21
+ 1.505000e+1	1.318000e-21
+ 2.008000e+1	1.374000e-21
+ 2.515000e+1	2.240000e-21
+ 3.000000e+1	1.120000e-21
+ 4.740000e+1	5.200000e-22
+ 9.740000e+1	2.340000e-22
+-----------------------------
+
+EXCITATION
+Cl2 -> Cl2(3SIG_u)
+ 7.020000e+0
+SPECIES: e / Cl2
+PROCESS: E + Cl2 -> E + Cl2(3SIG_u), Excitation
+PARAM.:  E = 7.02 eV, complete set
+COMMENT: Dissociative electronic excitation 3sig_u  Rescigno T N 1994 Phys. Rev. A 50 1382 (x
+COMMENT: 1.3).
+UPDATED: 2012-02-01 05:53:10
+COLUMNS: Energy (eV) | Cross section (m2)
+-----------------------------
+ 0.000000e+0	0.000000e+0
+ 7.020000e+0	0.000000e+0
+ 7.191000e+0	4.479000e-22
+ 7.575000e+0	1.291000e-21
+ 8.048000e+0	2.583000e-21
+ 1.004000e+1	2.107000e-21
+ 1.204000e+1	1.711000e-21
+ 1.508000e+1	2.555000e-21
+ 1.999000e+1	4.459000e-21
+ 2.503000e+1	2.918000e-21
+ 2.997000e+1	3.337000e-21
+ 4.740000e+1	1.430000e-21
+ 9.740000e+1	6.760000e-22
+-----------------------------
+
+EXCITATION
+Cl2 -> Cl2(1PI_ub)
+ 1.054000e+1
+SPECIES: e / Cl2
+PROCESS: E + Cl2 -> E + Cl2(1PI_ub), Excitation
+PARAM.:  E = 10.54 eV, complete set
+COMMENT: electronic excitation 1pi_ub Rydberg Rescigno T N 1994 Phys. Rev. A 50 1382 (x 1.3)
+COMMENT: Extrapolation to higher energies using log(e)/e, done automatically in Bolsig+.
+UPDATED: 2012-02-01 05:53:28
+COLUMNS: Energy (eV) | Cross section (m2)
+-----------------------------
+ 0.000000e+0	0.000000e+0
+ 1.054100e+1	0.000000e+0
+ 1.057000e+1	4.870000e-23
+ 1.062000e+1	8.560000e-23
+ 1.068000e+1	1.072000e-22
+ 1.080000e+1	1.681000e-22
+ 1.088000e+1	2.105000e-22
+ 1.100000e+1	2.472000e-22
+ 1.108000e+1	2.811000e-22
+ 1.117000e+1	3.030000e-22
+ 1.131000e+1	3.372000e-22
+ 1.143000e+1	3.674000e-22
+ 1.163000e+1	4.133000e-22
+ 1.181000e+1	4.551000e-22
+ 1.192000e+1	4.906000e-22
+ 1.209000e+1	5.344000e-22
+ 1.224000e+1	5.885000e-22
+ 1.244000e+1	6.481000e-22
+ 1.261000e+1	7.060000e-22
+ 1.279000e+1	7.692000e-22
+ 1.293000e+1	8.202000e-22
+ 1.313000e+1	9.032000e-22
+ 1.336000e+1	1.005000e-21
+ 1.359000e+1	1.119000e-21
+ 1.397000e+1	1.342000e-21
+ 1.440000e+1	1.593000e-21
+ 1.475000e+1	1.831000e-21
+ 1.501000e+1	1.995000e-21
+ 1.538000e+1	2.269000e-21
+ 1.584000e+1	2.664000e-21
+ 1.639000e+1	3.128000e-21
+ 1.674000e+1	3.408000e-21
+ 1.734000e+1	3.794000e-21
+ 1.775000e+1	3.960000e-21
+ 1.821000e+1	4.045000e-21
+ 1.858000e+1	4.045000e-21
+ 1.922000e+1	4.045000e-21
+ 1.971000e+1	4.045000e-21
+ 2.025000e+1	4.089000e-21
+ 2.089000e+1	4.222000e-21
+ 2.129000e+1	4.314000e-21
+ 2.178000e+1	4.455000e-21
+ 2.253000e+1	4.700000e-21
+ 2.357000e+1	4.958000e-21
+ 2.438000e+1	5.175000e-21
+ 2.507000e+1	5.344000e-21
+ 2.562000e+1	5.460000e-21
+ 2.619000e+1	5.578000e-21
+ 2.657000e+1	5.638000e-21
+ 2.795000e+1	5.869000e-21
+ 2.839000e+1	5.918000e-21
+ 3.000000e+1	6.143000e-21
+-----------------------------
+
+EXCITATION
+Cl2 -> Cl2(1SIG_ub)
+ 1.070000e+1
+SPECIES: e / Cl2
+PROCESS: E + Cl2 -> E + Cl2(1SIG_ub), Excitation
+PARAM.:  E = 10.7 eV, complete set
+COMMENT: electronic excitation 1sig_ub Rydberg Rescigno T N 1994 Phys. Rev. A 50 1382 (x 1.3)
+COMMENT: Extrapolation to higher energies using log(e)/e, done automatically in Bolsig+.
+UPDATED: 2012-02-01 05:53:42
+COLUMNS: Energy (eV) | Cross section (m2)
+-----------------------------
+ 0.000000e+0	0.000000e+0
+ 1.070000e+1	0.000000e+0
+ 1.074000e+1	2.640000e-23
+ 1.080000e+1	3.060000e-23
+ 1.088000e+1	3.560000e-23
+ 1.103000e+1	4.220000e-23
+ 1.117000e+1	4.700000e-23
+ 1.134000e+1	5.120000e-23
+ 1.166000e+1	5.890000e-23
+ 1.186000e+1	6.690000e-23
+ 1.201000e+1	7.450000e-23
+ 1.218000e+1	8.470000e-23
+ 1.238000e+1	9.840000e-23
+ 1.258000e+1	1.143000e-22
+ 1.279000e+1	1.259000e-22
+ 1.293000e+1	1.401000e-22
+ 1.316000e+1	1.593000e-22
+ 1.333000e+1	1.793000e-22
+ 1.351000e+1	1.995000e-22
+ 1.371000e+1	2.174000e-22
+ 1.394000e+1	2.525000e-22
+ 1.417000e+1	2.841000e-22
+ 1.440000e+1	3.231000e-22
+ 1.466000e+1	3.674000e-22
+ 1.495000e+1	4.268000e-22
+ 1.527000e+1	5.012000e-22
+ 1.558000e+1	6.013000e-22
+ 1.590000e+1	6.911000e-22
+ 1.610000e+1	7.610000e-22
+ 1.642000e+1	8.561000e-22
+ 1.674000e+1	9.632000e-22
+ 1.711000e+1	1.038000e-21
+ 1.743000e+1	1.107000e-21
+ 1.769000e+1	1.119000e-21
+ 1.806000e+1	1.115000e-21
+ 1.858000e+1	1.072000e-21
+ 1.899000e+1	1.025000e-21
+ 1.936000e+1	9.840000e-22
+ 1.997000e+1	9.228000e-22
+ 2.046000e+1	9.130000e-22
+ 2.083000e+1	9.130000e-22
+ 2.138000e+1	9.376000e-22
+ 2.216000e+1	9.736000e-22
+ 2.351000e+1	1.027000e-21
+ 2.478000e+1	1.072000e-21
+ 2.622000e+1	1.119000e-21
+ 2.654000e+1	1.131000e-21
+ 2.752000e+1	1.168000e-21
+ 2.792000e+1	1.180000e-21
+ 2.864000e+1	1.206000e-21
+ 3.000000e+1	1.245000e-21
+-----------------------------
+
+EXCITATION
+Cl2 -> Cl^- + Cl^+
+ 1.100000e+1
+SPECIES: e / Cl2
+PROCESS: E + Cl2 -> E + Cl- + Cl+, Excitation
+PARAM.:  E = 11 eV, complete set
+COMMENT: ion pair creation, Kurepa M V and Belic D S 1978 J. Phys. B: Atom. Molec. Phys. 11 3719.
+UPDATED: 2012-02-01 05:58:09
+COLUMNS: Energy (eV) | Cross section (m2)
+-----------------------------
+ 0.000000e+0	0.000000e+0
+ 1.100000e+1	0.000000e+0
+ 1.200000e+1	1.220000e-23
+ 1.300000e+1	4.600000e-23
+ 1.400000e+1	9.000000e-23
+ 1.600000e+1	1.800000e-22
+ 1.800000e+1	2.400000e-22
+ 2.000000e+1	2.580000e-22
+ 2.200000e+1	2.400000e-22
+ 2.400000e+1	2.070000e-22
+ 2.600000e+1	1.660000e-22
+ 2.800000e+1	1.350000e-22
+ 3.000000e+1	1.080000e-22
+ 3.200000e+1	8.900000e-23
+ 3.400000e+1	7.400000e-23
+ 3.600000e+1	6.500000e-23
+ 3.800000e+1	6.200000e-23
+ 4.000000e+1	6.000000e-23
+ 4.400000e+1	6.200000e-23
+ 4.600000e+1	6.400000e-23
+ 4.800000e+1	6.900000e-23
+ 5.000000e+1	7.600000e-23
+ 5.200000e+1	8.800000e-23
+ 5.400000e+1	1.050000e-22
+ 5.600000e+1	1.280000e-22
+ 5.800000e+1	1.520000e-22
+ 6.000000e+1	1.760000e-22
+ 6.200000e+1	1.960000e-22
+ 6.400000e+1	2.180000e-22
+ 6.600000e+1	2.340000e-22
+ 6.800000e+1	2.520000e-22
+ 7.000000e+1	2.720000e-22
+ 7.200000e+1	3.180000e-22
+ 7.400000e+1	3.730000e-22
+ 7.600000e+1	4.060000e-22
+ 7.800000e+1	4.240000e-22
+ 7.900000e+1	4.280000e-22
+ 8.000000e+1	4.250000e-22
+ 8.200000e+1	4.200000e-22
+ 8.400000e+1	4.130000e-22
+ 8.600000e+1	4.040000e-22
+ 8.800000e+1	3.940000e-22
+ 9.000000e+1	3.820000e-22
+ 9.200000e+1	3.700000e-22
+ 9.400000e+1	3.570000e-22
+ 9.600000e+1	3.400000e-22
+ 9.800000e+1	3.220000e-22
+ 1.000000e+2	3.070000e-22
+-----------------------------
+
+IONIZATION
+Cl2 -> Cl2^+
+ 1.149000e+1
+SPECIES: e / Cl2
+PROCESS: E + Cl2 -> E + E + Cl2+, Ionization
+PARAM.:  E = 11.49 eV, complete set
+COMMENT: Basner R and Becker K 2004 New J. of Phys. 6 118.
+UPDATED: 2012-02-01 04:44:13
+COLUMNS: Energy (eV) | Cross section (m2)
+-----------------------------
+ 0.000000e+0	0.000000e+0
+ 1.149000e+1	0.000000e+0
+ 1.200000e+1	1.000000e-21
+ 1.300000e+1	3.460000e-21
+ 1.400000e+1	7.460000e-21
+ 1.500000e+1	1.130000e-20
+ 1.600000e+1	1.580000e-20
+ 1.700000e+1	2.000000e-20
+ 1.800000e+1	2.390000e-20
+ 1.900000e+1	2.720000e-20
+ 2.000000e+1	3.130000e-20
+ 2.200000e+1	3.650000e-20
+ 2.400000e+1	4.000000e-20
+ 2.600000e+1	4.300000e-20
+ 2.800000e+1	4.490000e-20
+ 3.000000e+1	4.570000e-20
+ 3.200000e+1	4.590000e-20
+ 3.400000e+1	4.540000e-20
+ 3.600000e+1	4.440000e-20
+ 3.800000e+1	4.360000e-20
+ 4.000000e+1	4.310000e-20
+ 4.200000e+1	4.280000e-20
+ 4.400000e+1	4.260000e-20
+ 4.600000e+1	4.250000e-20
+ 4.800000e+1	4.270000e-20
+ 5.000000e+1	4.310000e-20
+ 5.250000e+1	4.340000e-20
+ 5.500000e+1	4.380000e-20
+ 5.750000e+1	4.410000e-20
+ 6.000000e+1	4.430000e-20
+ 6.500000e+1	4.490000e-20
+ 7.000000e+1	4.520000e-20
+ 8.000000e+1	4.550000e-20
+ 9.000000e+1	4.510000e-20
+ 1.000000e+2	4.500000e-20
+ 1.200000e+2	4.410000e-20
+ 1.400000e+2	4.170000e-20
+ 1.600000e+2	4.120000e-20
+ 1.800000e+2	4.030000e-20
+ 2.000000e+2	3.870000e-20
+ 3.000000e+2	3.220000e-20
+ 4.000000e+2	2.790000e-20
+ 5.000000e+2	2.450000e-20
+ 6.000000e+2	2.140000e-20
+ 7.000000e+2	1.980000e-20
+ 8.000000e+2	1.800000e-20
+ 9.000000e+2	1.630000e-20
+-----------------------------
+
+IONIZATION
+Cl2 -> Cl^+ + Cl
+ 1.149000e+1
+SPECIES: e / Cl2
+PROCESS: E + Cl2 -> E + E + Cl+ + Cl, Ionization
+PARAM.:  E = 11.49 eV, complete set
+COMMENT: Basner R and Becker K 2004 New J. of Phys. 6 118.
+UPDATED: 2012-02-01 05:40:56
+COLUMNS: Energy (eV) | Cross section (m2)
+-----------------------------
+ 0.000000e+0	0.000000e+0
+ 1.149000e+1	0.000000e+0
+ 1.200000e+1	0.000000e+0
+ 1.300000e+1	1.400000e-22
+ 1.400000e+1	3.200000e-22
+ 1.500000e+1	5.500000e-22
+ 1.600000e+1	8.100000e-22
+ 1.700000e+1	1.260000e-21
+ 1.800000e+1	2.090000e-21
+ 1.900000e+1	2.970000e-21
+ 2.000000e+1	4.350000e-21
+ 2.200000e+1	7.150000e-21
+ 2.400000e+1	1.080000e-20
+ 2.600000e+1	1.430000e-20
+ 2.800000e+1	1.850000e-20
+ 3.000000e+1	2.180000e-20
+ 3.200000e+1	2.670000e-20
+ 3.400000e+1	2.930000e-20
+ 3.600000e+1	3.130000e-20
+ 3.800000e+1	3.300000e-20
+ 4.000000e+1	3.400000e-20
+ 4.200000e+1	3.550000e-20
+ 4.400000e+1	3.630000e-20
+ 4.600000e+1	3.680000e-20
+ 4.800000e+1	3.740000e-20
+ 5.000000e+1	3.800000e-20
+ 5.250000e+1	3.850000e-20
+ 5.500000e+1	3.870000e-20
+ 5.750000e+1	3.900000e-20
+ 6.000000e+1	3.950000e-20
+ 6.500000e+1	3.990000e-20
+ 7.000000e+1	4.030000e-20
+ 8.000000e+1	4.010000e-20
+ 9.000000e+1	3.900000e-20
+ 1.000000e+2	3.840000e-20
+ 1.200000e+2	3.670000e-20
+ 1.400000e+2	3.350000e-20
+ 1.600000e+2	3.230000e-20
+ 1.800000e+2	3.040000e-20
+ 2.000000e+2	2.860000e-20
+ 3.000000e+2	2.160000e-20
+ 4.000000e+2	1.760000e-20
+ 5.000000e+2	1.450000e-20
+ 6.000000e+2	1.250000e-20
+ 7.000000e+2	1.110000e-20
+ 8.000000e+2	9.730000e-21
+ 9.000000e+2	8.900000e-21
+-----------------------------
+
+IONIZATION
+Cl2 -> Cl2^++
+ 3.550000e+1
+SPECIES: e / Cl2
+PROCESS: E + Cl2 -> E + E + Cl2++, Ionization
+PARAM.:  E = 35.5 eV, complete set
+COMMENT: Basner R and Becker K 2004 New J. of Phys. 6 118.
+UPDATED: 2012-02-01 05:45:11
+COLUMNS: Energy (eV) | Cross section (m2)
+-----------------------------
+ 0.000000e+0	0.000000e+0
+ 3.550000e+1	0.000000e+0
+ 3.600000e+1	3.000000e-23
+ 3.800000e+1	1.000000e-22
+ 4.000000e+1	2.100000e-22
+ 4.200000e+1	3.000000e-22
+ 4.400000e+1	4.800000e-22
+ 4.600000e+1	7.000000e-22
+ 4.800000e+1	8.900000e-22
+ 5.000000e+1	9.900000e-22
+ 5.250000e+1	1.040000e-21
+ 5.500000e+1	1.090000e-21
+ 5.750000e+1	1.120000e-21
+ 6.000000e+1	1.170000e-21
+ 6.500000e+1	1.230000e-21
+ 7.000000e+1	1.270000e-21
+ 8.000000e+1	1.290000e-21
+ 9.000000e+1	1.280000e-21
+ 1.000000e+2	1.230000e-21
+ 1.200000e+2	1.060000e-21
+ 1.400000e+2	9.600000e-22
+ 1.600000e+2	8.400000e-22
+ 1.800000e+2	7.500000e-22
+ 2.000000e+2	6.800000e-22
+ 3.000000e+2	5.400000e-22
+ 4.000000e+2	4.300000e-22
+ 5.000000e+2	2.900000e-22
+ 6.000000e+2	2.000000e-22
+ 7.000000e+2	1.600000e-22
+ 8.000000e+2	1.200000e-22
+ 9.000000e+2	1.100000e-22
+-----------------------------
+
+IONIZATION
+Cl2 -> Cl^++ + Cl
+ 4.350000e+1
+SPECIES: e / Cl2
+PROCESS: E + Cl2 -> E + E + Cl++ + Cl, Ionization
+PARAM.:  E = 43.5 eV, complete set
+COMMENT: Basner R and Becker K 2004 New J. of Phys. 6 118.
+UPDATED: 2012-02-01 04:46:58
+COLUMNS: Energy (eV) | Cross section (m2)
+-----------------------------
+ 0.000000e+0	0.000000e+0
+ 4.350000e+1	0.000000e+0
+ 4.400000e+1	5.000000e-23
+ 4.600000e+1	1.300000e-22
+ 4.800000e+1	3.300000e-22
+ 5.000000e+1	4.500000e-22
+ 5.250000e+1	7.800000e-22
+ 5.500000e+1	9.900000e-22
+ 5.750000e+1	1.120000e-21
+ 6.000000e+1	1.210000e-21
+ 6.500000e+1	1.390000e-21
+ 7.000000e+1	1.520000e-21
+ 8.000000e+1	1.900000e-21
+ 9.000000e+1	2.070000e-21
+ 1.000000e+2	2.210000e-21
+ 1.200000e+2	2.160000e-21
+ 1.400000e+2	2.050000e-21
+ 1.600000e+2	1.870000e-21
+ 1.800000e+2	1.710000e-21
+ 2.000000e+2	1.580000e-21
+ 3.000000e+2	1.220000e-21
+ 4.000000e+2	1.020000e-21
+ 5.000000e+2	9.100000e-22
+ 6.000000e+2	7.800000e-22
+ 7.000000e+2	7.100000e-22
+ 8.000000e+2	6.300000e-22
+ 9.000000e+2	6.200000e-22
+-----------------------------
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

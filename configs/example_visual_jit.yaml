@@ -1,27 +1,27 @@
 experiment:
-  name: ar_n2_en_scan_jit
+  name: ar_cl2_en_scan_jit2
   output_root: outputs
-  base_name: Ar_N2
+  base_name: Ar_Cl2
   output_format: csv
   parallel_workers: 4          # 2 並列で実行
   plotting:
     summary: true
     first_run: true
     save: true
-    save_dir: outputs/ar_n2_en_scan_jit/plots
+    save_dir: outputs/ar_cl2_en_scan_jit2/plots
 
 base_config:
   input_gases:
-    gases: ["Ar", "N2"]
+    gases: ["Ar", "Cl2"]
     paths_to_cross_section_files:
       - cross_sections/Ar_Biagi.txt
-      - cross_sections/N2_Biagi.txt
+      - cross_sections/Cl.txt
     fractions: [0.3, 0.7]
     max_cross_section_energy: 1e3
 
   output:
     output_directory: outputs/
-    base_name: Ar_N2
+    base_name: Ar_Cl2
     save_simulation_pickle: false
     save_temporal_evolution: true
     save_swarm_parameters: true
@@ -82,6 +82,6 @@ base_config:
 
 sweep:
   param: EN
-  start: 50
+  start: 20
   stop: 500
-  step: 50
+  step: 20

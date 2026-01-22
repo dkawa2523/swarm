@@ -1,0 +1,51 @@
+comsol_export:
+  enabled: true
+
+  # Swarm の出力ディレクトリ（CLIの --run-dir で上書き可能）
+  run_dir: "../output/ar_cl2_en_scan_jit"
+
+  # 出力先（未指定なら <run_dir>/comsol）
+  output_dir: null
+
+  input:
+    # 代表パターン1: 既に summary/transport/rates を持っている場合
+    transport_csv: "transport.csv"   # run_dir からの相対パス
+    rates_csv: "rates.csv"
+
+    # EEDF の入力パターン
+    eedf:
+      mode: "auto"  # auto | stacked_csv | per_file
+      # mode=stacked_csv の場合（1ファイルに eps, epsbar, f の3列がある）
+      stacked_csv: "eedf.csv"
+      # mode=per_file の場合（平均エネルギーごとに EEDF ファイルが分割されている）
+      files_glob: "eedf/*.csv"
+      # ファイル名から epsbar[eV] を抜き出す場合の正規表現（例: eedf_epsbar_3.0eV.csv）
+      file_mean_energy_regex: "epsbar_(?P<epsbar>[0-9.]+)eV"
+
+      columns:
+        eps_eV: ["eps_eV", "energy_eV", "E_eV", "epsilon"]
+        epsbar_eV: ["epsbar_eV", "mean_energy_eV", "Ebar_eV", "mean_eps_eV"]
+        f: ["f_eV_m32", "eedf", "f", "F"]
+
+    columns:
+      epsbar_eV: ["epsbar_eV", "mean_energy_eV", "Ebar_eV", "mean_eps_eV"]
+      mu: ["mu_m2_V_s", "mobility", "mu"]
+      De: ["De_m2_s", "diffusion", "D"]
+
+      # rates_csv の列名が k_ で始まる前提（例: k_ion, k_attach）
+      rate_prefix: "k_"
+
+  processing:
+    sort_by_epsbar: true
+    deduplicate_epsbar: "average"   # error | first | average
+    epsbar_tol: 1.0e-8
+    eedf_normalization: "none"      # none | pdf_to_comsol
+
+  output:
+    transport_filename: "comsol_transport.csv"
+    rates_filename: "comsol_rates.csv"
+    eedf_filename: "comsol_eedf.csv"
+    report_filename: "comsol_export_report.json"
+    delimiter: ","
+    comment_char: "%"
+    float_format: "%.8e"
