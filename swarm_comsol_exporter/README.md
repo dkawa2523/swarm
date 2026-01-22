@@ -15,25 +15,24 @@ Swarm（電子Swarm / Boltzmann / Monte-Carloなど）の後処理として、**
 - `comsol_eedf.csv`  
   `ε[eV], ε̄[eV], f(ε;ε̄)[eV^(-3/2)]` の 3列（Spreadsheet形式）で出力  
 - `comsol_export_report.json`  
-  変換サマリ（範囲、点数、検証結果など）
+  変換サマリ（範囲、点数、列マップ、元列名など）
 
 ## クイックスタート
 1) 例の設定をコピーして編集します。
 
-```bash
-cp examples/comsol_export.yaml my_export.yaml
+```powershell
+Copy-Item .\examples\comsol_export.yaml .\my_export.yaml
 ```
 
 2) Swarmの出力ディレクトリを指定して実行します。
 
-```bash
-python -m swarm_comsol_export --config my_export.yaml --run-dir /path/to/swarm/output
+```powershell
+python -m swarm_comsol_export --config .\my_export.yaml --run-dir C:\path\to\swarm\output
 ```
 
 （インストールする場合）
-```bash
-pip install -e .
-swarm-comsol-export --config my_export.yaml --run-dir /path/to/swarm/output
+```powershell
+uv run python -m swarm_comsol_export --config .\my_export.yaml --run-dir C:\path\to\swarm\output
 ```
 
 ## COMSOL側の読み込み（概要）
@@ -46,7 +45,7 @@ COMSOLの **Global Definitions > Functions > Interpolation** で `Data source = 
 - `comsol_eedf.csv`: Number of arguments = 2  
   1列目が ε（電子エネルギー）、2列目が ε̄（平均電子エネルギー）、3列目が f（EEDF）
 
-詳細は `docs/COMSOL_IMPORT_GUIDE.md` を参照してください。
+詳細は `docs/COMSOL_IMPORT_GUIDE.md` を参照してください（CSV 先頭の `%` コメントに列マップが出力されます）。
 
 ## 入力ファイル（Swarm出力）について
 本ツールはリポジトリ差分を吸収できるように、入力側を **設定(YAML)で定義**します。

@@ -1,8 +1,0 @@
-numpy
-scipy
-pandas
-matplotlib
-json5
-molmass
-pyyaml
-lxcat_data_parser

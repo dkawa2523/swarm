@@ -1,53 +1,23 @@
 Execution log for ar_cl2_en_scan_jit2
-[2026-01-22 12:51:28] Starting sweep with 25 run(s) in parallel (workers=4)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_20.0' (E/N=20.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_40.0' (E/N=40.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_60.0' (E/N=60.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_80.0' (E/N=80.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_100.0' (E/N=100.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_120.0' (E/N=120.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_140.0' (E/N=140.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_160.0' (E/N=160.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_180.0' (E/N=180.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_200.0' (E/N=200.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_220.0' (E/N=220.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_240.0' (E/N=240.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_260.0' (E/N=260.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_280.0' (E/N=280.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_300.0' (E/N=300.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_320.0' (E/N=320.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_340.0' (E/N=340.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_360.0' (E/N=360.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_380.0' (E/N=380.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_400.0' (E/N=400.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_420.0' (E/N=420.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_440.0' (E/N=440.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_460.0' (E/N=460.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_480.0' (E/N=480.0 Td)
-[2026-01-22 12:51:28] Queue run 'Ar_Cl2_EN_500.0' (E/N=500.0 Td)
-[2026-01-22 12:51:40] Finished run 'Ar_Cl2_EN_60.0' in 10.537 s
-[2026-01-22 12:51:42] Finished run 'Ar_Cl2_EN_80.0' in 12.651 s
-[2026-01-22 12:51:47] Finished run 'Ar_Cl2_EN_100.0' in 6.587 s
-[2026-01-22 12:51:47] Finished run 'Ar_Cl2_EN_120.0' in 4.951 s
-[2026-01-22 12:51:49] Finished run 'Ar_Cl2_EN_40.0' in 19.145 s
-[2026-01-22 12:51:53] Finished run 'Ar_Cl2_EN_160.0' in 5.293 s
-[2026-01-22 12:51:53] Finished run 'Ar_Cl2_EN_140.0' in 6.370 s
-[2026-01-22 12:51:53] Finished run 'Ar_Cl2_EN_180.0' in 4.523 s
-[2026-01-22 12:51:57] Finished run 'Ar_Cl2_EN_220.0' in 3.872 s
-[2026-01-22 12:51:58] Finished run 'Ar_Cl2_EN_240.0' in 4.634 s
-[2026-01-22 12:51:59] Finished run 'Ar_Cl2_EN_200.0' in 5.911 s
-[2026-01-22 12:52:03] Finished run 'Ar_Cl2_EN_280.0' in 4.504 s
-[2026-01-22 12:52:06] Finished run 'Ar_Cl2_EN_300.0' in 6.867 s
-[2026-01-22 12:52:07] Finished run 'Ar_Cl2_EN_260.0' in 9.372 s
-[2026-01-22 12:52:09] Finished run 'Ar_Cl2_EN_320.0' in 5.802 s
-[2026-01-22 12:52:10] Finished run 'Ar_Cl2_EN_20.0' in 40.309 s
-[2026-01-22 12:52:11] Finished run 'Ar_Cl2_EN_340.0' in 5.547 s
-[2026-01-22 12:52:11] Finished run 'Ar_Cl2_EN_360.0' in 4.692 s
-[2026-01-22 12:52:14] Finished run 'Ar_Cl2_EN_380.0' in 5.517 s
-[2026-01-22 12:52:15] Finished run 'Ar_Cl2_EN_400.0' in 5.380 s
-[2026-01-22 12:52:15] Finished run 'Ar_Cl2_EN_440.0' in 4.041 s
-[2026-01-22 12:52:17] Finished run 'Ar_Cl2_EN_420.0' in 6.009 s
-[2026-01-22 12:52:18] Finished run 'Ar_Cl2_EN_500.0' in 2.830 s
-[2026-01-22 12:52:19] Finished run 'Ar_Cl2_EN_460.0' in 4.613 s
-[2026-01-22 12:52:19] Finished run 'Ar_Cl2_EN_480.0' in 3.846 s
-[2026-01-22 12:52:20] Completed sweep in 51.043 s
+[2026-01-22 15:32:16] Starting sweep with 10 run(s) in parallel (workers=4)
+[2026-01-22 15:32:16] Queue run 'Ar_Cl2_EN_50.0' (E/N=50.0 Td)
+[2026-01-22 15:32:16] Queue run 'Ar_Cl2_EN_100.0' (E/N=100.0 Td)
+[2026-01-22 15:32:16] Queue run 'Ar_Cl2_EN_150.0' (E/N=150.0 Td)
+[2026-01-22 15:32:16] Queue run 'Ar_Cl2_EN_200.0' (E/N=200.0 Td)
+[2026-01-22 15:32:16] Queue run 'Ar_Cl2_EN_250.0' (E/N=250.0 Td)
+[2026-01-22 15:32:16] Queue run 'Ar_Cl2_EN_300.0' (E/N=300.0 Td)
+[2026-01-22 15:32:16] Queue run 'Ar_Cl2_EN_350.0' (E/N=350.0 Td)
+[2026-01-22 15:32:16] Queue run 'Ar_Cl2_EN_400.0' (E/N=400.0 Td)
+[2026-01-22 15:32:16] Queue run 'Ar_Cl2_EN_450.0' (E/N=450.0 Td)
+[2026-01-22 15:32:16] Queue run 'Ar_Cl2_EN_500.0' (E/N=500.0 Td)
+[2026-01-22 15:32:22] Finished run 'Ar_Cl2_EN_200.0' in 5.041 s
+[2026-01-22 15:32:24] Finished run 'Ar_Cl2_EN_150.0' in 6.354 s
+[2026-01-22 15:32:26] Finished run 'Ar_Cl2_EN_100.0' in 8.369 s
+[2026-01-22 15:32:28] Finished run 'Ar_Cl2_EN_250.0' in 5.368 s
+[2026-01-22 15:32:28] Finished run 'Ar_Cl2_EN_300.0' in 4.500 s
+[2026-01-22 15:32:29] Finished run 'Ar_Cl2_EN_350.0' in 3.658 s
+[2026-01-22 15:32:30] Finished run 'Ar_Cl2_EN_50.0' in 13.019 s
+[2026-01-22 15:32:33] Finished run 'Ar_Cl2_EN_450.0' in 4.493 s
+[2026-01-22 15:32:33] Finished run 'Ar_Cl2_EN_400.0' in 5.165 s
+[2026-01-22 15:32:34] Finished run 'Ar_Cl2_EN_500.0' in 4.257 s
+[2026-01-22 15:32:34] Completed sweep in 17.625 s

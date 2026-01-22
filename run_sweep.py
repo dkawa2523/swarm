@@ -6,6 +6,7 @@ Usage:
 """
 
 import argparse
+import sys
 from swarm_mc import SimulationRunner
 from swarm_mc.visualization import (
     plot_summary,
@@ -15,6 +16,20 @@ from swarm_mc.visualization import (
     plot_energy_distribution_combined,
 )
 from pathlib import Path
+
+
+def _resolve_comsol_export() -> object:
+    try:
+        from swarm_comsol_export.hook import maybe_export_comsol
+        return maybe_export_comsol
+    except ModuleNotFoundError:
+        repo_root = Path(__file__).resolve().parent
+        candidate = repo_root / "swarm_comsol_exporter"
+        if (candidate / "swarm_comsol_export").exists():
+            sys.path.insert(0, str(candidate))
+            from swarm_comsol_export.hook import maybe_export_comsol
+            return maybe_export_comsol
+    return None
 
 
 def main():
@@ -36,6 +51,13 @@ def main():
 
     runs = runner.experiment.build_runs()
     sims = runner.run_all()
+
+    maybe_export_comsol = _resolve_comsol_export()
+    if maybe_export_comsol is not None:
+        run_dir = Path(runner.experiment.output_root) / runner.experiment.name
+        out_dir = maybe_export_comsol(args.config, run_dir=run_dir)
+        if out_dir:
+            print(f"[swarm-comsol-export] Output saved to: {out_dir}")
 
     if runner.run_stats:
         print("\nRun timing (s):")

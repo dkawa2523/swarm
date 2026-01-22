@@ -12,9 +12,11 @@ time-averaged electron energy distribution of the electrons.
 """
 
 # Import Packages
+from dataclasses import dataclass
 from abc import ABC
 import numpy as np
 import scipy.constants as csts
+from lxcat_data_parser import CrossSectionTypes as CST
 
 # Import modules
 from swarm_mc.energy_distribution import TimeAveragedEnergyDistribution
@@ -41,11 +43,23 @@ class RateCoefficients(ABC):
         self.effective = None
 
 
+@dataclass(frozen=True)
+class ReactionRate:
+    label: str
+    ctype: CST
+    process: str
+    rate: float
+
+
 class ConvolutedRates(RateCoefficients):
     """
     Ionization, attachment and effective ionization rate coefficients calculated by
     convolution product of eedf and cross section.
     """
+
+    def __init__(self):
+        super().__init__()
+        self.per_reaction = []
 
     def calculate_data(self, mix: GasMixture,
                        distri: TimeAveragedEnergyDistribution) -> None:
@@ -57,10 +71,26 @@ class ConvolutedRates(RateCoefficients):
             distri (TimeAveragedEnergyDistribution): electron energy distribution (eV-1)
         """
 
-        self.ionization = np.sum([self.calculate_convolution(x, distri)
-                                  for x in mix.cross_sections[mix.is_ionization]])
-        self.attachment = np.sum([self.calculate_convolution(x, distri)
-                                  for x in mix.cross_sections[mix.is_attachment]])
+        self.per_reaction = []
+        ionization_rates = []
+        attachment_rates = []
+        for interp, meta in zip(mix.cross_sections, mix.cross_section_meta):
+            if meta.ctype not in (CST.IONIZATION, CST.ATTACHMENT):
+                continue
+            rate = self.calculate_convolution(interp, distri)
+            self.per_reaction.append(ReactionRate(
+                label=meta.label,
+                ctype=meta.ctype,
+                process=meta.process,
+                rate=rate,
+            ))
+            if meta.ctype == CST.IONIZATION:
+                ionization_rates.append(rate)
+            else:
+                attachment_rates.append(rate)
+
+        self.ionization = float(np.sum(ionization_rates)) if ionization_rates else 0.0
+        self.attachment = float(np.sum(attachment_rates)) if attachment_rates else 0.0
         self.effective = self.ionization - self.attachment
 
     @staticmethod

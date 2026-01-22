@@ -13,6 +13,7 @@ Swarm計算結果を COMSOL Plasma Module に **Interpolation Function** とし�
   2. mu_m2_V_s : 電子移動度 μ [m^2/(V·s)]
   3. De_m2_s   : 電子拡散係数 D [m^2/s]
 - 先頭に `%` で始まるコメント行（任意）を許可（COMSOLが無視する）
+  - Column map / 元列名などのメタ情報を含める
 
 ### 2) comsol_rates.csv（1D: ε̄ → k）
 - Data format: Spreadsheet
@@ -22,7 +23,9 @@ Swarm計算結果を COMSOL Plasma Module に **Interpolation Function** とし�
   2..N: 反応ごとの速度係数 k
     - 2体反応（e + A → ...）: [m^3/s]
     - 3体反応（e + A + M → ...）: [m^6/s]
-- 反応名→列名の対応は設定ファイルで定義（prefix など）
+- 反応名→列名の対応は **入力CSVの列名**に依存（prefix など）
+  - Swarm出力（summary.csv）では `k_conv_<type>_<PROCESS>` のような列名が付与される
+- `%` コメント行に column map を出力（COMSOLは無視）
 
 ### 3) comsol_eedf.csv（2D: ε, ε̄ → f）
 - Data format: Spreadsheet
@@ -32,11 +35,14 @@ Swarm計算結果を COMSOL Plasma Module に **Interpolation Function** とし�
   2. epsbar_eV : 平均電子エネルギー ε̄ [eV]
   3. f_eV_m32  : EEDF f(ε;ε̄) [eV^(-3/2)] を推奨
 - 入力EEDFが別の規格（例: eV^-1 の確率密度）で出力される場合は `processing.eedf_normalization` で変換方法を指定する。
+- `%` コメント行に column map を出力（COMSOLは無視）
 
 ### 4) comsol_export_report.json
 - 変換に用いた入力ファイルパス
 - 出力点数
 - ε̄, ε の範囲
+- 列マップ（column_map）・元列名（source_columns）
+- rates の prefix 判定情報（rate_prefix_used）
 - 欠損・重複・単位変換の有無
 - EEDFの正規化チェック結果（任意）
 

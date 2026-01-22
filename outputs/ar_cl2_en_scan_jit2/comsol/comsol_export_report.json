@@ -1,35 +1,58 @@
 {
-  "run_dir": "../outputs/ar_cl2_en_scan_jit2",
-  "output_dir": "../outputs/ar_cl2_en_scan_jit2/comsol",
+  "run_dir": "outputs/ar_cl2_en_scan_jit2",
+  "output_dir": "outputs/ar_cl2_en_scan_jit2/comsol",
   "transport": {
-    "source": "../outputs/ar_cl2_en_scan_jit2/summary.csv",
-    "rows": 25,
-    "epsbar_min": 2.1412257730335815,
-    "epsbar_max": 5.794128140347937
+    "source": "outputs/ar_cl2_en_scan_jit2/summary.csv",
+    "rows": 10,
+    "epsbar_min": 2.6107411815965293,
+    "epsbar_max": 5.875300153981446,
+    "column_map": [
+      "1=epsbar_eV",
+      "2=mu_m2_V_s",
+      "3=De_m2_s"
+    ],
+    "source_columns": {
+      "epsbar": "mean energy (eV)",
+      "mu": "bulk drift velocity (m.s-1)",
+      "De": "bulk L diffusion coeff. * N (m-1.s-1)"
+    }
   },
   "rates": {
-    "source": "../outputs/ar_cl2_en_scan_jit2/summary.csv",
-    "rows": 25,
-    "epsbar_min": 2.1412257730335815,
-    "epsbar_max": 5.794128140347937,
+    "source": "outputs/ar_cl2_en_scan_jit2/summary.csv",
+    "rows": 10,
+    "epsbar_min": 2.6107411815965293,
+    "epsbar_max": 5.875300153981446,
     "rate_columns": [
-      "effective ionization rate coeff. (counted) (m3.s-1)",
-      "ionization rate coeff. (counted) (m3.s-1)",
-      "attachment rate coeff. (counted) (m3.s-1)",
-      "effective ionization rate coeff. (convolution) (m3.s-1)",
-      "ionization rate coeff. (convolution) (m3.s-1)",
-      "attachment rate coeff. (convolution) (m3.s-1)"
+      "k_conv_ionization_E + Ar -> E + E + Ar+, Ionization",
+      "k_conv_ionization_E + Cl2 -> E + E + Cl2+, Ionization",
+      "k_conv_ionization_E + Cl2 -> E + E + Cl+ + Cl, Ionization",
+      "k_conv_ionization_E + Cl2 -> E + E + Cl2++, Ionization",
+      "k_conv_ionization_E + Cl2 -> E + E + Cl++ + Cl, Ionization"
+    ],
+    "rate_prefix_used": "k_",
+    "column_map": [
+      "1=epsbar_eV",
+      "2=k_conv_ionization_E + Ar -> E + E + Ar+, Ionization",
+      "3=k_conv_ionization_E + Cl2 -> E + E + Cl2+, Ionization",
+      "4=k_conv_ionization_E + Cl2 -> E + E + Cl+ + Cl, Ionization",
+      "5=k_conv_ionization_E + Cl2 -> E + E + Cl2++, Ionization",
+      "6=k_conv_ionization_E + Cl2 -> E + E + Cl++ + Cl, Ionization"
     ]
   },
   "eedf": {
     "mode": "stacked_csv",
-    "source": "../outputs/ar_cl2_en_scan_jit2/eedf_table.csv",
-    "rows": 49975,
-    "eps_min": 0.0019573968993793,
-    "eps_max": 46.04818889182331,
-    "epsbar_min": 2.1412257730335815,
-    "epsbar_max": 5.794128140347937,
-    "output_unit_note": "f_eV_m32 is intended as eV^(-3/2) (COMSOL blog/user guide convention)."
+    "source": "outputs/ar_cl2_en_scan_jit2/eedf_table.csv",
+    "rows": 19990,
+    "eps_min": 0.0026274539183532,
+    "eps_max": 37.622008582654914,
+    "epsbar_min": 2.6107411815965293,
+    "epsbar_max": 5.875300153981446,
+    "output_unit_note": "f_eV_m32 is intended as eV^(-3/2) (COMSOL blog/user guide convention).",
+    "column_map": [
+      "1=eps_eV",
+      "2=epsbar_eV",
+      "3=f_eV_m32"
+    ]
   },
-  "timestamp_utc": "2026-01-22T03:54:05.052002Z"
+  "timestamp_utc": "2026-01-22T06:32:34.537044Z"
 }

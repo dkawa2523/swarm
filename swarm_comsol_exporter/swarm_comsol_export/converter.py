@@ -167,6 +167,8 @@ def export_to_comsol(
         "COMSOL Interpolation (Spreadsheet) | args: epsbar_eV | cols: epsbar_eV, mu_m2_V_s, De_m2_s",
         f"Source: {discovered.transport_csv}",
     ]
+    transport_comment.append("Column map: 1=epsbar_eV, 2=mu_m2_V_s, 3=De_m2_s")
+    transport_comment.append(f"Source columns: epsbar='{c_epsbar}', mu='{c_mu}', De='{c_De}'")
     if c_mu in {"bulk drift velocity (m.s-1)", "flux drift velocity (m.s-1)"}:
         transport_comment.append(f"Note: mu source column='{c_mu}' (velocity). Check units before COMSOL import.")
     if c_De in {"bulk L diffusion coeff. * N (m-1.s-1)", "flux L diffusion coeff. * N (m-1.s-1)"}:
@@ -183,6 +185,8 @@ def export_to_comsol(
         "rows": int(len(transport_out)),
         "epsbar_min": float(transport_out["epsbar_eV"].min()) if len(transport_out) else None,
         "epsbar_max": float(transport_out["epsbar_eV"].max()) if len(transport_out) else None,
+        "column_map": ["1=epsbar_eV", "2=mu_m2_V_s", "3=De_m2_s"],
+        "source_columns": {"epsbar": c_epsbar, "mu": c_mu, "De": c_De},
     })
 
     # Load rates
@@ -220,6 +224,9 @@ def export_to_comsol(
         f"Source: {discovered.rates_csv}",
         f"rate_prefix: {rate_prefix_used}",
     ]
+    # Add a column map so COMSOL users can identify each reaction rate column.
+    col_map = ["1=epsbar_eV"] + [f"{i+2}={c}" for i, c in enumerate(rate_cols)]
+    rates_comment.append("Column map: " + ", ".join(col_map))
     write_comsol_spreadsheet_csv(
         rates_out,
         paths.rates_csv,
@@ -233,6 +240,8 @@ def export_to_comsol(
         "epsbar_min": float(rates_out["epsbar_eV"].min()) if len(rates_out) else None,
         "epsbar_max": float(rates_out["epsbar_eV"].max()) if len(rates_out) else None,
         "rate_columns": rate_cols,
+        "rate_prefix_used": rate_prefix_used,
+        "column_map": ["1=epsbar_eV"] + [f"{i+2}={c}" for i, c in enumerate(rate_cols)],
     })
 
     # Load EEDF
@@ -302,6 +311,7 @@ def export_to_comsol(
         eedf_comment.append(f"Source: {eedf_res.meta['source']}")
     if "files_glob" in eedf_res.meta:
         eedf_comment.append(f"files_glob: {eedf_res.meta['files_glob']}")
+    eedf_comment.append("Column map: 1=eps_eV, 2=epsbar_eV, 3=f_eV_m32")
 
     # Output columns in strict order
     eedf_out = eedf_df[["eps_eV", "epsbar_eV", "f"]].copy()
@@ -322,6 +332,7 @@ def export_to_comsol(
         "epsbar_min": float(eedf_out["epsbar_eV"].min()) if len(eedf_out) else None,
         "epsbar_max": float(eedf_out["epsbar_eV"].max()) if len(eedf_out) else None,
         "output_unit_note": "f_eV_m32 is intended as eV^(-3/2) (COMSOL blog/user guide convention).",
+        "column_map": ["1=eps_eV", "2=epsbar_eV", "3=f_eV_m32"],
     })
 
     # Export report

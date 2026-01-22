@@ -76,12 +76,12 @@ base_config:
     seed: random
 
   end_conditions:
-    w_tol: 0.05
-    DN_tol: 0.05
+    w_tol: 0.02
+    DN_tol: 0.02
     num_col_max: 5e4
 
 sweep:
   param: EN
-  start: 20
-  stop: 500
-  step: 20
+  start: 10
+  stop: 100
+  step: 10

@@ -2,49 +2,78 @@
 
 改良版の `swarm_mc` エンジンを単体で動かすためのリポジトリです。YAML で複数条件のスイープを設定し、null-collision 法に基づく電子群モンテカルロを高速に回して CSV/JSON 出力と可視化を行えます。GasMixture のキャッシュ化、事前テーブル化した衝突断面、可変なイオン化生成制御などを備えています。
 
-## Setup
+## Prerequisites (Windows)
 
-```bash
-cd methes_original
-python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install -r requirements.txt
+`uv` が必要です。未インストールの場合は次のいずれかで導入してください。
+
+```powershell
+winget install AstralSoftware.uv
+```
+
+または:
+
+```powershell
+scoop install uv
+```
+
+## Setup with uv (Windows / PowerShell)
+
+```powershell
+cd .\methes_original
+uv venv
+uv sync
 ```
 
 ## Run the E/N sweep example
 
-```bash
+```powershell
 # choose any config YAML under configs/
-python3 run_sweep.py --config configs/Ar_N2_sweep.yaml
+uv run python run_sweep.py --config configs\Ar_N2_sweep.yaml
 ```
 
-Outputs land in `outputs/ar_n2_en_scan/` and include per-run CSVs, a sweep `summary.csv`, plus runtime logs (`execution.log` and `execution_times.csv` with per-E/N and total durations).
+Outputs land in `outputs\\ar_n2_en_scan\\` and include per-run CSVs, a sweep `summary.csv`, plus runtime logs (`execution.log` and `execution_times.csv` with per-E/N and total durations).
+
+## Docs
+
+- `docs\\comsol.md` (COMSOL へのインポート手順と出力ファイルの使い方)
+- `docs\\README_optimize.md` (EEDF フィッティング手順)
+- `docs\\plan_fast2.md` (高速化の設計メモ)
+
+## COMSOL export (optional)
+
+`run_sweep.py` は、YAML に `comsol_export.enabled: true` がある場合、スイープ完了後に COMSOL 用 CSV を自動生成します。
+
+```powershell
+uv run python run_sweep.py --config configs\example_visual_jit_comsol.yaml --plot --save-plots
+```
+
+出力先は `<output_root>/<experiment.name>/comsol/` です。
 
 ## Plotting
 
 Add `--plot` to auto-show summary and the first run's CSVs after execution (requires GUI/display).
 
-```bash
-python3 run_sweep.py --config configs/example_visual.yaml --plot
+```powershell
+uv run python run_sweep.py --config configs\example_visual.yaml --plot
 ```
 
 Add `--save-plots` (or set `experiment.plotting.save: true`) to save PNGs:
 
-```bash
-python3 run_sweep.py --config configs/example_visual.yaml --plot --save-plots
+```powershell
+uv run python run_sweep.py --config configs\example_visual.yaml --plot --save-plots
 ```
 
-Images are written to `experiment.plotting.save_dir` (defaults to `<output_root>/<name>/plots`).
+Images are written to `experiment.plotting.save_dir` (defaults to `<output_root>\\<name>\\plots`).
 
 Or plot manually:
 
-```bash
-python3 - <<'PY'
+```powershell
+@'
 from swarm_mc import visualization
-visualization.plot_summary('outputs/ar_n2_en_scan/summary.csv')
-visualization.plot_time_series('outputs/ar_n2_en_scan/Ar_N2_EN_50.0/Ar_N2_EN_50.0_temporal_evolution.csv')
-visualization.plot_energy_distribution('outputs/ar_n2_en_scan/Ar_N2_EN_50.0/Ar_N2_EN_50.0_energy_distribution.csv')
-PY
+visualization.plot_summary("outputs/ar_n2_en_scan/summary.csv")
+visualization.plot_time_series("outputs/ar_n2_en_scan/Ar_N2_EN_50.0/Ar_N2_EN_50.0_temporal_evolution.csv")
+visualization.plot_energy_distribution("outputs/ar_n2_en_scan/Ar_N2_EN_50.0/Ar_N2_EN_50.0_energy_distribution.csv")
+'@ | uv run python
 ```
 
 Replace `Ar_N2_EN_50.0` with any run directory you want to inspect.

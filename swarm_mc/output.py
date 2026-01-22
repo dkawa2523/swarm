@@ -176,7 +176,7 @@ class Output:
         if self.flux.w_err[2] is None:
             return {}
 
-        return {
+        data = {
             'E/N (Td)': float(self.config.EN),
             'mean energy (eV)': self._safe_float(self.energy_distribution.energy_mean),
             'mean energy error (eV)':
@@ -217,6 +217,30 @@ class Output:
             'attachment rate coeff. (convolution) (m3.s-1)':
                 self._safe_float(self.rates_conv.attachment),
         }
+        data.update(self._convolution_rate_columns())
+        return data
+
+    def _convolution_rate_columns(self) -> dict:
+        cols = {}
+        per_reaction = getattr(self.rates_conv, "per_reaction", None)
+        if not per_reaction:
+            return cols
+        for entry in per_reaction:
+            label = getattr(entry, "label", "")
+            ctype = getattr(entry, "ctype", None)
+            if not label or ctype is None:
+                continue
+            type_tag = str(ctype.name).lower()
+            key = f"k_conv_{type_tag}_{label}"
+            if key in cols:
+                suffix = 2
+                new_key = f"{key}_{suffix}"
+                while new_key in cols:
+                    suffix += 1
+                    new_key = f"{key}_{suffix}"
+                key = new_key
+            cols[key] = self._safe_float(getattr(entry, "rate", None))
+        return cols
 
     def summary_row(self) -> dict:
         """

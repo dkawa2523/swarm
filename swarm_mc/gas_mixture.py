@@ -11,6 +11,8 @@ cross sections is calculated, as well as the total_cross_section.
 """
 
 # Import Packages
+from dataclasses import dataclass
+import re
 import numpy as np
 from lxcat_data_parser import CrossSectionTypes as CST
 
@@ -63,6 +65,7 @@ class GasMixture:
                  for args in zip(path_to_cross_section_files, gas_formulas)]
 
         cross_sections = [x for gas in gases for x in gas.cross_sections]
+        self.cross_section_meta = _build_cross_section_meta(cross_sections)
         self.thresholds = np.ascontiguousarray(
             np.asarray([x.threshold for x in cross_sections], dtype=float)
         )
@@ -105,3 +108,52 @@ class GasMixture:
         """
 
         return self.cross_section_table.shape[0]
+
+
+@dataclass(frozen=True)
+class CrossSectionMeta:
+    index: int
+    ctype: CST
+    species: str
+    process: str
+    label: str
+
+
+def _extract_process(info) -> str:
+    if not isinstance(info, dict):
+        return ""
+    if "PROCESS" in info:
+        return str(info.get("PROCESS") or "")
+    nested = info.get("info")
+    if isinstance(nested, dict):
+        return str(nested.get("PROCESS") or "")
+    return ""
+
+
+def _clean_label(text: str) -> str:
+    cleaned = re.sub(r"\\s+", " ", text.replace("\n", " ")).strip()
+    cleaned = cleaned.rstrip(",;")
+    return cleaned
+
+
+def _build_cross_section_meta(cross_sections) -> list:
+    metas = []
+    seen = {}
+    for i, x in enumerate(cross_sections):
+        process = _extract_process(getattr(x, "info", None))
+        base = process if process else f"{x.type.name} {x.species}"
+        label = _clean_label(base)
+        if not label:
+            label = f"{x.type.name} {x.species} {i+1}"
+        count = seen.get(label, 0) + 1
+        seen[label] = count
+        if count > 1:
+            label = f"{label} ({count})"
+        metas.append(CrossSectionMeta(
+            index=i,
+            ctype=x.type,
+            species=x.species,
+            process=process,
+            label=label,
+        ))
+    return metas
