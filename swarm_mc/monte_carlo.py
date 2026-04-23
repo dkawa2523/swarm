@@ -98,7 +98,6 @@ class MonteCarlo:
 
         # vector of which collision which electron undergoes
         self.collision_by_electron = None
-        self._velocity_from_energy = self._jit_velocity if self._jit_enabled else utils.velocity_from_energy
 
     def calculate_max_coll_freq(self, gas_mixture: GasMixture):
         """

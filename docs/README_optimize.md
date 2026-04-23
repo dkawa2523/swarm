@@ -2,6 +2,16 @@
 
 本リポジトリの `EEDF_optimze.py` は、`outputs/*/eedf_table.csv` を読み込み、前処理＋混合分布フィッティングを行い、係数やグラフを出力します。前処理・モデル設定は `EEDF_optimize.yaml` で調整できます。
 
+## Unified output compatibility
+
+`electron_swarm` の unified runner で生成される次のテーブルもそのまま読めます。
+
+- `eedf_table.csv`
+- `eedf_table_mc.csv`
+- `eedf_table_boltzmann.csv`
+
+combined output を 1 つの alias で読む場合は `--solver monte_carlo` または `--solver boltzmann_two_term` で対象 solver を絞れます。`summary.csv` が無い場合でも、`summary_mc.csv` / `summary_boltzmann.csv` を自動で探索してラベル情報を補完します。
+
 ## 前提（Windows）
 
 `uv` が必要です。未インストールの場合は次のいずれかで導入してください。
@@ -28,6 +38,10 @@ uv sync
   `uv run python EEDF_optimze.py --root outputs --config EEDF_optimize.yaml`
 - 特定ファイルのみ:  
   `uv run python EEDF_optimze.py --table outputs\\ar_n2_en_scan\\eedf_table.csv --config EEDF_optimize.yaml`
+- unified combined output から Monte Carlo のみを処理:  
+  `uv run python EEDF_optimze.py --table outputs\\unified\\argon_both\\eedf_table.csv --solver monte_carlo --config EEDF_optimize.yaml`
+- solver 別 legacy file を直接処理:  
+  `uv run python EEDF_optimze.py --table outputs\\unified\\argon_both\\eedf_table_boltzmann.csv --config EEDF_optimize.yaml`
 - 上限分布数や試行回数を上書き:  
   `uv run python EEDF_optimze.py --table ... --max-components 2 --num-starts 2`
 

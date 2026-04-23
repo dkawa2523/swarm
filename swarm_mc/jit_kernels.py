@@ -201,7 +201,7 @@ def cos_chi_inverse_cdf_lut(n: int = 1024) -> np.ndarray:
     Precompute inverse CDF for isotropic cos_chi distribution.
     """
     # For isotropic scattering: cos_chi = 1 - 2*u, u~U(0,1)
-    u = np.linspace(0.0, 1.0, n, dtype=np.float64)
+    u = np.linspace(0.0, 1.0, n)
     return 1.0 - 2.0 * u
 
 
@@ -226,7 +226,7 @@ def build_aniso_cos_chi_lut(e_grid: np.ndarray, n_bins: int = 1024) -> np.ndarra
     """
     # Vahedi anisotropic inverse: cos_chi = (2+E) - 2*(1+E)^u / E
     # We tabulate for u in [0,1]
-    u = np.linspace(0.0, 1.0, n_bins, dtype=np.float64)
+    u = np.linspace(0.0, 1.0, n_bins)
     lut = np.empty((e_grid.size, n_bins), dtype=np.float64)
     for i in range(e_grid.size):
         e = e_grid[i]

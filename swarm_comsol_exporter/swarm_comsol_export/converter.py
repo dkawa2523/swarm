@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -342,7 +343,7 @@ def export_to_comsol(
         "transport": transport_meta,
         "rates": rates_meta,
         "eedf": eedf_meta,
-        "timestamp_utc": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+        "timestamp_utc": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
     }
     paths.report_json.write_text(__import__("json").dumps(report, indent=2), encoding="utf-8")
 

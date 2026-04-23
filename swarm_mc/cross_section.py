@@ -23,6 +23,8 @@ from lxcat_data_parser import CrossSection, CrossSectionSet, CrossSectionReading
 
 np.seterr(all='raise')
 
+_MASS_RATIO_RTOL = 1.0e-2
+
 
 class InterpolatedCrossSection(CrossSection):
     """
@@ -110,7 +112,10 @@ class InterpolatedCrossSectionSet(CrossSectionSet):
         try:
             molmass_mass_ratio = csts.electron_mass \
                 / (molmass.Formula(self.species).mass / (1000 * csts.Avogadro))
-            if not np.isclose(mass_ratio, molmass_mass_ratio):
+            # LXCat/BOLSIG text exports often round m/M to only 3-4 significant
+            # digits, so a strict default isclose check produces noisy warnings for
+            # otherwise valid files such as Ar_Biagi/N2_Biagi/Cl2 datasets.
+            if not np.isclose(mass_ratio, molmass_mass_ratio, rtol=_MASS_RATIO_RTOL):
                 warnings.warn(
                     "Incorrect mass ratio."
                     f" The mass ratio {mass_ratio} read from the file "
@@ -152,7 +157,7 @@ class InterpolatedCrossSectionSet(CrossSectionSet):
                 x.data = x.data.loc[x.data['energy'] < max_cross_section_energy]
                 final_energy_line = pd.DataFrame(
                     {'energy': [max_cross_section_energy],
-                     'cross section': [interp(max_cross_section_energy)]})
+                     'cross section': [float(interp(max_cross_section_energy))]})
                 x.data = pd.concat([x.data, final_energy_line], ignore_index=True)
 
         # replace CrossSections by InterpolatedCrossSection

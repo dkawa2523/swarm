@@ -56,13 +56,23 @@ def discover_inputs(run_dir: Path, input_cfg: Dict) -> DiscoveredInputs:
     transport_csv = resolve_with_fallbacks(
         run_dir,
         input_cfg.get("transport_csv"),
-        fallbacks=("summary.csv", "transport_table.csv"),
+        fallbacks=(
+            "summary.csv",
+            "summary_mc.csv",
+            "summary_boltzmann.csv",
+            "transport_table.csv",
+        ),
         default_names=("transport.csv",),
     )
     rates_csv = resolve_with_fallbacks(
         run_dir,
         input_cfg.get("rates_csv"),
-        fallbacks=("summary.csv", "rates_table.csv"),
+        fallbacks=(
+            "summary.csv",
+            "summary_mc.csv",
+            "summary_boltzmann.csv",
+            "rates_table.csv",
+        ),
         default_names=("rates.csv",),
     )
 
@@ -72,7 +82,14 @@ def discover_inputs(run_dir: Path, input_cfg: Dict) -> DiscoveredInputs:
     eedf_stacked_csv = resolve_with_fallbacks(
         run_dir,
         eedf_cfg.get("stacked_csv"),
-        fallbacks=("eedf_table.csv", "energy_table.csv"),
+        fallbacks=(
+            "eedf_table.csv",
+            "eedf_table_mc.csv",
+            "eedf_table_boltzmann.csv",
+            "energy_table.csv",
+            "energy_table_mc.csv",
+            "energy_table_boltzmann.csv",
+        ),
         default_names=("eedf.csv",),
     )
     eedf_files_glob = eedf_cfg.get("files_glob", None)

@@ -557,20 +557,40 @@ def slugify(text: str) -> str:
 def find_tables(root: Path, explicit_table: Optional[Path]) -> list[Path]:
     if explicit_table:
         return [explicit_table.resolve()]
-    return sorted(root.glob("*/eedf_table.csv"))
+    tables = {path.resolve() for path in root.glob("*/eedf_table*.csv")}
+    return sorted(tables)
 
 
-def build_label_lookup(summary_path: Path) -> Optional[pd.DataFrame]:
-    if not summary_path.exists():
-        return None
-    try:
-        df = pd.read_csv(summary_path)
-    except Exception:
-        return None
-    needed = {"mean energy (eV)", "run_label"}
-    if not needed.issubset(df.columns):
-        return None
-    return df
+def build_label_lookup(table_path: Path, solver_filter: Optional[str] = None) -> Optional[pd.DataFrame]:
+    candidates = []
+    stem = table_path.stem.lower()
+    if stem.endswith("_mc"):
+        candidates.append(table_path.parent / "summary_mc.csv")
+    elif stem.endswith("_boltzmann"):
+        candidates.append(table_path.parent / "summary_boltzmann.csv")
+    candidates.extend(
+        [
+            table_path.parent / "summary.csv",
+            table_path.parent / "summary_mc.csv",
+            table_path.parent / "summary_boltzmann.csv",
+        ]
+    )
+    for summary_path in candidates:
+        if not summary_path.exists():
+            continue
+        try:
+            df = pd.read_csv(summary_path)
+        except Exception:
+            continue
+        needed = {"mean energy (eV)", "run_label"}
+        if not needed.issubset(df.columns):
+            continue
+        if solver_filter and "solver" in df.columns:
+            df = df[df["solver"].astype(str) == solver_filter]
+            if df.empty:
+                continue
+        return df
+    return None
 
 
 def label_for_mean_energy(mean_energy: float, summary_df: Optional[pd.DataFrame]) -> str:
@@ -677,13 +697,23 @@ def process_table(
     table_path: Path,
     save_root: Optional[Path] = None,
     config: Optional[dict] = None,
+    solver_filter: Optional[str] = None,
 ) -> list[FitResult]:
     df = pd.read_csv(table_path)
     if not set(EEDF_COLUMNS).issubset(df.columns):
         raise ValueError(f"{table_path} is missing required columns {EEDF_COLUMNS}")
 
+    if solver_filter:
+        if "solver" not in df.columns:
+            raise ValueError(
+                f"{table_path} does not contain a solver column required for --solver={solver_filter}"
+            )
+        df = df[df["solver"].astype(str) == solver_filter]
+        if df.empty:
+            return []
+
     cfg = config or DEFAULT_CONFIG
-    summary_df = build_label_lookup(table_path.parent / "summary.csv")
+    summary_df = build_label_lookup(table_path, solver_filter=solver_filter)
     dest_dir = (save_root / table_path.parent.name) if save_root else table_path.parent / "plots" / "eedf_fits"
     results: list[FitResult] = []
 
@@ -805,6 +835,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Override: number of initial guesses per component count (otherwise use YAML).",
     )
+    parser.add_argument(
+        "--solver",
+        choices=["monte_carlo", "boltzmann_two_term"],
+        help="Optionally filter a stacked compatibility table by solver.",
+    )
     return parser.parse_args()
 
 
@@ -825,6 +860,7 @@ def main() -> None:
             table_path,
             save_root=args.save_dir,
             config=cfg,
+            solver_filter=args.solver,
         )
         for res in results:
             print(

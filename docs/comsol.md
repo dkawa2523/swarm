@@ -1,6 +1,8 @@
 **Swarm（電子スウォーム）計算結果を COMSOL（Plasma Module／流体モデル）へ入力する際に必要になる物理量（単位含む）と、現実的に扱いやすいデータ形式**を、COMSOL側の具体操作と紐づけてテーブルで整理
 （EEDF は「平均電子エネルギーごとに別ファイル」より、**1つの2D補間関数として渡す**のがCOMSOLの想定に合います。([COMSOL Documentation][1])）
 
+この repo の `swarm_comsol_exporter` は、従来の `summary.csv` / `eedf_table.csv` だけでなく、unified runner が出力する `summary_mc.csv` / `summary_boltzmann.csv` / `eedf_table_mc.csv` / `eedf_table_boltzmann.csv` も fallback として読めます。`electron_swarm` 側では既定で `summary.csv` / `eedf_table.csv` / `energy_table.csv` の alias も作られるため、既存ワークフローのまま importer を使い続けられます。
+
 ---
 
 ## 0) Swarm → COMSOL 出力ファイルの使い方（本リポジトリの exporter 前提）
