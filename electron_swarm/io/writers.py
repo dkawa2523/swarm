@@ -16,6 +16,7 @@ import pandas as pd
 from electron_swarm.core.config import OutputConfig
 from electron_swarm.core.results import SwarmCaseResult, SwarmRunResult
 from electron_swarm.core.solver_registry import solver_legacy_tag
+from electron_swarm.io.transport_writer import write_transport_outputs
 
 
 def _summary_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
@@ -284,6 +285,10 @@ def write_outputs(result: SwarmRunResult, output: OutputConfig) -> dict[str, Pat
         rates_path = output.directory / f"{output.base_name}_rates.csv"
         _write_csv(rates, rates_path, output.float_format)
         paths["rates_csv"] = rates_path
+
+    transport_path = write_transport_outputs(result, output)
+    if transport_path is not None:
+        paths["transport_csv"] = transport_path
 
     if not output.compatibility.write_legacy_tables:
         return paths
