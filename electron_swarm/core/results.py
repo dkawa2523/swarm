@@ -7,6 +7,8 @@ from typing import Any
 
 import numpy as np
 
+from electron_swarm.core.transport import TransportSet
+
 
 @dataclass(slots=True)
 class RateResult:
@@ -21,6 +23,8 @@ class RateResult:
     threshold_eV: float | None
     rate_coefficient_m3_s: float
     mixture_weighted_rate_m3_s: float
+    frequency_s_inv: float | None = None
+    power_loss_eV_s: float | None = None
 
 
 @dataclass(slots=True)
@@ -45,10 +49,13 @@ class SwarmCaseResult:
     eepf: np.ndarray = field(repr=False)  # EEPF-like eedf/sqrt(eV), eV^-3/2
     rates: list[RateResult] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+    transport: TransportSet | None = None
+    schema_version: str = "1.2"
 
     def summary_dict(self) -> dict[str, Any]:
         return {
             "solver": self.solver,
+            "schema_version": self.schema_version,
             "case_id": self.case_id,
             "E_over_N_Td": self.e_over_n_Td,
             "mean_energy_eV": self.mean_energy_eV,

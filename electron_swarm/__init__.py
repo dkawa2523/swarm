@@ -1,11 +1,13 @@
 """Unified electron swarm calculation package.
 
-This package adds a common configuration/results layer and two solver slots:
+This package adds a common configuration/results layer and multiple solver slots:
 
 * particle Monte Carlo: delegated to an existing repository implementation through
   a command/API adapter;
 * Boltzmann two-term approximation: production native BOLSIG-like
   energy-space solver with an optional BOLOS reference backend.
+* multi-term Boltzmann entry point: currently a Phase 1 moment-closure estimate
+  with the public name reserved for the future sparse operator backend.
 
 The code is intentionally additive so it can be copied into an existing swarm
 repository without forcing a rewrite of the current Monte Carlo code.

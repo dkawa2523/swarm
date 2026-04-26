@@ -11,12 +11,7 @@ import pandas as pd
 
 from electron_swarm.core.config import OutputConfig
 from electron_swarm.core.results import SwarmRunResult
-
-
-_SOLVER_COLORS = {
-    "boltzmann_two_term": "#1565c0",
-    "monte_carlo": "#c62828",
-}
+from electron_swarm.core.solver_registry import solver_plot_color, solver_plot_label
 
 
 def _positive_curve(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -120,14 +115,8 @@ def write_plots(result: SwarmRunResult, output: OutputConfig) -> dict[str, Path]
             case for case in eedf_cases if float(case.e_over_n_Td) == float(e_over_n_Td)
         ]
         for case in sorted(cases_at_en, key=lambda item: item.solver):
-            color = _SOLVER_COLORS.get(case.solver, None)
-            label = (
-                "Boltzmann"
-                if case.solver == "boltzmann_two_term"
-                else "Monte Carlo"
-                if case.solver == "monte_carlo"
-                else case.solver
-            )
+            color = solver_plot_color(case.solver)
+            label = solver_plot_label(case.solver)
             if case.solver == "monte_carlo":
                 x, y = _truncate_mc_curve(case.energy_eV, case.eedf)
                 if x.size == 0:

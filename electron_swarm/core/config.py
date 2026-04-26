@@ -9,13 +9,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import yaml
 
-RunMode = Literal["monte_carlo", "boltzmann_two_term", "both"]
+from electron_swarm.core.solver_registry import PRIMARY_SOLVERS, RUN_MODES
+
+RunMode = Literal[
+    "monte_carlo",
+    "boltzmann_two_term",
+    "multiterm_boltzmann",
+    "both",
+    "all",
+]
 BoltzmannBackend = Literal["auto", "native_bolsig", "internal", "bolos"]
-PrimarySolver = Literal["monte_carlo", "boltzmann_two_term"]
+PrimarySolver = Literal["monte_carlo", "boltzmann_two_term", "multiterm_boltzmann"]
 
 
 @dataclass(slots=True)
@@ -30,6 +38,7 @@ class ConditionsConfig:
     gas_temperature_K: float = 300.0
     pressure_Pa: float | None = None
     gas_number_density_m3: float | None = None
+    length_scale_m: float | None = None
     gas_mixture: list[GasComponent] = field(default_factory=list)
 
 
@@ -44,6 +53,7 @@ class CrossSectionFileConfig:
 class CrossSectionsConfig:
     format: str = "csv"
     files: list[CrossSectionFileConfig] = field(default_factory=list)
+    high_energy_extrapolation: Literal["zero", "hold", "error"] = "zero"
 
 
 @dataclass(slots=True)
@@ -52,6 +62,15 @@ class EnergyGridConfig:
     max_eV: float = 100.0
     n: int = 600
     spacing: Literal["linear", "quadratic", "log"] = "quadratic"
+
+
+@dataclass(slots=True)
+class MultiTermEnergyGridConfig:
+    min_eV: float = 1.0e-3
+    max_eV: float = 200.0
+    n: int = 220
+    spacing: Literal["linear", "log", "log_linear"] = "log_linear"
+    linear_until_eV: float = 2.0
 
 
 @dataclass(slots=True)
@@ -92,6 +111,21 @@ class BoltzmannTwoTermConfig:
     ] = "equal"
     secondary_electron_energy_eV: float = 0.0
     min_momentum_cross_section_m2: float = 1.0e-24
+
+
+@dataclass(slots=True)
+class MultiTermBoltzmannConfig:
+    enabled: bool = True
+    lmax: int = 3
+    method: Literal["hybrid", "operator", "moment_closure"] = "moment_closure"
+    hydrodynamic: bool = False
+    dense_threshold: int = 280
+    eedf_shape: Literal["maxwellian", "druyvesteyn"] = "maxwellian"
+    lmax_convergence_tolerance: float = 0.03
+    field_coupling_scale: float = 1.0
+    energy_grid: MultiTermEnergyGridConfig = field(
+        default_factory=MultiTermEnergyGridConfig
+    )
 
 
 @dataclass(slots=True)
@@ -146,6 +180,9 @@ class SwarmConfig:
     boltzmann_two_term: BoltzmannTwoTermConfig = field(
         default_factory=BoltzmannTwoTermConfig
     )
+    multiterm_boltzmann: MultiTermBoltzmannConfig = field(
+        default_factory=MultiTermBoltzmannConfig
+    )
     output: OutputConfig = field(default_factory=OutputConfig)
     source_path: Path | None = None
 
@@ -192,7 +229,7 @@ def load_config(path: str | Path) -> SwarmConfig:
     run = RunConfig(
         mode=_validate_literal(
             str(run_raw.get("mode", "boltzmann_two_term")),
-            {"monte_carlo", "boltzmann_two_term", "both"},
+            set(RUN_MODES),
             "run.mode",
         ),
         e_over_n_Td=_list_float(
@@ -242,12 +279,19 @@ def load_config(path: str | Path) -> SwarmConfig:
             if cond_raw.get("gas_number_density_m3") is not None
             else None
         ),
+        length_scale_m=(
+            float(cond_raw["length_scale_m"])
+            if cond_raw.get("length_scale_m") is not None
+            else None
+        ),
         gas_mixture=gas_mixture,
     )
     if conditions.pressure_Pa is None and conditions.gas_number_density_m3 is None:
         raise ValueError(
             "Either conditions.pressure_Pa or conditions.gas_number_density_m3 must be set"
         )
+    if conditions.length_scale_m is not None and conditions.length_scale_m <= 0.0:
+        raise ValueError("conditions.length_scale_m must be positive when set")
 
     xs_raw = raw.get("cross_sections", {}) or {}
     xs_format = str(xs_raw.get("format", "csv"))
@@ -264,7 +308,19 @@ def load_config(path: str | Path) -> SwarmConfig:
         raise ValueError(
             "cross_sections.files must contain at least one cross-section file"
         )
-    cross_sections = CrossSectionsConfig(format=xs_format, files=xs_files)
+    high_energy_extrapolation = cast(
+        Literal["zero", "hold", "error"],
+        _validate_literal(
+            str(xs_raw.get("high_energy_extrapolation", "zero")),
+            {"zero", "hold", "error"},
+            "cross_sections.high_energy_extrapolation",
+        ),
+    )
+    cross_sections = CrossSectionsConfig(
+        format=xs_format,
+        files=xs_files,
+        high_energy_extrapolation=high_energy_extrapolation,
+    )
 
     mc_raw = raw.get("monte_carlo", {}) or {}
     monte_carlo = MonteCarloAdapterConfig(
@@ -358,6 +414,53 @@ def load_config(path: str | Path) -> SwarmConfig:
             "boltzmann_two_term.convergence.relaxation must be in (0, 1]"
         )
 
+    mt_raw = raw.get("multiterm_boltzmann", {}) or {}
+    mt_g_raw = mt_raw.get("energy_grid", {}) or {}
+    multiterm = MultiTermBoltzmannConfig(
+        enabled=bool(mt_raw.get("enabled", True)),
+        lmax=int(mt_raw.get("lmax", 3)),
+        method=_validate_literal(
+            str(mt_raw.get("method", "moment_closure")),
+            {"hybrid", "operator", "moment_closure"},
+            "multiterm_boltzmann.method",
+        ),
+        hydrodynamic=bool(mt_raw.get("hydrodynamic", False)),
+        dense_threshold=int(mt_raw.get("dense_threshold", 280)),
+        eedf_shape=_validate_literal(
+            str(mt_raw.get("eedf_shape", "maxwellian")),
+            {"maxwellian", "druyvesteyn"},
+            "multiterm_boltzmann.eedf_shape",
+        ),
+        lmax_convergence_tolerance=float(
+            mt_raw.get("lmax_convergence_tolerance", 0.03)
+        ),
+        field_coupling_scale=float(mt_raw.get("field_coupling_scale", 1.0)),
+        energy_grid=MultiTermEnergyGridConfig(
+            min_eV=float(mt_g_raw.get("min_eV", 1.0e-3)),
+            max_eV=float(mt_g_raw.get("max_eV", 200.0)),
+            n=int(mt_g_raw.get("n", 220)),
+            spacing=_validate_literal(
+                str(mt_g_raw.get("spacing", "log_linear")),
+                {"linear", "log", "log_linear"},
+                "multiterm_boltzmann.energy_grid.spacing",
+            ),
+            linear_until_eV=float(mt_g_raw.get("linear_until_eV", 2.0)),
+        ),
+    )
+    if multiterm.lmax < 1:
+        raise ValueError("multiterm_boltzmann.lmax must be >= 1")
+    if multiterm.energy_grid.n < 8:
+        raise ValueError("multiterm_boltzmann.energy_grid.n must be >= 8")
+    if (
+        multiterm.energy_grid.min_eV < 0
+        or multiterm.energy_grid.max_eV <= multiterm.energy_grid.min_eV
+    ):
+        raise ValueError("Invalid multiterm_boltzmann energy grid bounds")
+    if multiterm.energy_grid.spacing in {"log", "log_linear"} and multiterm.energy_grid.min_eV <= 0:
+        raise ValueError(
+            "multiterm_boltzmann log grids require energy_grid.min_eV > 0"
+        )
+
     out_raw = raw.get("output", {}) or {}
     compat_raw = out_raw.get("compatibility", {}) or {}
     output = OutputConfig(
@@ -374,7 +477,7 @@ def load_config(path: str | Path) -> SwarmConfig:
             ),
             primary_solver=_validate_literal(
                 str(compat_raw.get("primary_solver", "monte_carlo")),
-                {"monte_carlo", "boltzmann_two_term"},
+                set(PRIMARY_SOLVERS),
                 "output.compatibility.primary_solver",
             ),
         ),
@@ -386,6 +489,7 @@ def load_config(path: str | Path) -> SwarmConfig:
         cross_sections=cross_sections,
         monte_carlo=monte_carlo,
         boltzmann_two_term=boltzmann,
+        multiterm_boltzmann=multiterm,
         output=output,
         source_path=cfg_path,
     )

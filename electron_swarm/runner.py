@@ -12,14 +12,23 @@ from electron_swarm.io.writers import write_outputs
 from electron_swarm.plotting import write_plots
 from electron_swarm.solvers.boltzmann_two_term import BoltzmannTwoTermSolver
 from electron_swarm.solvers.monte_carlo_adapter import MonteCarloAdapter
+from electron_swarm.solvers.multiterm_boltzmann import MultiTermBoltzmannSolver
 
 
 def run(config: SwarmConfig, *, write: bool = True) -> SwarmRunResult:
     cross_sections = load_cross_sections(config.cross_sections, config.conditions)
     cases = []
-    if config.run.mode in {"boltzmann_two_term", "both"} and config.boltzmann_two_term.enabled:
+    if (
+        config.run.mode in {"boltzmann_two_term", "both", "all"}
+        and config.boltzmann_two_term.enabled
+    ):
         cases.extend(BoltzmannTwoTermSolver(config, cross_sections).solve_all())
-    if config.run.mode in {"monte_carlo", "both"} and config.monte_carlo.enabled:
+    if (
+        config.run.mode in {"multiterm_boltzmann", "all"}
+        and config.multiterm_boltzmann.enabled
+    ):
+        cases.extend(MultiTermBoltzmannSolver(config, cross_sections).solve_all())
+    if config.run.mode in {"monte_carlo", "both", "all"} and config.monte_carlo.enabled:
         cases.extend(MonteCarloAdapter(config, cross_sections).solve_all())
     result = SwarmRunResult(cases=cases, metadata={"source_config": str(config.source_path) if config.source_path else None})
     if write:

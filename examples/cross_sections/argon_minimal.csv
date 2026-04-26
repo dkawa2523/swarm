@@ -1,0 +1,571 @@
+species,process,type,threshold_eV,mass_amu,energy_eV,cross_section_m2
+Ar,Ar momentum transfer,momentum,0.0,39.948,0.0,2.2100465724198023e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,0.10526315789473684,1.8911143004545452e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,0.21052631578947367,1.6770082942054157e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,0.3157894736842105,1.6204585369618027e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,0.42105263157894735,1.7369459451277338e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,0.5263157894736842,1.9983442975971253e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,0.631578947368421,2.3443780130822066e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,0.7368421052631579,2.7055414077672145e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,0.8421052631578947,3.0256241179075615e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,0.9473684210526315,3.274150659216333e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,1.0526315789473684,3.446236679053527e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,1.1578947368421053,3.554019920455607e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,1.263157894736842,3.61617180945498e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,1.3684210526315788,3.6502014048278685e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,1.4736842105263157,3.668962652620812e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,1.5789473684210527,3.680379236361842e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,1.6842105263157894,3.6886795544001964e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,1.789473684210526,3.695849205669037e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,1.894736842105263,3.702716941292545e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,2.0,3.7095923068253516e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,2.2,3.722989676299808e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,2.4000000000000004,3.736927715022966e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,2.6,3.7514213642980087e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,2.8000000000000003,3.766468297785748e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,3.0,3.782062951693382e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,3.2,3.798197279429883e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,3.4000000000000004,3.814860687464706e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,3.6000000000000005,3.832039945344661e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,3.8000000000000003,3.849719106350941e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,4.0,3.8678794411714424e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,4.2,3.886499385834464e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,4.4,3.9055545050633204e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,4.6000000000000005,3.925017472133669e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,4.800000000000001,3.944858066222941e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,5.0,3.9650431881340563e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,5.2,3.9855368951540796e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,5.4,4.0063004556733814e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,5.6000000000000005,4.0272924240430484e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,5.800000000000001,4.048468735988913e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,6.0,4.069782824730923e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,6.2,4.0911857577781763e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,6.4,4.112626394184416e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,6.6000000000000005,4.134051561858068e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,6.800000000000001,4.155406254326841e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,7.000000000000001,4.176633846161729e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,7.2,4.197676326071031e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,7.4,4.218474546484074e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,7.6000000000000005,4.238968488258944e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,7.800000000000001,4.259097538970981e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,8.0,4.278800783071405e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,8.2,4.2980173020503647e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,8.4,4.3166864825981107e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,8.600000000000001,4.334748330633871e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,8.8,4.3521437889662115e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,9.0,4.368815056262843e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,9.2,4.384705904943483e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,9.4,4.399761995567654e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,9.600000000000001,4.413931185271228e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,9.8,4.427163827811753e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,10.0,4.439413062813476e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,10.2,4.4506350918586985e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,10.400000000000002,4.460789439152323e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,10.600000000000001,4.469839194590702e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,10.8,4.477751237193336e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,11.0,4.4844964370054084e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,11.2,4.490049833749168e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,11.400000000000002,4.494390790691081e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,11.600000000000001,4.4975031223974605e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,11.8,4.499375195271816e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,12.0,4.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,12.2,4.499375195271816e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,12.400000000000002,4.49750312239746e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,12.600000000000001,4.494390790691081e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,12.8,4.490049833749168e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,13.0,4.4844964370054084e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,13.2,4.477751237193336e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,13.400000000000002,4.469839194590702e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,13.600000000000001,4.460789439152323e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,13.8,4.4506350918586985e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,14.0,4.439413062813476e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,14.2,4.427163827811753e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,14.400000000000002,4.413931185271228e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,14.600000000000001,4.399761995567654e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,14.8,4.384705904943483e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,15.0,4.368815056262843e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,15.2,4.3521437889662115e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,15.400000000000002,4.334748330633871e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,15.600000000000001,4.3166864825981107e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,15.8,4.2980173020503647e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,16.0,4.278800783071405e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,16.2,4.259097538970981e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,16.400000000000002,4.238968488258944e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,16.6,4.218474546484074e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,16.8,4.197676326071031e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,17.0,4.176633846161729e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,17.2,4.155406254326841e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,17.400000000000002,4.1340515618580673e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,17.6,4.112626394184416e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,17.8,4.0911857577781763e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,18.0,4.069782824730923e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,18.2,4.048468735988913e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,18.4,4.027292424043049e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,18.6,4.0063004556733814e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,18.8,3.9855368951540796e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,19.0,3.9650431881340563e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,19.2,3.944858066222941e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,19.4,3.925017472133669e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,19.6,3.9055545050633204e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,19.8,3.886499385834464e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,20.0,3.8678794411714424e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,21.0,3.7820629516938156e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,22.0,3.7096113871510977e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,23.0,3.6509774184559147e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,24.0,3.6053992245618644e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,25.0,3.571316682697758e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,26.0,3.546770622383959e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,27.0,3.5297292163861586e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,28.0,3.518315638888734e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,29.0,3.510936767510605e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,30.0,3.5063297154274857e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,31.0,3.5035506485572425e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,32.0,3.501930454136228e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,33.0,3.5010172778436145e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,34.0,3.500519574682155e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,35.0,3.5002572081188005e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,36.0,3.500123409804087e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,37.0,3.500057390888739e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,38.0,3.5000258681002226e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,39.0,3.500011300936043e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,40.0,3.500004785117392e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,41.0,3.500001963808221e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,42.0,3.5000007811489407e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,43.0,3.500000301159745e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,44.0,3.500000112535175e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,45.0,3.5000000407575394e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,46.0,3.500000014307242e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,47.0,3.500000004867794e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,48.0,3.5000000016052283e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,49.0,3.500000000513062e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,50.0,3.500000000158939e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,51.0,3.500000000047722e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,52.0,3.500000000013888e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,53.0,3.5000000000039175e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,54.0,3.500000000001071e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,55.0,3.5000000000002835e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,56.0,3.500000000000073e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,57.0,3.500000000000018e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,58.0,3.500000000000004e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,59.0,3.500000000000001e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,60.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,61.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,62.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,63.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,64.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,65.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,66.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,67.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,68.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,69.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,70.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,71.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,72.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,73.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,74.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,75.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,76.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,77.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,78.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,79.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,80.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,81.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,82.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,83.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,84.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,85.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,86.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,87.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,88.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,89.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,90.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,91.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,92.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,93.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,94.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,95.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,96.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,97.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,98.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,99.0,3.5e-20
+Ar,Ar momentum transfer,momentum,0.0,39.948,100.0,3.5e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,0.0,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,0.10526315789473684,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,0.21052631578947367,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,0.3157894736842105,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,0.42105263157894735,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,0.5263157894736842,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,0.631578947368421,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,0.7368421052631579,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,0.8421052631578947,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,0.9473684210526315,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,1.0526315789473684,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,1.1578947368421053,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,1.263157894736842,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,1.3684210526315788,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,1.4736842105263157,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,1.5789473684210527,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,1.6842105263157894,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,1.789473684210526,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,1.894736842105263,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,2.0,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,2.2,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,2.4000000000000004,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,2.6,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,2.8000000000000003,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,3.0,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,3.2,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,3.4000000000000004,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,3.6000000000000005,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,3.8000000000000003,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,4.0,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,4.2,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,4.4,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,4.6000000000000005,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,4.800000000000001,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,5.0,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,5.2,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,5.4,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,5.6000000000000005,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,5.800000000000001,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,6.0,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,6.2,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,6.4,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,6.6000000000000005,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,6.800000000000001,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,7.000000000000001,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,7.2,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,7.4,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,7.6000000000000005,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,7.800000000000001,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,8.0,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,8.2,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,8.4,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,8.600000000000001,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,8.8,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,9.0,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,9.2,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,9.4,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,9.600000000000001,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,9.8,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,10.0,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,10.2,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,10.400000000000002,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,10.600000000000001,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,10.8,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,11.0,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,11.2,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,11.400000000000002,0.0
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,11.600000000000001,1.9924502641313347e-22
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,11.8,9.708087752085449e-22
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,12.0,1.703228268773493e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,12.2,2.398450592208512e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,12.400000000000002,3.0583260181740706e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,12.600000000000001,3.684612820534524e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,12.8,4.2789818486614166e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,13.0,4.843020874296229e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,13.2,5.378238722281379e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,13.400000000000002,5.886069195905786e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,13.600000000000001,6.367874807076993e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,13.8,6.824950321024253e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,14.0,7.258526124754185e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,14.2,7.669771428022368e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,14.400000000000002,8.059797305148378e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,14.600000000000001,8.429659585587705e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,14.8,8.780361600780645e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,15.0,9.112856794424165e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,15.2,9.428051202957584e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,15.400000000000002,9.726805812715246e-21
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,15.600000000000001,1.0009938799878367e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,15.8,1.0278227659053556e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,16.0,1.0532411226015551e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,16.2,1.0773191599876493e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,16.400000000000002,1.1001235969682409e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,16.6,1.1217178350188853e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,16.8,1.142162123133152e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,17.0,1.1615137145682964e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,17.2,1.179827015797325e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,17.400000000000002,1.1971537280549738e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,17.6,1.2135429818458231e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,17.8,1.2290414647644986e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,18.0,1.2436935429604753e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,18.2,1.2575413765634935e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,18.4,1.2706250293698684e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,18.6,1.282982573075051e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,18.8,1.2946501863236067e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,19.0,1.3056622488342984e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,19.2,1.3160514308451425e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,19.4,1.3258487781111427e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,19.6,1.3350837926758179e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,19.8,1.343784509626666e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,20.0,1.3519775700342415e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,21.0,1.3861713301779992e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,22.0,1.4109803552360637e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,23.0,1.428525414597834e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,24.0,1.4404498854548543e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,25.0,1.4480272061180087e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,26.0,1.4522441433647378e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,27.0,1.453865317679095e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,28.0,1.4534832049237693e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,29.0,1.4515568834596286e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,30.0,1.4484420599268823e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,31.0,1.4444143367172482e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,32.0,1.439687242320983e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,33.0,1.4344262033392597e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,34.0,1.428759371626054e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,35.0,1.422786014418031e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,36.0,1.4165830159836084e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,37.0,1.410209915857103e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,38.0,1.403712813048497e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,39.0,1.3971273914790247e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,40.0,1.390481264440147e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,41.0,1.383795791352519e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,42.0,1.377087485601523e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,43.0,1.3703691054912902e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,44.0,1.363650499642017e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,45.0,1.356939262101339e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,46.0,1.3502412400000029e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,47.0,1.3435609269416753e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,48.0,1.3369017678462657e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,49.0,1.3302663951771104e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,50.0,1.3236568119963927e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,51.0,1.3170745338168818e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,52.0,1.3105206985242714e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,53.0,1.3039961515568997e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,54.0,1.2975015119120102e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,55.0,1.2910372232941904e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,56.0,1.2846035937502408e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,57.0,1.2782008263819939e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,58.0,1.2718290431452937e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,59.0,1.2654883032913337e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,60.0,1.2591786176562707e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,61.0,1.2528999597336055e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,62.0,1.2466522742534814e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,63.0,1.2404354838300563e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,64.0,1.2342494941117959e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,65.0,1.2280941977716613e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,66.0,1.2219694775983185e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,67.0,1.2158752088907121e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,68.0,1.2098112613128175e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,69.0,1.2037775003300734e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,70.0,1.1977737883216599e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,71.0,1.1917999854415874e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,72.0,1.1858559502851378e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,73.0,1.1799415404044745e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,74.0,1.1740566127073772e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,75.0,1.168201023765407e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,76.0,1.1623746300518995e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,77.0,1.1565772881255753e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,78.0,1.1508088547720222e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,79.0,1.145069187112526e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,80.0,1.1393581426876104e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,81.0,1.1336755795209801e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,82.0,1.1280213561682802e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,83.0,1.1223953317540962e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,84.0,1.1167973659998442e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,85.0,1.1112273192446056e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,86.0,1.1056850524604976e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,87.0,1.1001704272638143e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,88.0,1.0946833059228956e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,89.0,1.0892235513634596e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,90.0,1.0837910271719784e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,91.0,1.0783855975975386e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,92.0,1.073007127552531e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,93.0,1.06765548261244e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,94.0,1.0623305290149352e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,95.0,1.0570321336584267e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,96.0,1.0517601641002118e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,97.0,1.0465144885543048e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,98.0,1.041294975889027e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,99.0,1.0361014956244132e-20
+Ar,Ar excitation lumped 11.55 eV,excitation,11.55,39.948,100.0,1.0309339179294816e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,0.0,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,0.10526315789473684,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,0.21052631578947367,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,0.3157894736842105,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,0.42105263157894735,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,0.5263157894736842,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,0.631578947368421,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,0.7368421052631579,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,0.8421052631578947,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,0.9473684210526315,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,1.0526315789473684,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,1.1578947368421053,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,1.263157894736842,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,1.3684210526315788,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,1.4736842105263157,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,1.5789473684210527,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,1.6842105263157894,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,1.789473684210526,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,1.894736842105263,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,2.0,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,2.2,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,2.4000000000000004,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,2.6,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,2.8000000000000003,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,3.0,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,3.2,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,3.4000000000000004,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,3.6000000000000005,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,3.8000000000000003,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,4.0,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,4.2,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,4.4,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,4.6000000000000005,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,4.800000000000001,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,5.0,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,5.2,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,5.4,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,5.6000000000000005,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,5.800000000000001,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,6.0,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,6.2,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,6.4,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,6.6000000000000005,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,6.800000000000001,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,7.000000000000001,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,7.2,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,7.4,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,7.6000000000000005,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,7.800000000000001,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,8.0,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,8.2,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,8.4,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,8.600000000000001,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,8.8,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,9.0,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,9.2,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,9.4,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,9.600000000000001,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,9.8,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,10.0,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,10.2,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,10.400000000000002,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,10.600000000000001,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,10.8,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,11.0,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,11.2,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,11.400000000000002,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,11.600000000000001,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,11.8,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,12.0,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,12.2,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,12.400000000000002,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,12.600000000000001,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,12.8,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,13.0,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,13.2,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,13.400000000000002,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,13.600000000000001,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,13.8,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,14.0,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,14.2,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,14.400000000000002,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,14.600000000000001,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,14.8,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,15.0,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,15.2,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,15.400000000000002,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,15.600000000000001,0.0
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,15.8,9.564983472850581e-23
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,16.0,5.678232006388222e-22
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,16.2,1.0300224799409147e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,16.400000000000002,1.4824518989183464e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,16.6,1.925311506352544e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,16.8,2.358797258971966e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,17.0,2.7831011051533644e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,17.2,3.1984110669110192e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,17.400000000000002,3.604911320208912e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,17.6,4.002782273630113e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,17.8,4.3922006454370915e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,18.0,4.773339539055724e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,18.2,5.146368517015329e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,18.4,5.5114536733763086e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,18.6,5.86875770467628e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,18.8,6.2184399794250615e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,19.0,6.560656606178162e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,19.2,6.895560500217845e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,19.4,7.223301448870278e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,19.6,7.544026175486625e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,19.8,7.857878402115445e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,20.0,8.16499891089316e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,21.0,9.604354742496736e-21
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,22.0,1.0894946330494235e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,23.0,1.2051403225475299e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,24.0,1.3086918658548388e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,25.0,1.4013390550392493e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,26.0,1.484154867692964e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,27.0,1.558106935067375e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,28.0,1.6240678843387912e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,29.0,1.6828246655357386e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,30.0,1.7350869628073392e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,31.0,1.7814947799263837e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,32.0,1.822625281095526e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,33.0,1.8589989601662308e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,34.0,1.8910852042026738e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,35.0,1.9193073108499765e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,36.0,1.9440470131288297e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,37.0,1.9656485600142573e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,38.0,1.9844223964088413e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,39.0,2.0006484818393242e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,40.0,2.014579283344446e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,41.0,2.0264424745398682e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,42.0,2.036443369705861e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,43.0,2.0447671189115404e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,44.0,2.051580687635586e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,45.0,2.0570346420402156e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,46.0,2.0612647589781386e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,47.0,2.0643934779391182e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,48.0,2.066531210453498e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,49.0,2.0677775209466742e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,50.0,2.0682221916646503e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,51.0,2.0679461830518397e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,52.0,2.067022499844957e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,53.0,2.0655169721391943e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,54.0,2.0634889597741726e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,55.0,2.0609919875676436e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,56.0,2.0580743181858724e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,57.0,2.0547794687731477e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,58.0,2.05114667686178e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,59.0,2.047211320541921e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,60.0,2.0430052973816778e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,61.0,2.038557366147166e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,62.0,2.033893454974559e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,63.0,2.029036939287679e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,64.0,2.024008892431303e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,65.0,2.018828311698802e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,66.0,2.0135123221697285e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,67.0,2.0080763605358397e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,68.0,2.0025343408801617e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,69.0,1.996898804180832e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,70.0,1.9911810531375247e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,71.0,1.985391273761381e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,72.0,1.97953864502794e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,73.0,1.9736314377649497e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,74.0,1.9676771038319263e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,75.0,1.9616823565445454e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,76.0,1.9556532432033988e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,77.0,1.9495952105022586e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,78.0,1.943513163514894e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,79.0,1.9374115188908568e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,80.0,1.9312942528287672e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,81.0,1.9251649443398082e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,82.0,1.919026814263803e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,83.0,1.9128827604548726e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,84.0,1.9067353895127058e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,85.0,1.9005870453985816e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,86.0,1.8944398352419757e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,87.0,1.8882956526135608e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,88.0,1.88215619851334e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,89.0,1.876023000298221e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,90.0,1.8698974287513265e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,91.0,1.8637807134754755e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,92.0,1.857673956775356e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,93.0,1.851578146176759e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,94.0,1.8454941657166815e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,95.0,1.8394228061249675e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,96.0,1.8333647740063026e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,97.0,1.827320700120711e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,98.0,1.8212911468510523e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,99.0,1.815276614937332e-20
+Ar,Ar ionization 15.76 eV,ionization,15.76,39.948,100.0,1.8092775495498132e-20

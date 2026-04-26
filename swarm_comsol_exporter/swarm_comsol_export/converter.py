@@ -132,8 +132,8 @@ def export_to_comsol(
             "mu_m2_V_s",
             "mobility",
             "mu",
-            "bulk drift velocity (m.s-1)",
             "flux drift velocity (m.s-1)",
+            "bulk drift velocity (m.s-1)",
         ],
     )
     _extend_candidates(
@@ -143,8 +143,8 @@ def export_to_comsol(
             "De_m2_s",
             "diffusion",
             "D",
-            "bulk L diffusion coeff. * N (m-1.s-1)",
             "flux L diffusion coeff. * N (m-1.s-1)",
+            "bulk L diffusion coeff. * N (m-1.s-1)",
         ],
     )
     c_epsbar = require_column(transport_df, col_cfg["epsbar_eV"], "transport.epsbar_eV")

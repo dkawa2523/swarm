@@ -41,6 +41,7 @@ from electron_swarm.core.cross_sections import (
     mixture_fraction,
 )
 from electron_swarm.core.results import RateResult, SwarmCaseResult
+from electron_swarm.core.transport import FluxTransport, TransportMetadata, TransportSet
 from .base import SwarmSolver
 
 
@@ -166,6 +167,32 @@ class TransportCoefficients:
     reduced_diffusion_L_m2_s_m3: float
     reduced_diffusion_T_m2_s_m3: float
     characteristic_energy_eV: float
+
+
+@dataclass(slots=True)
+class NativeDistributionResult:
+    """Reusable native two-term distribution block for operator integration."""
+
+    energy_eV: np.ndarray
+    edges_eV: np.ndarray
+    widths_eV: np.ndarray
+    eedf_eV_inv: np.ndarray
+    diagnostics: NativeSolveDiagnostics
+    metadata: dict[str, object]
+
+
+@dataclass(slots=True)
+class NativeOperatorBlock:
+    """Reusable native Scharfetter-Gummel energy-space operator block."""
+
+    energy_eV: np.ndarray
+    edges_eV: np.ndarray
+    widths_eV: np.ndarray
+    electric_field_V_m: float
+    gas_number_density_m3: float
+    collisions: EffectiveCollisionData
+    matrix: sparse.csr_matrix
+    discretization: str = "finite_volume_scharfetter_gummel"
 
 
 class BoltzmannTwoTermSolver(SwarmSolver):
@@ -295,6 +322,26 @@ class BoltzmannTwoTermSolver(SwarmSolver):
     # Native BOLSIG-like backend.
     # ------------------------------------------------------------------
     def _solve_case_native(self, e_over_n_Td: float, case_id: str) -> SwarmCaseResult:
+        native = self.solve_native_distribution(e_over_n_Td)
+        return self._postprocess(
+            e_over_n_Td,
+            case_id,
+            native.energy_eV,
+            native.widths_eV,
+            native.eedf_eV_inv,
+            metadata=native.metadata,
+        )
+
+    def solve_native_reference_case(
+        self, e_over_n_Td: float, case_id: str
+    ) -> SwarmCaseResult:
+        """Run the native Scharfetter-Gummel path regardless of backend setting."""
+
+        return self._solve_case_native(e_over_n_Td, case_id)
+
+    def solve_native_distribution(self, e_over_n_Td: float) -> NativeDistributionResult:
+        """Solve only the native EEDF block and return reusable arrays/metadata."""
+
         cfg = self.config.boltzmann_two_term
         max_eV = float(cfg.energy_grid.max_eV)
         previous: tuple[np.ndarray, np.ndarray] | None = None
@@ -336,8 +383,71 @@ class BoltzmannTwoTermSolver(SwarmSolver):
             "adaptive_cycles": last_diag.regrid_cycles,
             "transport_model": "two_term_flux_integral",
             "discretization": "finite_volume_scharfetter_gummel",
+            "cross_section_high_energy_extrapolation": (
+                self.config.cross_sections.high_energy_extrapolation
+            ),
         }
-        return self._postprocess(e_over_n_Td, case_id, energy, widths, eedf, metadata=metadata)
+        return NativeDistributionResult(
+            energy_eV=energy,
+            edges_eV=edges,
+            widths_eV=widths,
+            eedf_eV_inv=eedf,
+            diagnostics=last_diag,
+            metadata=metadata,
+        )
+
+    def make_native_energy_grid(
+        self,
+        *,
+        max_eV_override: float | None = None,
+        n_override: int | None = None,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Return the native two-term energy grid used by the SG operator."""
+
+        return _make_energy_grid(
+            self.config.boltzmann_two_term,
+            max_eV_override=max_eV_override,
+            n_override=n_override,
+        )
+
+    def assemble_native_operator_block(
+        self,
+        e_over_n_Td: float,
+        energy: np.ndarray,
+        edges: np.ndarray,
+        widths: np.ndarray,
+    ) -> NativeOperatorBlock:
+        """Assemble the reusable native two-term energy-space operator.
+
+        This is the public handoff point for the multi-term operator backend:
+        it exposes the validated lmax=1 Scharfetter-Gummel block without
+        forcing callers to run the distribution solve or depend on private
+        helper names.
+        """
+
+        energy = np.asarray(energy, dtype=float)
+        edges = np.asarray(edges, dtype=float)
+        widths = np.asarray(widths, dtype=float)
+        if energy.ndim != 1 or edges.ndim != 1 or widths.ndim != 1:
+            raise ValueError("Energy grid arrays must be one-dimensional")
+        if len(edges) != len(energy) + 1 or len(widths) != len(energy):
+            raise ValueError("Energy grid edges/widths do not match centers")
+        if np.any(np.diff(energy) <= 0.0) or np.any(widths <= 0.0):
+            raise ValueError("Energy grid must be strictly increasing")
+
+        N = _gas_number_density(self.config)
+        E = e_over_n_Td * TOWNSEND * N
+        collisions = self._effective_collision_data(energy, N)
+        matrix = self._assemble_operator(energy, edges, widths, E, collisions)
+        return NativeOperatorBlock(
+            energy_eV=energy,
+            edges_eV=edges,
+            widths_eV=widths,
+            electric_field_V_m=float(E),
+            gas_number_density_m3=float(N),
+            collisions=collisions,
+            matrix=matrix,
+        )
 
     def _solve_native_on_grid(
         self,
@@ -350,10 +460,8 @@ class BoltzmannTwoTermSolver(SwarmSolver):
         cycle: int,
     ) -> tuple[np.ndarray, NativeSolveDiagnostics]:
         cfg = self.config.boltzmann_two_term
-        N = _gas_number_density(self.config)
-        E = e_over_n_Td * TOWNSEND * N
-        coll = self._effective_collision_data(energy, N)
-        op = self._assemble_operator(energy, edges, widths, E, coll)
+        block = self.assemble_native_operator_block(e_over_n_Td, energy, edges, widths)
+        op = block.matrix
 
         if initial is None:
             p = _maxwell_eedf(energy, cfg.initial_electron_temperature_eV)
@@ -755,6 +863,22 @@ class BoltzmannTwoTermSolver(SwarmSolver):
         metadata["effective_townsend_1_m"] = net_ion_freq / max(
             abs(transport.drift_velocity_m_s), 1.0e-300
         )
+        flux_transport = FluxTransport.with_characteristic_energies(
+            transport.drift_velocity_m_s,
+            transport.mobility_m2_V_s,
+            diffusion_longitudinal_m2_s=transport.diffusion_L_m2_s,
+            diffusion_transverse_m2_s=transport.diffusion_T_m2_s,
+        )
+        transport_set = TransportSet.from_flux_only(
+            flux_transport,
+            ionization_frequency_s_inv=N * ion_rate,
+            attachment_frequency_s_inv=N * attach_rate,
+            metadata=TransportMetadata(
+                solver=self.name,
+                coefficient_definition="flux",
+                swarm_condition="local_flux",
+            ),
+        )
         return SwarmCaseResult(
             solver=self.name,
             case_id=case_id,
@@ -774,4 +898,5 @@ class BoltzmannTwoTermSolver(SwarmSolver):
             eepf=eepf,
             rates=rates,
             metadata=metadata,
+            transport=transport_set,
         )

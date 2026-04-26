@@ -15,11 +15,7 @@ import pandas as pd
 
 from electron_swarm.core.config import OutputConfig
 from electron_swarm.core.results import SwarmCaseResult, SwarmRunResult
-
-_SOLVER_FILE_TAG = {
-    "monte_carlo": "mc",
-    "boltzmann_two_term": "boltzmann",
-}
+from electron_swarm.core.solver_registry import solver_legacy_tag
 
 
 def _summary_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
@@ -59,6 +55,8 @@ def _rates_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
                     "threshold_eV": rate.threshold_eV,
                     "rate_coefficient_m3_s": rate.rate_coefficient_m3_s,
                     "mixture_weighted_rate_m3_s": rate.mixture_weighted_rate_m3_s,
+                    "frequency_s_inv": rate.frequency_s_inv,
+                    "power_loss_eV_s": rate.power_loss_eV_s,
                 }
             )
     return pd.DataFrame(rows)
@@ -66,6 +64,12 @@ def _rates_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
 
 def _scalar_metadata(case: SwarmCaseResult, key: str, default=np.nan):
     return case.metadata.get(key, default)
+
+
+def _bulk_metadata(case: SwarmCaseResult, key: str, default=np.nan):
+    if case.transport is not None and case.transport.bulk is None:
+        return np.nan
+    return _scalar_metadata(case, key, default)
 
 
 def _legacy_convolution_columns(case: SwarmCaseResult) -> dict[str, float]:
@@ -110,26 +114,26 @@ def _legacy_summary_row(case: SwarmCaseResult) -> dict[str, object]:
         "mean energy error (eV)": _scalar_metadata(
             case, "mean_energy_error_eV", np.nan
         ),
-        "bulk drift velocity (m.s-1)": _scalar_metadata(
+        "bulk drift velocity (m.s-1)": _bulk_metadata(
             case, "bulk_drift_velocity_m_s", case.drift_velocity_m_s
         ),
-        "bulk drift velocity error (m.s-1)": _scalar_metadata(
+        "bulk drift velocity error (m.s-1)": _bulk_metadata(
             case, "bulk_drift_velocity_error_m_s", np.nan
         ),
-        "bulk L diffusion coeff. * N (m-1.s-1)": _scalar_metadata(
+        "bulk L diffusion coeff. * N (m-1.s-1)": _bulk_metadata(
             case,
             "bulk_reduced_diffusion_L_m-1_s-1",
             case.reduced_diffusion_L_m2_s_m3,
         ),
-        "bulk L diffusion coeff. error * N (m-1.s-1)": _scalar_metadata(
+        "bulk L diffusion coeff. error * N (m-1.s-1)": _bulk_metadata(
             case, "bulk_reduced_diffusion_L_error_m-1_s-1", np.nan
         ),
-        "bulk T diffusion coeff. * N (m-1.s-1)": _scalar_metadata(
+        "bulk T diffusion coeff. * N (m-1.s-1)": _bulk_metadata(
             case,
             "bulk_reduced_diffusion_T_m-1_s-1",
             case.reduced_diffusion_T_m2_s_m3,
         ),
-        "bulk T diffusion coeff. error * N (m-1.s-1)": _scalar_metadata(
+        "bulk T diffusion coeff. error * N (m-1.s-1)": _bulk_metadata(
             case, "bulk_reduced_diffusion_T_error_m-1_s-1", np.nan
         ),
         "flux drift velocity (m.s-1)": case.drift_velocity_m_s,
@@ -291,7 +295,7 @@ def write_outputs(result: SwarmRunResult, output: OutputConfig) -> dict[str, Pat
     primary_eedf: pd.DataFrame | None = None
 
     for solver, cases in groups.items():
-        tag = _SOLVER_FILE_TAG.get(solver, solver)
+        tag = solver_legacy_tag(solver)
         solver_summary = _legacy_summary_frame(cases)
         solver_energy = _legacy_energy_frame(cases)
         solver_eedf = _legacy_eedf_table_frame(cases)

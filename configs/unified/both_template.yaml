@@ -13,6 +13,7 @@ conditions:
 
 cross_sections:
   format: txt
+  high_energy_extrapolation: zero
   files:
     - path: ../../cross_sections/Ar_Biagi.txt
       species: Ar

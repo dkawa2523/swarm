@@ -141,7 +141,28 @@ class CrossSectionProcess:
         """Linearly interpolate cross section on an arbitrary energy grid."""
 
         if right is None:
-            right = float(self.cross_section_m2[-1])
+            policy = str(
+                self.metadata.get("high_energy_extrapolation", "hold")
+            ).lower()
+            if policy == "zero":
+                right = 0.0
+            elif policy == "hold":
+                right = float(self.cross_section_m2[-1])
+            elif policy == "error":
+                energy = np.asarray(energy_eV, dtype=float)
+                if np.any(energy > self.energy_eV[-1]):
+                    raise ValueError(
+                        "Cross-section interpolation requested above the "
+                        f"tabulated range for {self.species}:{self.process}; "
+                        "increase the energy grid or set "
+                        "cross_sections.high_energy_extrapolation."
+                    )
+                right = float(self.cross_section_m2[-1])
+            else:
+                raise ValueError(
+                    "Unsupported high-energy extrapolation policy for "
+                    f"{self.species}:{self.process}: {policy!r}"
+                )
         return np.interp(
             energy_eV, self.energy_eV, self.cross_section_m2, left=left, right=right
         )
@@ -407,6 +428,9 @@ def load_cross_sections(
     for process in processes:
         if process.mass_amu is None and process.species in mass_by_species:
             process.mass_amu = mass_by_species[process.species]
+        process.metadata.setdefault(
+            "high_energy_extrapolation", config.high_energy_extrapolation
+        )
         filled.append(process)
 
     missing_species = sorted(

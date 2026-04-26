@@ -59,12 +59,24 @@ def test_cross_section_txt_loader():
     cfg = load_config(ROOT / "configs" / "unified" / "boltzmann_only.yaml")
     loaded = load_cross_sections(cfg.cross_sections, cfg.conditions)
     assert loaded.processes
+    assert cfg.cross_sections.high_energy_extrapolation == "zero"
     assert any(
         process.process_type
         in {ProcessType.MOMENTUM, ProcessType.ELASTIC, ProcessType.EFFECTIVE}
         for process in loaded.processes
     )
     assert any(process.process_type == ProcessType.IONIZATION for process in loaded.processes)
+    proc = loaded.processes[0]
+    assert proc.sigma(np.array([proc.energy_eV[-1] + 1.0]))[0] == pytest.approx(0.0)
+
+
+def test_cross_section_high_energy_extrapolation_error_policy():
+    cfg = load_config(ROOT / "configs" / "unified" / "boltzmann_only.yaml")
+    cfg.cross_sections.high_energy_extrapolation = "error"
+    loaded = load_cross_sections(cfg.cross_sections, cfg.conditions)
+    proc = loaded.processes[0]
+    with pytest.raises(ValueError, match="above the tabulated range"):
+        proc.sigma(np.array([proc.energy_eV[-1] + 1.0]))
 
 
 def test_lxcat_mass_ratio_rounding_does_not_warn():
