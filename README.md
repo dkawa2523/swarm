@@ -9,10 +9,9 @@ contains the legacy particle Monte Carlo workflow and a newer unified
 - `monte_carlo`: existing particle Monte Carlo implementation in `swarm_mc`.
 - `boltzmann_two_term`: native BOLSIG-like two-term Boltzmann backend.
 - `multiterm_boltzmann`: axisymmetric DC, B=0, m=0 entry point. The default
-  path is a moment-closure EEDF estimate; `method: operator, lmax > 1`
-  enables the production sparse operator for integral cross-section input in
-  this B=0/DC/m=0 scope. Set `hydrodynamic: true` to request finite-k
-  bulk/source-gradient transport.
+  path is a moment-closure EEDF estimate. `method: operator, lmax: 1` is the
+  two-term reference path. `method: operator, lmax > 1` is experimental and
+  requires `allow_experimental_operator: true` before it can run.
 
 `run.mode: both` keeps the historical pairing of `boltzmann_two_term` and
 `monte_carlo`. Use `run.mode: all` to run all three solvers.
@@ -52,14 +51,14 @@ Operator `lmax=1` compatibility path:
 py -3 -m electron_swarm configs\unified\multiterm_operator_lmax1.yaml
 ```
 
-Sparse operator path (`lmax > 1`, flux by default):
+Reference-anchored lmax>1 validation path:
 
 ```powershell
-py -3 -m electron_swarm configs\unified\multiterm_operator.yaml
+py -3 -m electron_swarm configs\unified\multiterm_operator_experimental.yaml
 ```
 
-`configs\unified\multiterm_operator_experimental.yaml` is kept as a
-compatibility example for earlier workflows.
+This YAML opts in with `allow_experimental_operator: true`. Treat it as a
+development and benchmark target, not the default production path.
 
 All unified solvers:
 
@@ -98,42 +97,72 @@ For multi-term runs, cross sections are normalized before projection. If an
 The `operator` backend has compact assembly diagnostics and an `lmax=1`
 two-term comparison harness. `method: operator, lmax: 1` delegates to the validated
 two-term Scharfetter-Gummel backend and returns the result through the
-`multiterm_boltzmann` schema. `lmax > 1` is executable as a production flux
-sparse operator for this B=0/DC/m=0 integral cross-section scope with
-`meta_physical_validity=operator_flux_b0_dc_m0_integral_cross_sections`.
-When `hydrodynamic: true`, finite-k extraction must succeed before production
-bulk/source-gradient transport is emitted.
+`multiterm_boltzmann` schema. `lmax > 1` currently uses a
+reference-anchored integral-cross-section closure: f0, rates, and flux
+transport come from the validated two-term Scharfetter-Gummel solve, while
+higher Legendre coefficients are bounded diagnostics based on an integral
+momentum relaxation closure. This avoids presenting an underdetermined
+integral-cross-section problem as a full multi-term differential-scattering
+solve. `hydrodynamic: true` is recorded as requested, but finite-k
+bulk/source-gradient transport is not emitted for this anchored lmax>1 path.
 The shared native two-term boundary for this path is
 `BoltzmannTwoTermSolver.solve_native_distribution()` for the solved EEDF and
 `BoltzmannTwoTermSolver.assemble_native_operator_block()` for the reusable
 Scharfetter-Gummel energy-space matrix. These APIs expose the grid, quadrature
 widths, collision projection, diagnostics, and metadata before public result
 postprocessing, so future operator work has a stable regression anchor.
-The `l=0..lmax` sparse system uses `LegendreBlockLayout` for explicit
-term/energy indexing. The executable operator system keeps an E=0 `l=0`
-collision block, momentum/effective plus inelastic sink relaxation for `l>0`,
-and a conservative upwind finite-volume electric-field coupling in energy
-space. Anisotropic inelastic source terms remain an integral-cross-section
-approximation because differential scattering data are outside the current
-input model.
-`build_operator_assembly_diagnostics()` fixes the developer contract for the
-flattened coefficient order and the `integral f0 dE = 1` normalization row.
-Metadata names containing `operator_assembly_scaffold_*` are legacy CSV names;
-they now describe the executable operator matrix path, not a separate scaffold.
+There is no public direct sparse `l>1` Legendre block solver in this phase:
+integral cross sections do not determine the higher-order differential
+scattering moments needed for one. A future implementation should first prove
+that the general block system reduces to the native two-term block for
+`lmax=1`, then add anisotropic collision/source blocks behind the benchmark
+gate.
 Operator summaries also include lightweight quality indicators such as
 `meta_operator_tail_rate_fraction` and
 `meta_operator_highest_l_relative_l1`; these help decide when to extend the
 energy grid or rerun with a larger `lmax` without adding a separate benchmark
 workflow.
-For compact multi-term validation across Ar, Ar/N2, high-E/N, attachment, and
-superelastic smoke cases, run:
+For a compact executable smoke sweep of the experimental `lmax > 1` closure
+across Ar, Ar/N2, high-E/N, attachment, and superelastic cases, run:
 
 ```powershell
 py -3 tools\validate_multiterm_operator.py --quick
 ```
 
-Add `--with-bolos` on environments where the optional BOLOS package is
-installed.
+This confirms numerical execution and trend reporting only; it is not a physics
+validation gate. For the compact reference gate against native two-term, optional
+BOLOS, and optional MC, run:
+
+```powershell
+py -3 tools\benchmark_operator_gate.py --quick
+```
+
+Use `--require-bolos` only on environments where BOLOS is installed and should
+be mandatory. Use `--with-mc` for the slower stochastic MC comparison.
+
+## Optional Collision Extensions
+
+The unified runner supports small optional collision extensions without adding
+solver-specific branches to `runner.py`.
+
+- `state_resolved` can generate superelastic processes from existing excitation
+  cross sections and `species_states` populations. Generated superelastic
+  cross sections use a small low-energy floor so detailed-balance singularities
+  do not dominate grid-center quadrature.
+- `molecular_states.vibrational.levels` is a shorthand for state populations
+  that later state-resolved transitions can reference.
+- `electron_electron` currently provides a postprocess relaxation model for
+  Boltzmann-family EEDFs only. It is not a full Coulomb/Fokker-Planck operator;
+  rates and mean energy are recomputed after relaxation, while transport
+  coefficients remain marked as stale.
+- `energy_grid.refine.enabled: true` optionally adds points around process
+  thresholds. It is off by default, so existing grids and results are unchanged.
+
+Example:
+
+```powershell
+py -3 -m electron_swarm examples\state_resolved_electron_electron.yaml --no-write
+```
 
 ## Output Files
 
@@ -154,9 +183,9 @@ Legacy compatibility outputs:
   `output.compatibility.primary_solver`
 
 Flat columns such as `drift_velocity_m_s` and `diffusion_L_m2_s` contain flux
-coefficients. Operator runs emit standard bulk/source-gradient transport only
-when `hydrodynamic: true` and the finite-k fit succeeds. Moment-closure
-reference bulk values remain isolated in `meta_estimated_*` columns.
+coefficients. The lmax>1 anchored operator does not emit standard
+bulk/source-gradient transport. Moment-closure reference bulk values remain
+isolated in `meta_estimated_*` columns.
 
 ## COMSOL Export
 
@@ -181,9 +210,10 @@ The `multiterm_boltzmann` operator scope is:
 - axisymmetric m = 0 Legendre expansion
 - elastic, momentum/effective, excitation, ionization, attachment, and
   superelastic process categories
-- flux transport output from the moment-closure estimate or sparse operator
-- finite-k bulk/source-gradient output for `method: operator` when
-  `hydrodynamic: true`
+- flux transport output from the moment-closure estimate or the
+  reference-anchored lmax>1 closure
+- no validated finite-k bulk/source-gradient output for lmax>1 until a
+  differential-collision multi-term operator is implemented and benchmarked
 
 Not included in this MVP:
 
@@ -203,5 +233,5 @@ py -3 -m pytest tests/test_boltzmann_two_term.py tests/test_unified_integration.
 Optional BOLOS comparison remains available through:
 
 ```powershell
-py -3 tools\validate_against_bolos.py configs\unified\boltzmann_only.yaml
+py -3 tools\benchmark_operator_gate.py --quick --require-bolos
 ```

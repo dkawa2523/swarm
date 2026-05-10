@@ -6,8 +6,9 @@ This package adds a common configuration/results layer and multiple solver slots
   a command/API adapter;
 * Boltzmann two-term approximation: production native BOLSIG-like
   energy-space solver with an optional BOLOS reference backend.
-* multi-term Boltzmann entry point: currently a Phase 1 moment-closure estimate
-  with the public name reserved for the future sparse operator backend.
+* multi-term Boltzmann entry point: moment-closure by default, lmax=1 as a
+  two-term reference adapter, and lmax>1 as a reference-anchored closure for
+  integral-cross-section inputs.
 
 The code is intentionally additive so it can be copied into an existing swarm
 repository without forcing a rewrite of the current Monte Carlo code.

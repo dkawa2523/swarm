@@ -21,17 +21,8 @@ from .closure import (
 from .grid import EnergyGrid, electron_speed_m_s, make_energy_grid
 from .models import MultiTermCase, MultiTermSolution
 from .operator import (
-    DensityNormalizationConstraint,
-    LegendreBlockLayout,
     MultiTermOperatorBackend,
     OperatorBackendUnavailable,
-    OperatorAssemblyDiagnostics,
-    OperatorSolveState,
-    OperatorSystem,
-    assemble_operator_system,
-    build_density_normalization_constraint,
-    build_operator_assembly_diagnostics,
-    solve_operator_system,
 )
 from .projection import (
     ProjectedCollisionData,
@@ -62,7 +53,7 @@ def build_multiterm_case(
     return MultiTermCase(
         config=config,
         cross_sections=cross_sections,
-        grid=make_energy_grid(config),
+        grid=make_energy_grid(config, cross_sections),
         e_over_n_Td=float(e_over_n_Td),
         gas_number_density_m3=number_density,
         electric_field_V_m=float(e_over_n_Td) * TOWNSEND * number_density,
@@ -104,9 +95,9 @@ _energy_loss_eV = energy_loss_eV
 class MultiTermBoltzmannSolver(SwarmSolver):
     """Unified axisymmetric multi-term Boltzmann entry point.
 
-    The solver exposes a conservative moment-closure estimator plus a scoped
-    production lmax>1 sparse operator path. Operator hydrodynamic transport is
-    emitted only when finite-k extraction succeeds.
+    The solver exposes a conservative moment-closure estimator, an lmax=1
+    two-term reference adapter, and an opt-in lmax>1 reference-anchored closure
+    for integral-cross-section inputs.
     """
 
     name = MULTITERM_SOLVER_NAME
@@ -116,6 +107,12 @@ class MultiTermBoltzmannSolver(SwarmSolver):
         case = build_multiterm_case(self.config, self.cross_sections, e_over_n_Td)
         cfg = self.config.multiterm_boltzmann
         if cfg.method == "operator":
+            if cfg.lmax > 1 and not cfg.allow_experimental_operator:
+                raise RuntimeError(
+                    "multiterm_boltzmann.method='operator' with lmax > 1 is "
+                    "experimental. Set allow_experimental_operator: true only "
+                    "for validation and development runs."
+                )
             solution = MultiTermOperatorBackend(self.name).solve(case, case_id)
             run_time_s = perf_counter() - started
             return self._to_case_result(
@@ -170,21 +167,25 @@ class MultiTermBoltzmannSolver(SwarmSolver):
             else np.nan
         )
         is_operator_lmax1 = solution.method_used == "operator_lmax1_two_term"
-        is_operator_flux = solution.method_used == "operator_flux"
-        is_operator_hydrodynamic = solution.method_used == "operator_hydrodynamic"
-        is_operator = is_operator_flux or is_operator_hydrodynamic
+        is_operator_anchored = (
+            solution.method_used == "operator_reference_anchored_lmax_gt1"
+        )
+        is_operator = is_operator_lmax1 or is_operator_anchored
         if is_operator_lmax1:
             backend = "native_operator_lmax1_two_term"
             physical_validity = "operator_lmax1_two_term_reference"
-        elif is_operator_hydrodynamic:
-            backend = "native_operator_sparse"
-            physical_validity = "operator_hydrodynamic_b0_dc_m0_integral_cross_sections"
-        elif is_operator_flux:
-            backend = "native_operator_sparse"
-            physical_validity = "operator_flux_b0_dc_m0_integral_cross_sections"
+            operator_status = "reference"
+        elif is_operator_anchored:
+            backend = "native_operator_reference_anchored"
+            physical_validity = (
+                "reference_anchored_lmax_gt1_integral_cross_section_closure"
+            )
+            operator_status = "experimental_reference_anchored"
         else:
             backend = "native_moment_closure"
             physical_validity = "moment_closure_estimate_not_multiterm_operator"
+            operator_status = "not_operator"
+        energy_grid = case.config.multiterm_boltzmann.energy_grid
         metadata = {
             "backend": backend,
             "run_label": case_id,
@@ -198,6 +199,17 @@ class MultiTermBoltzmannSolver(SwarmSolver):
             "hydrodynamic_requested": bool(case.config.multiterm_boltzmann.hydrodynamic),
             "transport_definition": "flux_bulk_source" if bulk is not None else "flux",
             "physical_validity": physical_validity,
+            "multiterm_operator_status": operator_status,
+            "operator_validation_required": bool(
+                is_operator and case.config.multiterm_boltzmann.lmax > 1
+            ),
+            "grid_n_cells": int(len(solution.energy_eV)),
+            "grid_min_eV": float(np.min(solution.energy_eV)),
+            "grid_max_eV": float(np.max(solution.energy_eV)),
+            "grid_spacing": energy_grid.spacing,
+            "threshold_refined": bool(
+                energy_grid.refine.enabled and len(solution.energy_eV) > energy_grid.n
+            ),
             "cross_section_high_energy_extrapolation": (
                 case.config.cross_sections.high_energy_extrapolation
             ),
@@ -206,6 +218,8 @@ class MultiTermBoltzmannSolver(SwarmSolver):
             "eedf_shape": (
                 "two_term_reference"
                 if is_operator_lmax1
+                else "two_term_reference_with_lmax_gt1_closure"
+                if is_operator_anchored
                 else "operator_solution"
                 if is_operator
                 else case.config.multiterm_boltzmann.eedf_shape
@@ -305,21 +319,12 @@ class MultiTermBoltzmannSolver(SwarmSolver):
 
 __all__ = [
     "EnergyGrid",
-    "DensityNormalizationConstraint",
     "LegendreBasis",
-    "LegendreBlockLayout",
     "MultiTermBoltzmannSolver",
     "MultiTermCase",
     "MultiTermOperatorBackend",
     "MultiTermSolution",
     "OperatorBackendUnavailable",
-    "OperatorAssemblyDiagnostics",
-    "OperatorSolveState",
-    "OperatorSystem",
-    "assemble_operator_system",
-    "build_density_normalization_constraint",
-    "build_operator_assembly_diagnostics",
-    "solve_operator_system",
     "build_multiterm_case",
     "druyvesteyn_energy_pdf",
     "electron_speed_m_s",

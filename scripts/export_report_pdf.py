@@ -391,7 +391,7 @@ def footer(canvas, doc):
     canvas.saveState()
     canvas.setFont("HeiseiKakuGo-W5", 7.5)
     canvas.setFillColor(colors.HexColor("#64748b"))
-    canvas.drawString(doc.leftMargin, 0.8 * cm, "Ar/N2 swarm Monte Carlo benchmark report")
+    canvas.drawString(doc.leftMargin, 0.8 * cm, "Swarm solver project notes")
     canvas.drawRightString(A4[0] - doc.rightMargin, 0.8 * cm, f"{doc.page}")
     canvas.restoreState()
 
@@ -406,8 +406,8 @@ def main() -> None:
         leftMargin=1.35 * cm,
         topMargin=1.3 * cm,
         bottomMargin=1.25 * cm,
-        title="Ar/N2 swarm Monte Carlo benchmark report",
-        author="swarm benchmark",
+        title="Swarm solver project notes",
+        author="swarm",
     )
     markdown = REPORT_MD.read_text(encoding="utf-8")
     story = build_story(markdown, styles, doc.width)

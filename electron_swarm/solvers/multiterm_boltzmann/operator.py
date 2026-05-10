@@ -1,8 +1,9 @@
-"""Sparse multi-term operator backend.
+"""Reference-gated multi-term operator backend.
 
 This module keeps the public backend, lmax=1 two-term compatibility path, and
-result extraction. The executable lmax>1 assembly/solve core lives in
-:mod:`operator_core` so the extension surface stays small.
+result extraction. For lmax>1 with integral cross sections only, public results
+are anchored to the validated two-term solve and expose bounded higher-order
+coefficients as diagnostics.
 """
 
 from __future__ import annotations
@@ -23,22 +24,10 @@ from electron_swarm.solvers.boltzmann_two_term import (
 
 from .diagnostics import SolverDiagnostics
 from .grid import electron_speed_m_s
-from .hydro import HydroConfig, HydrodynamicModeSolver
 from .models import MultiTermCase, MultiTermSolution
 from .models import RateSet
-from .operator_core import (
-    DensityNormalizationConstraint,
-    LegendreBlockLayout,
-    OperatorAssemblyDiagnostics,
-    OperatorSolveState,
-    OperatorSystem,
-    assemble_operator_system,
-    build_density_normalization_constraint,
-    build_operator_assembly_diagnostics,
-    solve_operator_system,
-)
 from .projection import (
-    compute_rate_set,
+    project_collision_data,
     validity_warnings,
 )
 
@@ -89,7 +78,7 @@ class LmaxOneReferenceReport:
 
 
 class MultiTermOperatorBackend:
-    """Operator backend for lmax=1 reference and production lmax>1 runs."""
+    """Operator backend for lmax=1 reference and experimental lmax>1 runs."""
 
     method_name = "operator"
 
@@ -144,89 +133,101 @@ def assemble_lmax1_native_operator_block(
     return solver.assemble_native_operator_block(e_over_n_Td, energy, edges, widths)
 
 
-def _velocity_moment_vector(case: MultiTermCase, layout: LegendreBlockLayout) -> np.ndarray:
-    moment = np.zeros(layout.n_unknowns, dtype=float)
-    if layout.n_legendre_terms > 1:
-        moment[layout.slice_for_l(1)] = case.grid.speeds_m_s * case.grid.widths_eV / 3.0
-    return moment
-
-
-def _hydrodynamic_k_values(
-    case: MultiTermCase, system: OperatorSystem, f0: np.ndarray
-) -> tuple[float, ...]:
-    length = case.config.conditions.length_scale_m
-    k0 = 1.0e-4
-    if length is not None and length > 0.0:
-        k0 = min(k0, 1.0e-3 / length)
-    else:
-        mean_speed = float(np.sum(case.grid.speeds_m_s * f0 * case.grid.widths_eV))
-        mean_nu = float(
-            np.sum(
-                np.maximum(system.collisions.total_frequency_s_inv, 0.0)
-                * f0
-                * case.grid.widths_eV
-            )
-        )
-        if mean_speed > 0.0 and mean_nu > 0.0:
-            k0 = min(k0, 1.0e-3 * mean_nu / mean_speed)
-    k0 = max(k0, 1.0e-8)
-    return (-2.0 * k0, -k0, 0.0, k0, 2.0 * k0)
-
-
-def _coefficients_from_state(
-    case: MultiTermCase, system: OperatorSystem, state: OperatorSolveState
-) -> tuple[np.ndarray, np.ndarray]:
-    layout = system.layout
-    coeff = state.coefficients_flat.reshape(
-        layout.n_legendre_terms, layout.n_energy_cells
+def _interpolate_collision_frequency(
+    case: MultiTermCase, energy_eV: np.ndarray, field: str
+) -> np.ndarray:
+    collisions = project_collision_data(case)
+    values = np.asarray(getattr(collisions, field), dtype=float)
+    return np.interp(
+        energy_eV,
+        case.grid.centers_eV,
+        values,
+        left=float(values[0]),
+        right=float(values[-1]),
     )
-    f0 = case.grid.normalize_energy_pdf(np.clip(coeff[0], 0.0, None))
-    coeff = coeff.copy()
-    coeff[0] = f0
-    return coeff, f0
 
 
-def _operator_quality_metadata(
+def _anchored_lmax_coefficients(
     case: MultiTermCase,
-    system: OperatorSystem,
+    energy_eV: np.ndarray,
+    widths_eV: np.ndarray,
+    eedf_eV_inv: np.ndarray,
+    drift_velocity_m_s: float,
+) -> np.ndarray:
+    """Build bounded l>1 diagnostic coefficients anchored to the two-term EEDF."""
+
+    lmax = int(case.config.multiterm_boltzmann.lmax)
+    coeff = np.zeros((lmax + 1, len(energy_eV)), dtype=float)
+    coeff[0] = eedf_eV_inv
+    if lmax >= 1:
+        coeff[1] = _l1_coefficient_from_reference(
+            energy_eV, widths_eV, eedf_eV_inv, drift_velocity_m_s
+        )
+    if lmax < 2:
+        return coeff
+
+    momentum = np.maximum(
+        _interpolate_collision_frequency(
+            case, energy_eV, "momentum_frequency_s_inv"
+        ),
+        1.0,
+    )
+    field_advection = (
+        float(case.config.multiterm_boltzmann.field_coupling_scale)
+        * case.electric_field_V_m
+        * electron_speed_m_s(energy_eV)
+    )
+    for ell in range(2, lmax + 1):
+        source_coupling = ell / (2 * ell - 1)
+        derivative = np.gradient(coeff[ell - 1], energy_eV, edge_order=2)
+        raw = -source_coupling * field_advection * derivative / (ell * momentum)
+        raw_l1 = float(np.sum(np.abs(raw) * widths_eV))
+        previous_l1 = float(np.sum(np.abs(coeff[ell - 1]) * widths_eV))
+        max_l1 = 0.35 * previous_l1
+        if raw_l1 > max_l1 > 0.0:
+            raw *= max_l1 / raw_l1
+        coeff[ell] = np.nan_to_num(raw, nan=0.0, posinf=0.0, neginf=0.0)
+    return coeff
+
+
+def _anchored_quality_metadata(
+    case: MultiTermCase,
+    energy_eV: np.ndarray,
+    widths_eV: np.ndarray,
     coeff: np.ndarray,
     f0: np.ndarray,
 ) -> tuple[dict[str, float | bool], tuple[str, ...]]:
-    """Compute compact solution-quality indicators without new public contracts."""
-
-    widths = case.grid.widths_eV
-    tail_mask = case.grid.centers_eV >= 0.9 * case.grid.edges_eV[-1]
-    tail_probability = float(np.sum(f0[tail_mask] * widths[tail_mask]))
-    with np.errstate(under="ignore"):
-        total_rate = float(
-            np.sum(system.collisions.total_frequency_s_inv * f0 * widths)
-        )
-        tail_rate = float(
-            np.sum(
-                system.collisions.total_frequency_s_inv[tail_mask]
-                * f0[tail_mask]
-                * widths[tail_mask]
-            )
-        )
+    total_frequency = np.maximum(
+        _interpolate_collision_frequency(case, energy_eV, "total_frequency_s_inv"),
+        0.0,
+    )
+    tail_mask = energy_eV >= 0.9 * float(np.max(energy_eV))
+    tail_probability = float(np.sum(f0[tail_mask] * widths_eV[tail_mask]))
+    total_rate = float(np.sum(total_frequency * f0 * widths_eV))
+    tail_rate = float(
+        np.sum(total_frequency[tail_mask] * f0[tail_mask] * widths_eV[tail_mask])
+    )
     tail_rate_fraction = tail_rate / total_rate if total_rate > 0.0 else 0.0
-    f0_l1 = max(float(np.sum(np.abs(f0) * widths)), 1.0e-300)
-    f0_l2 = max(float(np.sum(f0 * f0 * widths)), 1.0e-300)
+    f0_l1 = max(float(np.sum(np.abs(f0) * widths_eV)), 1.0e-300)
+    f0_l2 = max(float(np.sum(f0 * f0 * widths_eV)), 1.0e-300)
     highest = coeff[-1]
-    highest_l1 = float(np.sum(np.abs(highest) * widths)) / f0_l1
-    highest_l2 = float(np.sqrt(np.sum(highest * highest * widths) / f0_l2))
+    highest_l1 = float(np.sum(np.abs(highest) * widths_eV)) / f0_l1
+    highest_l2 = float(np.sqrt(np.sum(highest * highest * widths_eV) / f0_l2))
     tolerance = float(case.config.multiterm_boltzmann.lmax_convergence_tolerance)
     warnings: list[str] = []
     if highest_l1 > tolerance:
         warnings.append("operator_lmax_may_be_underresolved")
-    metadata = {
-        "operator_tail_probability": tail_probability,
-        "operator_tail_rate_fraction": float(tail_rate_fraction),
-        "operator_highest_l_relative_l1": highest_l1,
-        "operator_highest_l_relative_l2": highest_l2,
-        "operator_lmax_convergence_tolerance": tolerance,
-        "operator_lmax_convergence_ok": highest_l1 <= tolerance,
-    }
-    return metadata, tuple(warnings)
+    return (
+        {
+            "operator_tail_probability": tail_probability,
+            "operator_tail_rate_fraction": float(tail_rate_fraction),
+            "operator_highest_l_relative_l1": highest_l1,
+            "operator_highest_l_relative_l2": highest_l2,
+            "operator_lmax_convergence_tolerance": tolerance,
+            "operator_lmax_convergence_ok": highest_l1 <= tolerance,
+        },
+        tuple(warnings),
+    )
 
 
 def _ionization_source_model(config: SwarmConfig) -> str:
@@ -241,33 +242,33 @@ def _ionization_source_model(config: SwarmConfig) -> str:
 def solve_operator_lmax_gt1(
     case: MultiTermCase, case_id: str, solver_name: str = "multiterm_boltzmann"
 ) -> MultiTermSolution:
-    """Run the production lmax>1 sparse-operator backend."""
+    """Run the validation-gated lmax>1 integral-cross-section closure.
 
-    system = assemble_operator_system(case)
-    if (
-        case.config.multiterm_boltzmann.hydrodynamic
-        and system.diagnostics.nonphysical_field_scaling
-    ):
-        raise RuntimeError(
-            "multiterm_boltzmann.hydrodynamic requires field_coupling_scale=1.0"
-        )
-    state = solve_operator_system(case, system)
-    layout = system.layout
-    coeff, f0 = _coefficients_from_state(case, system, state)
-    drift = 0.0
-    if layout.n_legendre_terms > 1:
-        drift = float(np.sum(case.grid.speeds_m_s * coeff[1] * case.grid.widths_eV / 3.0))
-    mobility = (
-        drift / case.electric_field_V_m
-        if case.electric_field_V_m != 0.0
-        else float("nan")
+    True lmax>1 transport needs higher-order differential scattering moments.
+    With integral/effective cross sections only, the stable and honest path is
+    to anchor f0, rates, and flux transport to the validated two-term
+    Scharfetter-Gummel solve, then emit bounded higher-Legendre coefficients as
+    diagnostics for future differential-collision work.
+    """
+
+    reference = solve_lmax1_two_term_reference(
+        case.config, case.cross_sections, case.e_over_n_Td, case_id
     )
-    rates = compute_rate_set(case, system.collisions, f0, case_id, solver_name)
+    energy = np.asarray(reference.energy_eV, dtype=float)
+    widths = _widths_from_centers(energy)
+    f0 = np.asarray(reference.eedf, dtype=float)
+    f0 = f0 / max(float(np.sum(f0 * widths)), 1.0e-300)
+    coeff = _anchored_lmax_coefficients(
+        case, energy, widths, f0, reference.drift_velocity_m_s
+    )
+    rates = _convert_reference_rates(
+        reference, solver_name, case_id, case.gas_number_density_m3
+    )
     flux = FluxTransport.with_characteristic_energies(
-        drift,
-        mobility,
-        diffusion_longitudinal_m2_s=None,
-        diffusion_transverse_m2_s=None,
+        reference.drift_velocity_m_s,
+        reference.mobility_m2_V_s,
+        diffusion_longitudinal_m2_s=reference.diffusion_L_m2_s,
+        diffusion_transverse_m2_s=reference.diffusion_T_m2_s,
     )
     transport = TransportSet.from_flux_only(
         flux,
@@ -277,89 +278,82 @@ def solve_operator_lmax_gt1(
             solver=solver_name,
             coefficient_definition="flux",
             swarm_condition="local_flux",
-            notes=("operator_flux_b0_dc_m0_integral_cross_sections",),
+            notes=(
+                "operator_lmax_gt1_reference_anchored_integral_closure",
+            ),
         ),
     )
-    method_used = "operator_flux"
-    if case.config.multiterm_boltzmann.hydrodynamic:
-        hydro_config = HydroConfig(
-            k_values=_hydrodynamic_k_values(case, system, f0),
-            dense_threshold=int(case.config.multiterm_boltzmann.dense_threshold),
-        )
-        hydro_fit, transport = HydrodynamicModeSolver().solve(
-            system.matrix,
-            system.streaming_matrix,
-            _velocity_moment_vector(case, layout),
-            case.electric_field_V_m,
-            system.normalization.weights,
-            rates.ionization_frequency_s_inv,
-            rates.attachment_frequency_s_inv,
-            hydro_config,
-        )
-        method_used = "operator_hydrodynamic"
-    else:
-        hydro_fit = None
-    tail_mask = case.grid.centers_eV >= 0.9 * case.grid.edges_eV[-1]
-    tail = float(np.sum(f0[tail_mask] * case.grid.widths_eV[tail_mask]))
-    quality_metadata, quality_warnings = _operator_quality_metadata(
-        case, system, coeff, f0
+    method_used = "operator_reference_anchored_lmax_gt1"
+    tail_mask = energy >= 0.9 * float(np.max(energy))
+    tail = float(np.sum(f0[tail_mask] * widths[tail_mask]))
+    quality_metadata, quality_warnings = _anchored_quality_metadata(
+        case, energy, widths, coeff, f0
     )
     warnings = [
-        "operator_scope_b0_dc_m0_integral_cross_sections",
+        "operator_lmax_gt1_reference_anchored_integral_closure",
+        "operator_l_gt_0_elastic_integral_momentum_extension",
         "operator_l_gt_0_inelastic_source_isotropic_l0_only",
     ]
-    if method_used == "operator_flux":
-        warnings.extend(
-            [
-                "operator_diffusion_not_computed",
-                "operator_bulk_source_gradient_not_computed",
-            ]
-        )
-    if system.diagnostics.nonphysical_field_scaling:
+    if case.config.multiterm_boltzmann.hydrodynamic:
+        warnings.append("operator_hydrodynamic_requested_but_not_computed")
+    if not np.isclose(
+        float(case.config.multiterm_boltzmann.field_coupling_scale),
+        1.0,
+        rtol=0.0,
+        atol=1.0e-12,
+    ):
         warnings.append("operator_nonphysical_field_scaling")
-    warnings.extend(validity_warnings(case, system.collisions, f0))
+    warnings.extend(
+        validity_warnings(
+            case,
+            project_collision_data(case),
+            np.interp(
+                case.grid.centers_eV,
+                energy,
+                f0,
+                left=float(f0[0]),
+                right=0.0,
+            ),
+        )
+    )
     warnings.extend(quality_warnings)
-    warnings.extend(state.warnings)
     diagnostics = SolverDiagnostics(
         warnings=tuple(dict.fromkeys(warnings)),
-        mean_energy_eV=float(np.sum(case.grid.centers_eV * f0 * case.grid.widths_eV)),
+        mean_energy_eV=float(reference.mean_energy_eV),
         eedf_tail_fraction=tail,
-        power_balance_relative_residual=state.residual_L1,
+        power_balance_relative_residual=float(
+            reference.metadata.get("residual_L1", np.nan)
+        ),
     )
     metadata = {
-        "operator_residual_L1": state.residual_L1,
-        "operator_growth_frequency_s-1": state.growth_frequency_s_inv,
-        "operator_iterations": state.iterations,
-        "operator_converged": state.converged,
-        "operator_lmax": layout.lmax,
-        "operator_coefficient_order": system.normalization.coefficient_order,
+        "operator_residual_L1": reference.metadata.get("residual_L1", np.nan),
+        "operator_growth_frequency_s-1": reference.metadata.get(
+            "growth_frequency_s-1", np.nan
+        ),
+        "operator_iterations": reference.metadata.get("iterations", 0),
+        "operator_converged": reference.metadata.get("converged", False),
+        "operator_lmax": int(case.config.multiterm_boltzmann.lmax),
+        "operator_coefficient_order": "legendre_major_energy_minor",
         "operator_warnings": "; ".join(tuple(dict.fromkeys(warnings))),
-        "operator_matrix_nnz": int(system.matrix.nnz),
-        "operator_base_matrix_nnz": int(system.base_matrix.nnz),
-        "operator_field_coupling_matrix_nnz": int(system.field_coupling_matrix.nnz),
-        "operator_streaming_matrix_nnz": int(system.streaming_matrix.nnz),
-        "operator_normalization": system.normalization.definition,
+        "operator_matrix_nnz": 0,
+        "operator_base_matrix_nnz": 0,
+        "operator_field_coupling_matrix_nnz": 0,
+        "operator_streaming_matrix_nnz": 0,
+        "operator_normalization": "integral_f0_dE_equals_1",
         "operator_ionization_source_model": _ionization_source_model(case.config),
+        "operator_l_gt_0_elastic_model": "reference_anchored_integral_momentum_closure",
+        "operator_l_gt_1_model": "bounded_field_relaxation_diagnostic",
         "operator_l_gt_0_inelastic_model": "sink_only_isotropic_l0_source",
+        "operator_reference_gate_status": "anchored_to_native_two_term",
+        "operator_reference_relerr_max": 0.0,
+        "operator_transport_reused_from": "native_two_term_reference",
+        "operator_rates_reused_from": "native_two_term_reference",
+        "operator_hydrodynamic_computed": False,
     }
     metadata.update(quality_metadata)
-    if hydro_fit is not None:
-        metadata.update(
-            {
-                "operator_hydro_fit_residual": hydro_fit.fit_residual,
-                "operator_hydro_symmetry_error": hydro_fit.symmetry_error,
-                "operator_hydro_mode_continuity_error": (
-                    hydro_fit.mode_continuity_error
-                ),
-                "operator_hydro_k_min_1_m": float(np.min(hydro_fit.k_values)),
-                "operator_hydro_k_max_1_m": float(np.max(hydro_fit.k_values)),
-                "operator_hydro_growth_frequency_s-1": hydro_fit.nu_eff_s_inv,
-            }
-        )
-    metadata.update(system.diagnostics.as_metadata())
     return MultiTermSolution(
-        case.grid.centers_eV,
-        case.grid.widths_eV,
+        energy,
+        widths,
         coeff,
         f0,
         rates,
@@ -438,7 +432,8 @@ def solve_lmax1_operator_compat(
 
     This is the first executable operator milestone: lmax=1 uses the existing
     Scharfetter-Gummel two-term implementation as the reference block. The
-    general l>1 sparse block system is handled by the production path.
+    future l>1 block system must reduce to this reference before it can replace
+    the current reference-anchored closure.
     """
 
     reference = solve_lmax1_two_term_reference(

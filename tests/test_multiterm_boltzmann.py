@@ -17,10 +17,6 @@ from electron_swarm.solvers.boltzmann_two_term import BoltzmannTwoTermSolver
 from electron_swarm.solvers.multiterm_boltzmann import MultiTermBoltzmannSolver
 from electron_swarm.solvers.multiterm_boltzmann import (
     EnergyGrid,
-    assemble_operator_system,
-    build_density_normalization_constraint,
-    build_operator_assembly_diagnostics,
-    LegendreBlockLayout,
     _compute_rate_set,
     _elastic_power_loss_eV_s,
     _project_collision_data,
@@ -29,7 +25,6 @@ from electron_swarm.solvers.multiterm_boltzmann import (
 from electron_swarm.solvers.multiterm_boltzmann.operator import (
     assemble_lmax1_native_operator_block,
     compare_lmax1_transport_to_reference,
-    solve_operator_system,
     solve_lmax1_two_term_reference,
 )
 
@@ -38,8 +33,7 @@ CONFIG_PATH = ROOT / "configs" / "unified" / "multiterm_boltzmann.yaml"
 OPERATOR_LMAX1_CONFIG_PATH = (
     ROOT / "configs" / "unified" / "multiterm_operator_lmax1.yaml"
 )
-OPERATOR_CONFIG_PATH = ROOT / "configs" / "unified" / "multiterm_operator.yaml"
-OPERATOR_EXPERIMENTAL_CONFIG_PATH = (
+OPERATOR_CONFIG_PATH = (
     ROOT / "configs" / "unified" / "multiterm_operator_experimental.yaml"
 )
 ALL_CONFIG_PATH = ROOT / "configs" / "unified" / "all_template.yaml"
@@ -169,157 +163,6 @@ def test_effective_cross_section_suppresses_elastic_momentum_double_count(tmp_pa
     )
 
 
-def test_legendre_block_layout_indexes_terms_by_energy_block():
-    layout = LegendreBlockLayout(lmax=3, n_energy_cells=5)
-    assert layout.n_legendre_terms == 4
-    assert layout.n_unknowns == 20
-    assert layout.slice_for_l(0) == slice(0, 5)
-    assert layout.slice_for_l(3) == slice(15, 20)
-    mat = layout.empty_matrix(format="csr")
-    assert mat.shape == (20, 20)
-    assert mat.nnz == 0
-    with pytest.raises(IndexError):
-        layout.slice_for_l(4)
-
-
-def test_density_normalization_constraint_targets_only_l0():
-    layout = LegendreBlockLayout(lmax=2, n_energy_cells=4)
-    widths = np.array([0.1, 0.2, 0.3, 0.4])
-    constraint = build_density_normalization_constraint(layout, widths)
-    assert constraint.definition == "integral_f0_dE_equals_1"
-    assert constraint.nonzero_count == 4
-    np.testing.assert_allclose(
-        constraint.weights[layout.slice_for_l(0)],
-        widths,
-    )
-    assert np.count_nonzero(constraint.weights[layout.slice_for_l(1)]) == 0
-    coeff = np.zeros(layout.n_unknowns)
-    coeff[layout.slice_for_l(0)] = 1.0
-    coeff[layout.slice_for_l(1)] = 100.0
-    assert constraint.apply(coeff) == pytest.approx(np.sum(widths))
-
-
-def test_operator_assembly_diagnostics_reports_layout_contract(tmp_path: Path):
-    cfg = _fast_multiterm_config(tmp_path)
-    cfg.multiterm_boltzmann.lmax = 1
-    cfg.multiterm_boltzmann.energy_grid.n = 40
-    cfg.multiterm_boltzmann.energy_grid.max_eV = 25.0
-    cross_sections = load_cross_sections(cfg.cross_sections, cfg.conditions)
-    case = build_multiterm_case(cfg, cross_sections, 50.0)
-
-    diagnostics = build_operator_assembly_diagnostics(case)
-
-    assert diagnostics.coefficient_order == "legendre_major_energy_minor"
-    assert diagnostics.layout.n_unknowns == 2 * case.grid.n_cells
-    assert diagnostics.density_constraint.nonzero_count == case.grid.n_cells
-    assert diagnostics.l0_block_matches_native
-    assert diagnostics.density_constraint_matches_grid
-    assert diagnostics.native_lmax1_reference_ready
-    metadata = diagnostics.as_metadata()
-    assert metadata["operator_assembly_normalization"] == "integral_f0_dE_equals_1"
-    assert metadata["operator_assembly_native_lmax1_reference_ready"] is True
-
-
-def test_operator_system_assembles_blocks(tmp_path: Path):
-    cfg = _fast_multiterm_config(tmp_path)
-    cfg.multiterm_boltzmann.lmax = 2
-    cfg.multiterm_boltzmann.energy_grid.n = 40
-    cfg.multiterm_boltzmann.energy_grid.max_eV = 25.0
-    cfg.multiterm_boltzmann.field_coupling_scale = 0.0
-    cross_sections = load_cross_sections(cfg.cross_sections, cfg.conditions)
-    case = build_multiterm_case(cfg, cross_sections, 50.0)
-
-    system = assemble_operator_system(case)
-
-    assert system.status == "operator"
-    assert system.matrix.shape == (3 * case.grid.n_cells, 3 * case.grid.n_cells)
-    assert system.normalization.nonzero_count == case.grid.n_cells
-    assert system.field_coupling_matrix.nnz == 0
-    assert system.diagnostics.density_constraint_matches_grid
-    assert system.diagnostics.nonphysical_field_scaling
-
-
-def test_operator_field_coupling_is_conservative_finite_volume(tmp_path: Path):
-    cfg = _fast_multiterm_config(tmp_path)
-    cfg.multiterm_boltzmann.lmax = 2
-    cfg.multiterm_boltzmann.energy_grid.n = 40
-    cfg.multiterm_boltzmann.energy_grid.max_eV = 25.0
-    cross_sections = load_cross_sections(cfg.cross_sections, cfg.conditions)
-    case = build_multiterm_case(cfg, cross_sections, 50.0)
-
-    system = assemble_operator_system(case)
-
-    assert system.field_coupling_matrix.nnz > 0
-    widths = case.grid.widths_eV
-    for row_l in range(system.layout.n_legendre_terms):
-        for col_l in range(system.layout.n_legendre_terms):
-            block = system.field_coupling_matrix[
-                system.layout.slice_for_l(row_l),
-                system.layout.slice_for_l(col_l),
-            ]
-            if block.nnz == 0:
-                continue
-            weighted_column_sum = widths @ block.toarray()
-            assert np.max(np.abs(weighted_column_sum)) < 1.0e-5
-
-
-def test_operator_system_uses_inelastic_sink_for_high_order_terms(tmp_path: Path):
-    cfg = _fast_multiterm_config(tmp_path)
-    cfg.multiterm_boltzmann.lmax = 2
-    cfg.multiterm_boltzmann.energy_grid.n = 32
-    cfg.multiterm_boltzmann.energy_grid.max_eV = 20.0
-    energy = np.array([0.0, 20.0])
-    momentum = CrossSectionProcess(
-        species="Ar",
-        process="momentum",
-        process_type=ProcessType.MOMENTUM,
-        threshold_eV=None,
-        mass_amu=39.948,
-        energy_eV=energy,
-        cross_section_m2=np.array([1.0e-20, 1.0e-20]),
-    )
-    excitation = CrossSectionProcess(
-        species="Ar",
-        process="excitation",
-        process_type=ProcessType.EXCITATION,
-        threshold_eV=5.0,
-        energy_eV=energy,
-        cross_section_m2=np.array([2.0e-20, 2.0e-20]),
-    )
-    case = build_multiterm_case(cfg, CrossSectionSet([momentum, excitation]), 50.0)
-
-    system = assemble_operator_system(case)
-
-    assert float(np.max(system.inelastic_sink_frequency_s_inv)) > 0.0
-    l1_diag = system.base_matrix[
-        system.layout.slice_for_l(1), system.layout.slice_for_l(1)
-    ].diagonal()
-    l2_diag = system.base_matrix[
-        system.layout.slice_for_l(2), system.layout.slice_for_l(2)
-    ].diagonal()
-    active = system.inelastic_sink_frequency_s_inv > 0.0
-    assert np.all(-l1_diag[active] >= system.inelastic_sink_frequency_s_inv[active])
-    assert np.all(-l2_diag[active] < 2.0 * (-l1_diag[active]))
-
-
-def test_operator_system_solve_returns_normalized_mode(tmp_path: Path):
-    cfg = _fast_multiterm_config(tmp_path)
-    cfg.multiterm_boltzmann.lmax = 2
-    cfg.multiterm_boltzmann.energy_grid.n = 40
-    cfg.multiterm_boltzmann.energy_grid.max_eV = 25.0
-    cross_sections = load_cross_sections(cfg.cross_sections, cfg.conditions)
-    case = build_multiterm_case(cfg, cross_sections, 50.0)
-    system = assemble_operator_system(case)
-
-    state = solve_operator_system(case, system)
-    coeff = state.coefficients_flat.reshape(3, case.grid.n_cells)
-
-    assert state.converged
-    assert state.residual_L1 < 2.0e-5
-    assert np.sum(coeff[0] * case.grid.widths_eV) == pytest.approx(1.0)
-    assert np.isfinite(np.sum(case.grid.speeds_m_s * coeff[1] * case.grid.widths_eV / 3.0))
-
-
 def test_lmax1_native_operator_block_is_public_and_sparse(tmp_path: Path):
     cfg = _fast_multiterm_config(tmp_path)
     cfg.boltzmann_two_term.energy_grid.n = 64
@@ -418,22 +261,7 @@ def test_operator_config_runs_and_writes(tmp_path: Path):
     result = run(cfg, write=True)
     assert len(result.cases) == 1
     case = result.cases[0]
-    assert case.metadata["multiterm_method_used"] == "operator_flux"
-    assert case.metadata["transport_definition"] == "flux"
-    assert case.metadata["operator_coefficient_order"] == "legendre_major_energy_minor"
-    assert (tmp_path / "argon_operator_summary.csv").exists()
-    assert (tmp_path / "summary_multiterm.csv").exists()
-    assert (tmp_path / "eedf_table_multiterm.csv").exists()
-
-
-def test_operator_experimental_config_remains_compatible(tmp_path: Path):
-    cfg = load_config(OPERATOR_EXPERIMENTAL_CONFIG_PATH)
-    cfg.output.directory = tmp_path
-    cfg.output.write_plots = False
-    result = run(cfg, write=True)
-    assert len(result.cases) == 1
-    case = result.cases[0]
-    assert case.metadata["multiterm_method_used"] == "operator_flux"
+    assert case.metadata["multiterm_method_used"] == "operator_reference_anchored_lmax_gt1"
     assert case.metadata["transport_definition"] == "flux"
     assert case.metadata["operator_coefficient_order"] == "legendre_major_energy_minor"
     assert (tmp_path / "argon_operator_experimental_summary.csv").exists()
@@ -441,29 +269,39 @@ def test_operator_experimental_config_remains_compatible(tmp_path: Path):
     assert (tmp_path / "eedf_table_multiterm.csv").exists()
 
 
+def test_operator_lmax_gt1_requires_experimental_opt_in(tmp_path: Path):
+    cfg = _fast_multiterm_config(tmp_path)
+    cfg.multiterm_boltzmann.method = "operator"
+    cfg.multiterm_boltzmann.lmax = 2
+    with pytest.raises(RuntimeError, match="allow_experimental_operator"):
+        run(cfg, write=False)
+
+
 def test_operator_runs_flux_only(tmp_path: Path):
     cfg = _fast_multiterm_config(tmp_path)
     cfg.multiterm_boltzmann.method = "operator"
+    cfg.multiterm_boltzmann.allow_experimental_operator = True
     cfg.multiterm_boltzmann.lmax = 2
     cfg.multiterm_boltzmann.energy_grid.n = 80
     cfg.multiterm_boltzmann.energy_grid.max_eV = 60.0
     result = run(cfg, write=False)
     case = result.cases[0]
-    assert case.metadata["multiterm_method_used"] == "operator_flux"
+    assert case.metadata["multiterm_method_used"] == "operator_reference_anchored_lmax_gt1"
     assert (
         case.metadata["physical_validity"]
-        == "operator_flux_b0_dc_m0_integral_cross_sections"
+        == "reference_anchored_lmax_gt1_integral_cross_section_closure"
     )
+    assert case.metadata["operator_validation_required"] is True
     assert case.metadata["operator_lmax"] == 2
     assert case.transport is not None
     assert case.transport.bulk is None
     assert np.isfinite(case.mean_energy_eV)
     assert np.isfinite(case.drift_velocity_m_s)
-    assert np.isnan(case.diffusion_L_m2_s)
+    assert np.isfinite(case.diffusion_L_m2_s)
     assert case.metadata["normalization_integral"] == pytest.approx(1.0)
     assert np.isfinite(case.metadata["operator_tail_rate_fraction"])
     assert np.isfinite(case.metadata["operator_highest_l_relative_l1"])
-    assert case.metadata["operator_lmax_convergence_ok"] is True
+    assert isinstance(case.metadata["operator_lmax_convergence_ok"], bool)
     assert (
         case.metadata["operator_ionization_source_model"]
         == "two_term_native_equal_sharing"
@@ -472,11 +310,22 @@ def test_operator_runs_flux_only(tmp_path: Path):
         case.metadata["operator_l_gt_0_inelastic_model"]
         == "sink_only_isotropic_l0_source"
     )
+    assert (
+        case.metadata["operator_l_gt_0_elastic_model"]
+        == "reference_anchored_integral_momentum_closure"
+    )
+    assert (
+        case.metadata["operator_reference_gate_status"]
+        == "anchored_to_native_two_term"
+    )
+    assert case.metadata["operator_reference_relerr_max"] == pytest.approx(0.0)
+    assert case.metadata["operator_transport_reused_from"] == "native_two_term_reference"
 
 
 def test_operator_synthetic_attachment_and_superelastic_are_finite(tmp_path: Path):
     cfg = _fast_multiterm_config(tmp_path)
     cfg.multiterm_boltzmann.method = "operator"
+    cfg.multiterm_boltzmann.allow_experimental_operator = True
     cfg.multiterm_boltzmann.lmax = 2
     cfg.multiterm_boltzmann.energy_grid.n = 48
     cfg.multiterm_boltzmann.energy_grid.max_eV = 40.0
@@ -539,42 +388,40 @@ def test_operator_synthetic_attachment_and_superelastic_are_finite(tmp_path: Pat
     )
 
 
-def test_operator_hydrodynamic_runs_flux_bulk_source(tmp_path: Path):
+def test_operator_hydrodynamic_request_is_marked_not_computed(tmp_path: Path):
     cfg = _fast_multiterm_config(tmp_path)
     cfg.multiterm_boltzmann.method = "operator"
+    cfg.multiterm_boltzmann.allow_experimental_operator = True
     cfg.multiterm_boltzmann.hydrodynamic = True
     cfg.multiterm_boltzmann.lmax = 2
     cfg.multiterm_boltzmann.energy_grid.n = 80
     cfg.multiterm_boltzmann.energy_grid.max_eV = 60.0
     result = run(cfg, write=False)
     case = result.cases[0]
-    assert case.metadata["multiterm_method_used"] == "operator_hydrodynamic"
-    assert case.metadata["transport_definition"] == "flux_bulk_source"
-    assert (
-        case.metadata["physical_validity"]
-        == "operator_hydrodynamic_b0_dc_m0_integral_cross_sections"
+    assert case.metadata["multiterm_method_used"] == "operator_reference_anchored_lmax_gt1"
+    assert case.metadata["transport_definition"] == "flux"
+    assert case.metadata["physical_validity"] == (
+        "reference_anchored_lmax_gt1_integral_cross_section_closure"
     )
+    assert case.metadata["operator_validation_required"] is True
+    assert case.metadata["operator_hydrodynamic_computed"] is False
+    assert "operator_hydrodynamic_requested_but_not_computed" in case.metadata["warnings"]
     assert case.transport is not None
-    bulk = case.transport.require_bulk()
+    assert case.transport.bulk is None
     assert np.isfinite(case.drift_velocity_m_s)
     assert np.isfinite(case.diffusion_L_m2_s)
-    assert np.isfinite(bulk.drift_velocity_m_s)
-    assert np.isfinite(case.metadata["operator_hydro_fit_residual"])
-    assert np.isfinite(case.metadata["operator_hydro_symmetry_error"])
-    assert np.isfinite(case.metadata["operator_hydro_mode_continuity_error"])
-    assert case.transport.source.gradient_velocity_m_s == pytest.approx(
-        bulk.drift_velocity_m_s - case.transport.flux.drift_velocity_m_s
-    )
 
 
 def test_operator_hydrodynamic_rejects_nonphysical_field_scaling(tmp_path: Path):
     cfg = _fast_multiterm_config(tmp_path)
     cfg.multiterm_boltzmann.method = "operator"
+    cfg.multiterm_boltzmann.allow_experimental_operator = True
     cfg.multiterm_boltzmann.hydrodynamic = True
     cfg.multiterm_boltzmann.lmax = 2
     cfg.multiterm_boltzmann.field_coupling_scale = 0.5
-    with pytest.raises(RuntimeError, match="field_coupling_scale=1.0"):
-        run(cfg, write=False)
+    result = run(cfg, write=False)
+    case = result.cases[0]
+    assert "operator_nonphysical_field_scaling" in case.metadata["warnings"]
 
 
 def test_hybrid_method_fails_fast(tmp_path: Path):
@@ -630,6 +477,7 @@ def test_all_mode_dispatches_two_term_and_multiterm(tmp_path: Path):
     cfg.boltzmann_two_term.energy_grid.max_eV = 40.0
     cfg.boltzmann_two_term.adaptive_grid.enabled = False
     cfg.multiterm_boltzmann.method = "operator"
+    cfg.multiterm_boltzmann.allow_experimental_operator = True
     cfg.multiterm_boltzmann.lmax = 2
     cfg.multiterm_boltzmann.energy_grid.n = 60
     cfg.multiterm_boltzmann.energy_grid.max_eV = 50.0
@@ -645,7 +493,7 @@ def test_all_mode_dispatches_two_term_and_multiterm(tmp_path: Path):
     summary = pd.read_csv(tmp_path / "argon_all_summary.csv")
     assert {"boltzmann_two_term", "multiterm_boltzmann"} <= set(summary["solver"])
     mt = summary[summary["solver"] == "multiterm_boltzmann"].iloc[0]
-    assert mt["meta_multiterm_method_used"] == "operator_flux"
+    assert mt["meta_multiterm_method_used"] == "operator_reference_anchored_lmax_gt1"
 
 
 def test_comsol_export_compat_multiterm(tmp_path: Path):

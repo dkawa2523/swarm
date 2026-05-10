@@ -24,6 +24,7 @@ multiterm_boltzmann:
   enabled: true
   lmax: 2
   method: operator
+  allow_experimental_operator: true
   hydrodynamic: false
   eedf_shape: maxwellian
   energy_grid:

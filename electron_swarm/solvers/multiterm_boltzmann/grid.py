@@ -8,6 +8,8 @@ import numpy as np
 
 from electron_swarm.core.config import SwarmConfig
 from electron_swarm.core.constants import ELECTRON_MASS_KG, EV_TO_J
+from electron_swarm.core.cross_sections import CrossSectionSet
+from electron_swarm.grids.energy import build_energy_grid as build_shared_energy_grid
 
 
 def electron_speed_m_s(energy_eV: np.ndarray | float) -> np.ndarray:
@@ -101,8 +103,25 @@ class EnergyGrid:
         return values / norm
 
 
-def make_energy_grid(config: SwarmConfig) -> EnergyGrid:
+def make_energy_grid(
+    config: SwarmConfig,
+    cross_sections: CrossSectionSet | None = None,
+) -> EnergyGrid:
     grid = config.multiterm_boltzmann.energy_grid
+    if grid.refine.enabled:
+        shared = build_shared_energy_grid(
+            min_eV=grid.min_eV,
+            max_eV=grid.max_eV,
+            n=grid.n,
+            spacing=grid.spacing,
+            linear_until_eV=grid.linear_until_eV,
+            cross_sections=cross_sections,
+            refine=True,
+            threshold_padding_eV=grid.refine.threshold_padding_eV,
+            points_per_threshold=grid.refine.points_per_threshold,
+            max_extra_points=grid.refine.max_extra_points,
+        )
+        return EnergyGrid(shared.centers_eV, shared.edges_eV)
     if grid.spacing == "linear":
         return EnergyGrid.linear(grid.min_eV, grid.max_eV, grid.n)
     if grid.spacing == "log":

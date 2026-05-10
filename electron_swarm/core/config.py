@@ -57,11 +57,22 @@ class CrossSectionsConfig:
 
 
 @dataclass(slots=True)
+class EnergyGridRefinementConfig:
+    enabled: bool = False
+    threshold_padding_eV: float = 0.15
+    points_per_threshold: int = 8
+    max_extra_points: int = 120
+
+
+@dataclass(slots=True)
 class EnergyGridConfig:
     min_eV: float = 1.0e-4
     max_eV: float = 100.0
     n: int = 600
     spacing: Literal["linear", "quadratic", "log"] = "quadratic"
+    refine: EnergyGridRefinementConfig = field(
+        default_factory=EnergyGridRefinementConfig
+    )
 
 
 @dataclass(slots=True)
@@ -71,6 +82,9 @@ class MultiTermEnergyGridConfig:
     n: int = 220
     spacing: Literal["linear", "log", "log_linear"] = "log_linear"
     linear_until_eV: float = 2.0
+    refine: EnergyGridRefinementConfig = field(
+        default_factory=EnergyGridRefinementConfig
+    )
 
 
 @dataclass(slots=True)
@@ -118,6 +132,7 @@ class MultiTermBoltzmannConfig:
     enabled: bool = True
     lmax: int = 3
     method: Literal["hybrid", "operator", "moment_closure"] = "moment_closure"
+    allow_experimental_operator: bool = False
     hydrodynamic: bool = False
     dense_threshold: int = 280
     eedf_shape: Literal["maxwellian", "druyvesteyn"] = "maxwellian"
@@ -216,6 +231,29 @@ def _validate_literal(value: str, allowed: set[str], field_name: str) -> str:
     if value not in allowed:
         raise ValueError(f"{field_name} must be one of {sorted(allowed)}")
     return value
+
+
+def _grid_refinement_config(
+    raw: dict[str, Any], field_name: str
+) -> EnergyGridRefinementConfig:
+    value = raw.get("refine", {}) or {}
+    if isinstance(value, bool):
+        value = {"enabled": value}
+    if not isinstance(value, dict):
+        raise TypeError(f"{field_name}.refine must be a mapping or boolean")
+    cfg = EnergyGridRefinementConfig(
+        enabled=bool(value.get("enabled", False)),
+        threshold_padding_eV=float(value.get("threshold_padding_eV", 0.15)),
+        points_per_threshold=int(value.get("points_per_threshold", 8)),
+        max_extra_points=int(value.get("max_extra_points", 120)),
+    )
+    if cfg.threshold_padding_eV < 0.0:
+        raise ValueError(f"{field_name}.refine.threshold_padding_eV must be >= 0")
+    if cfg.points_per_threshold < 2:
+        raise ValueError(f"{field_name}.refine.points_per_threshold must be >= 2")
+    if cfg.max_extra_points < 0:
+        raise ValueError(f"{field_name}.refine.max_extra_points must be >= 0")
+    return cfg
 
 
 def load_config(path: str | Path) -> SwarmConfig:
@@ -359,6 +397,10 @@ def load_config(path: str | Path) -> SwarmConfig:
                 {"linear", "quadratic", "log"},
                 "boltzmann_two_term.energy_grid.spacing",
             ),
+            refine=_grid_refinement_config(
+                g_raw,
+                "boltzmann_two_term.energy_grid",
+            ),
         ),
         adaptive_grid=AdaptiveGridConfig(
             enabled=bool(a_raw.get("enabled", True)),
@@ -424,6 +466,9 @@ def load_config(path: str | Path) -> SwarmConfig:
             {"hybrid", "operator", "moment_closure"},
             "multiterm_boltzmann.method",
         ),
+        allow_experimental_operator=bool(
+            mt_raw.get("allow_experimental_operator", False)
+        ),
         hydrodynamic=bool(mt_raw.get("hydrodynamic", False)),
         dense_threshold=int(mt_raw.get("dense_threshold", 280)),
         eedf_shape=_validate_literal(
@@ -445,6 +490,10 @@ def load_config(path: str | Path) -> SwarmConfig:
                 "multiterm_boltzmann.energy_grid.spacing",
             ),
             linear_until_eV=float(mt_g_raw.get("linear_until_eV", 2.0)),
+            refine=_grid_refinement_config(
+                mt_g_raw,
+                "multiterm_boltzmann.energy_grid",
+            ),
         ),
     )
     if multiterm.lmax < 1:

@@ -45,6 +45,12 @@ def _normalize(values: np.ndarray, widths: np.ndarray) -> np.ndarray:
     return values / total
 
 
+def _maxwellian_shape(energy_eV: np.ndarray, kT_eV: float) -> np.ndarray:
+    energy = np.asarray(energy_eV, dtype=float)
+    kT = max(float(kT_eV), 1.0e-12)
+    return np.sqrt(np.maximum(energy, 0.0)) * np.exp(-np.maximum(energy, 0.0) / kT)
+
+
 def mean_energy_eV(energy_eV: np.ndarray, widths_eV: np.ndarray, eedf_eV_inv: np.ndarray) -> float:
     energy = np.asarray(energy_eV, dtype=float)
     widths = np.asarray(widths_eV, dtype=float)
@@ -58,16 +64,28 @@ def maxwellian_eedf_like(
     widths_eV: np.ndarray,
     mean_energy_target_eV: float,
 ) -> np.ndarray:
-    """Return a normalized Maxwellian-like energy PDF matching mean energy.
-
-    For a Maxwellian energy distribution, <eps> = 3/2 kT, so kT = 2/3 <eps>.
-    """
+    """Return a normalized Maxwellian-like energy PDF matching mean energy."""
 
     energy = np.asarray(energy_eV, dtype=float)
     widths = np.asarray(widths_eV, dtype=float)
-    kT = max(2.0 * float(mean_energy_target_eV) / 3.0, 1.0e-8)
-    target = np.sqrt(np.maximum(energy, 0.0)) * np.exp(-np.maximum(energy, 0.0) / kT)
-    return _normalize(np.clip(target, 0.0, None), widths)
+    target_mean = max(float(mean_energy_target_eV), 0.0)
+
+    def distribution(kT_eV: float) -> np.ndarray:
+        return _normalize(np.clip(_maxwellian_shape(energy, kT_eV), 0.0, None), widths)
+
+    lo = 1.0e-8
+    hi = max(2.0 * target_mean / 3.0, lo)
+    for _ in range(80):
+        if mean_energy_eV(energy, widths, distribution(hi)) >= target_mean:
+            break
+        hi *= 2.0
+    for _ in range(80):
+        mid = 0.5 * (lo + hi)
+        if mean_energy_eV(energy, widths, distribution(mid)) < target_mean:
+            lo = mid
+        else:
+            hi = mid
+    return distribution(hi)
 
 
 def relaxation_target(

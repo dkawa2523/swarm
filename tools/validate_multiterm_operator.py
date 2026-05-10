@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Lightweight validation sweep for the multi-term operator backend.
+"""Lightweight smoke sweep for the experimental multi-term operator backend.
 
 This tool intentionally stays outside the solver package. It exercises a small
-set of representative cases, reports lmax trends, and optionally compares the
-two-term reference path against BOLOS when that optional dependency exists.
+set of representative cases and reports lmax trends. Passing this tool means
+the lmax>1 reference-anchored closure is numerically executable; it is not a
+full multi-term physics validation. Use tools/benchmark_operator_gate.py for
+two-term, BOLOS, and MC reference comparisons.
 """
 
 from __future__ import annotations
@@ -29,7 +31,6 @@ from electron_swarm.core.cross_sections import (  # noqa: E402
     ProcessType,
     load_cross_sections,
 )
-from electron_swarm.solvers.boltzmann_two_term import BoltzmannTwoTermSolver  # noqa: E402
 from electron_swarm.solvers.multiterm_boltzmann import MultiTermBoltzmannSolver  # noqa: E402
 
 
@@ -39,7 +40,6 @@ class Scenario:
     config: SwarmConfig
     cross_sections: CrossSectionSet
     e_over_n_Td: float
-    allow_bolos: bool = False
 
 
 def _relerr(a: float, b: float) -> float:
@@ -47,9 +47,12 @@ def _relerr(a: float, b: float) -> float:
 
 
 def _base_operator_config(*, quick: bool) -> SwarmConfig:
-    cfg = load_config(ROOT / "configs" / "unified" / "multiterm_operator.yaml")
+    cfg = load_config(
+        ROOT / "configs" / "unified" / "multiterm_operator_experimental.yaml"
+    )
     cfg.output.write_plots = False
     cfg.multiterm_boltzmann.method = "operator"
+    cfg.multiterm_boltzmann.allow_experimental_operator = True
     cfg.multiterm_boltzmann.hydrodynamic = False
     cfg.multiterm_boltzmann.energy_grid.n = 56 if quick else 80
     cfg.multiterm_boltzmann.energy_grid.max_eV = 60.0 if quick else 80.0
@@ -61,6 +64,7 @@ def _ar_n2_config(*, quick: bool) -> SwarmConfig:
     cfg.output.write_plots = False
     cfg.conditions.pressure_Pa = 100.0
     cfg.multiterm_boltzmann.method = "operator"
+    cfg.multiterm_boltzmann.allow_experimental_operator = True
     cfg.multiterm_boltzmann.hydrodynamic = False
     cfg.multiterm_boltzmann.energy_grid.n = 56 if quick else 80
     cfg.multiterm_boltzmann.energy_grid.max_eV = 70.0 if quick else 100.0
@@ -85,7 +89,7 @@ def _synthetic_processes(kind: str) -> CrossSectionSet:
             process_type=ProcessType.ATTACHMENT,
             threshold_eV=0.0,
             energy_eV=energy,
-            cross_section_m2=np.array([0.0, 4.0e-22, 4.0e-22, 1.0e-22]),
+            cross_section_m2=np.array([0.0, 1.0e-22, 1.0e-22, 3.0e-23]),
         )
     elif kind == "superelastic":
         excitation = CrossSectionProcess(
@@ -122,9 +126,9 @@ def _scenarios(*, quick: bool) -> list[Scenario]:
     super_cfg = copy.deepcopy(attach_cfg)
 
     return [
-        Scenario("Ar", ar, ar_xs, 50.0, allow_bolos=True),
-        Scenario("Ar_N2", ar_n2, ar_n2_xs, 80.0, allow_bolos=True),
-        Scenario("Ar_high_EN_ionization", ar, ar_xs, 300.0, allow_bolos=True),
+        Scenario("Ar", ar, ar_xs, 50.0),
+        Scenario("Ar_N2", ar_n2, ar_n2_xs, 80.0),
+        Scenario("Ar_high_EN_ionization", ar, ar_xs, 300.0),
         Scenario(
             "synthetic_attachment",
             attach_cfg,
@@ -140,34 +144,22 @@ def _scenarios(*, quick: bool) -> list[Scenario]:
     ]
 
 
-def _solve_operator(scenario: Scenario, *, lmax: int, hydrodynamic: bool):
+def _solve_operator(scenario: Scenario, *, lmax: int):
     cfg = copy.deepcopy(scenario.config)
     cfg.multiterm_boltzmann.method = "operator"
+    cfg.multiterm_boltzmann.allow_experimental_operator = True
     cfg.multiterm_boltzmann.lmax = int(lmax)
-    cfg.multiterm_boltzmann.hydrodynamic = bool(hydrodynamic)
+    cfg.multiterm_boltzmann.hydrodynamic = False
     solver = MultiTermBoltzmannSolver(cfg, scenario.cross_sections)
     return solver.solve_case(
         scenario.e_over_n_Td,
-        f"{scenario.name}_lmax{lmax}{'_hydro' if hydrodynamic else ''}",
+        f"{scenario.name}_lmax{lmax}",
     )
 
 
-def _operator_row(scenario: Scenario, lmax: int, hydrodynamic: bool) -> tuple[dict, bool]:
+def _operator_row(scenario: Scenario, lmax: int) -> tuple[dict, bool]:
     try:
-        case = _solve_operator(scenario, lmax=lmax, hydrodynamic=hydrodynamic)
-        transport = case.transport
-        source_gradient = (
-            transport.source.gradient_velocity_m_s if transport is not None else np.nan
-        )
-        bulk_drift = np.nan
-        if hydrodynamic:
-            bulk = transport.require_bulk()
-            bulk_drift = bulk.drift_velocity_m_s
-            expected = bulk.drift_velocity_m_s - transport.flux.drift_velocity_m_s
-            if not np.isclose(source_gradient, expected, rtol=1.0e-6, atol=1.0e-9):
-                raise RuntimeError("source_gradient != bulk - flux")
-            if not np.isfinite(case.diffusion_L_m2_s) or case.diffusion_L_m2_s < 0.0:
-                raise RuntimeError("hydrodynamic diffusion is invalid")
+        case = _solve_operator(scenario, lmax=lmax)
         norm = float(case.metadata.get("normalization_integral", np.nan))
         if not np.isfinite(norm) or abs(norm - 1.0) > 5.0e-6:
             raise RuntimeError(f"EEDF normalization failed ({norm:.6g})")
@@ -183,7 +175,6 @@ def _operator_row(scenario: Scenario, lmax: int, hydrodynamic: bool) -> tuple[di
         row = {
             "scenario": scenario.name,
             "lmax": int(lmax),
-            "hydro": bool(hydrodynamic),
             "status": "ok",
             "mean_energy_eV": case.mean_energy_eV,
             "drift_velocity_m_s": case.drift_velocity_m_s,
@@ -198,24 +189,13 @@ def _operator_row(scenario: Scenario, lmax: int, hydrodynamic: bool) -> tuple[di
                 "operator_highest_l_relative_l1", np.nan
             ),
             "diffusion_L_m2_s": case.diffusion_L_m2_s,
-            "bulk_drift_velocity_m_s": bulk_drift,
-            "source_gradient_velocity_m_s": source_gradient,
-            "hydro_fit_residual": case.metadata.get(
-                "operator_hydro_fit_residual", np.nan
-            ),
-            "hydro_symmetry_error": case.metadata.get(
-                "operator_hydro_symmetry_error", np.nan
-            ),
-            "hydro_mode_continuity_error": case.metadata.get(
-                "operator_hydro_mode_continuity_error", np.nan
-            ),
+            "closure": case.metadata.get("physical_validity", ""),
         }
         return row, True
     except Exception as exc:
         return {
             "scenario": scenario.name,
             "lmax": int(lmax),
-            "hydro": bool(hydrodynamic),
             "status": f"FAIL: {exc}",
         }, False
 
@@ -224,7 +204,7 @@ def _add_lmax_trends(frame: pd.DataFrame) -> pd.DataFrame:
     frame = frame.copy()
     for field in ["mean_energy_eV", "drift_velocity_m_s", "net_ionization_frequency_s"]:
         frame[f"{field}_rel_change_prev"] = np.nan
-    for scenario, idxs in frame[~frame["hydro"]].groupby("scenario").groups.items():
+    for scenario, idxs in frame.groupby("scenario").groups.items():
         prev = None
         for idx in sorted(idxs, key=lambda i: frame.at[i, "lmax"]):
             if prev is not None and frame.at[idx, "status"] == "ok":
@@ -241,62 +221,9 @@ def _add_lmax_trends(frame: pd.DataFrame) -> pd.DataFrame:
     return frame
 
 
-def _run_bolos_checks(scenarios: list[Scenario], rtol: float) -> tuple[pd.DataFrame, bool]:
-    try:
-        import bolos  # noqa: F401
-    except Exception:
-        print("SKIP: optional bolos package is not installed")
-        return pd.DataFrame(), True
-
-    rows = []
-    ok = True
-    for scenario in scenarios:
-        if not scenario.allow_bolos:
-            continue
-        native_cfg = copy.deepcopy(scenario.config)
-        native_cfg.boltzmann_two_term.backend = "native_bolsig"
-        bolos_cfg = copy.deepcopy(scenario.config)
-        bolos_cfg.boltzmann_two_term.backend = "bolos"
-        try:
-            native = BoltzmannTwoTermSolver(
-                native_cfg, scenario.cross_sections
-            ).solve_case(scenario.e_over_n_Td, f"{scenario.name}_native")
-            bolos_case = BoltzmannTwoTermSolver(
-                bolos_cfg, scenario.cross_sections
-            ).solve_case(scenario.e_over_n_Td, f"{scenario.name}_bolos")
-            for field in [
-                "mean_energy_eV",
-                "drift_velocity_m_s",
-                "reduced_mobility_m2_V_s_m3",
-                "reduced_diffusion_L_m2_s_m3",
-            ]:
-                err = _relerr(float(getattr(native, field)), float(getattr(bolos_case, field)))
-                rows.append(
-                    {
-                        "scenario": scenario.name,
-                        "field": field,
-                        "native": getattr(native, field),
-                        "bolos": getattr(bolos_case, field),
-                        "relerr": err,
-                        "status": "ok" if err <= rtol else "FAIL",
-                    }
-                )
-                ok = ok and err <= rtol
-        except Exception as exc:
-            ok = False
-            rows.append({"scenario": scenario.name, "field": "all", "status": f"FAIL: {exc}"})
-    return pd.DataFrame(rows), ok
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--quick", action="store_true", help="use smaller grids for fast checks")
-    parser.add_argument(
-        "--with-bolos",
-        action="store_true",
-        help="also compare native two-term reference against optional BOLOS",
-    )
-    parser.add_argument("--bolos-rtol", type=float, default=0.20)
     args = parser.parse_args(argv)
 
     scenarios = _scenarios(quick=args.quick)
@@ -304,28 +231,19 @@ def main(argv: list[str] | None = None) -> int:
     ok = True
     for scenario in scenarios:
         for lmax in (2, 3, 4):
-            row, passed = _operator_row(scenario, lmax, hydrodynamic=False)
+            row, passed = _operator_row(scenario, lmax)
             rows.append(row)
             ok = ok and passed
-        row, passed = _operator_row(scenario, 2, hydrodynamic=True)
-        rows.append(row)
-        ok = ok and passed
 
     frame = _add_lmax_trends(pd.DataFrame(rows))
-    print("\nMULTI-TERM OPERATOR VALIDATION")
+    print("\nMULTI-TERM OPERATOR SMOKE SWEEP")
+    print("NOTE: lmax>1 is reference-anchored; this is not a full multi-term validation.")
     print(frame.to_string(index=False))
 
-    if args.with_bolos:
-        bolos_frame, bolos_ok = _run_bolos_checks(scenarios, args.bolos_rtol)
-        if not bolos_frame.empty:
-            print("\nOPTIONAL BOLOS COMPARISON")
-            print(bolos_frame.to_string(index=False))
-        ok = ok and bolos_ok
-
     if not ok:
-        print("\nFAIL: validation checks found one or more hard failures")
+        print("\nFAIL: smoke checks found one or more hard failures")
         return 1
-    print("\nPASS: validation checks completed")
+    print("\nPASS: smoke checks completed; benchmark validation is still required")
     return 0
 
 

@@ -120,9 +120,9 @@ low-energy resolution.
 1. Run `configs/boltzmann_only.yaml` and check that every row has
    `meta_converged = True`, small `meta_residual_L1`, and negligible
    `meta_tail_probability`.
-2. When BOLOS is installed, run `tools/validate_against_bolos.py` for the same
-   cross sections and compare mean energy, reduced mobility, reduced diffusion,
-   and rate coefficients.
+2. When BOLOS is installed, run
+   `tools/benchmark_operator_gate.py --quick --require-bolos` and compare mean
+   energy, reduced mobility, reduced diffusion, and rate coefficients.
 3. Compare MC and Boltzmann results with `run.mode: both`; differences outside
    expected two-term limitations indicate anisotropy, nonlocal effects,
    insufficient MC statistics, or cross-section/model inconsistencies.

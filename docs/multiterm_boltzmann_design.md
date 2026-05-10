@@ -7,21 +7,20 @@ namespace.
 
 ## Scope
 
-The integrated entry point has two production-facing paths:
+The integrated entry point keeps the shared solver scope narrow:
 
 - uniform DC electric field
 - B = 0
 - axisymmetric m = 0 Legendre expansion
 - flux transport in the shared result schema
-- finite-k bulk/source-gradient transport for `method=operator` when
-  `hydrodynamic: true`
+- lmax>1 coefficients as a reference-anchored integral-cross-section closure
 - shared `electron_swarm` YAML input and CSV output schema
 
 The default `moment_closure` path remains an estimate and records
 `meta_physical_validity=moment_closure_estimate_not_multiterm_operator`.
 `method=operator, lmax=1` delegates to the two-term reference path, while
-`method=operator, lmax>1` runs the sparse Legendre operator. `method=hybrid`
-still fails fast.
+`method=operator, lmax>1` uses a reference-anchored closure only after explicit
+`allow_experimental_operator: true` opt-in. `method=hybrid` still fails fast.
 
 ## Transport Semantics
 
@@ -36,7 +35,7 @@ The typed result model carries a `TransportSet`:
 
 - `transport.flux`: spatial average of particle velocity and flux diffusion.
 - `transport.bulk`: swarm center-of-mass drift and bulk diffusion only when a
-  production hydrodynamic or MC bulk mode is available.
+  validated hydrodynamic or MC bulk mode is available.
 - `transport.source`: source-gradient corrections, including
   `gradient_velocity_m_s = W_bulk - W_flux`, only when bulk exists.
 
@@ -73,10 +72,8 @@ Internal modules keep extension points small:
 - `models.py`: solver-internal case, solution, and rate containers.
 - `projection.py`: cross-section normalization and grid projection.
 - `closure.py`: moment-closure estimate backend.
-- `operator.py`: sparse-operator backend surface, executable `lmax=1`
-  two-term compatibility path, and comparison helpers.
-- `operator_core.py`: executable `lmax>1` assembly/solve internals.
-- `hydro.py`: finite-k extraction used by operator hydrodynamic runs.
+- `operator.py`: operator backend surface, `lmax=1` two-term compatibility
+  path, lmax>1 reference-anchored closure, and comparison helpers.
 
 ## Numerical Model
 
@@ -94,11 +91,9 @@ energy loss unless explicit process metadata is added in the future. The power
 balance must bracket or minimize to a small residual; otherwise the solver
 fails instead of returning a boundary estimate.
 
-`hydro.py` is connected only to `method=operator` runs with
-`hydrodynamic: true`. Flux-only and moment-closure runs still do not emit
-standard bulk/source-gradient coefficients. Hydrodynamic extraction checks the
-finite-k fit residual, k-symmetry, mode continuity, and negative diffusion
-separately; a failed check is a solver error, not a flux-only fallback.
+The current lmax>1 path does not emit standard bulk/source-gradient
+coefficients. If `hydrodynamic: true` is requested, the result records that the
+request was not computed.
 
 Process normalization is applied before projection. If a species has an
 `EFFECTIVE` cross section, same-species `ELASTIC`/`MOMENTUM` cross sections are
@@ -109,12 +104,28 @@ input ambiguity.
 `method=operator, lmax=1` delegates to the existing two-term
 Scharfetter-Gummel implementation and adapts the result to the multi-term
 result schema with `meta_multiterm_method_used=operator_lmax1_two_term`.
-`method=operator, lmax>1` is now executable as
-`meta_multiterm_method_used=operator_flux` when `hydrodynamic: false`, and as
-`meta_multiterm_method_used=operator_hydrodynamic` only when finite-k extraction
-succeeds. Flux-only runs are marked
-`meta_physical_validity=operator_flux_b0_dc_m0_integral_cross_sections`;
-hydrodynamic runs emit standard bulk/source-gradient transport.
+`method=operator, lmax>1` is executable as
+`meta_multiterm_method_used=operator_reference_anchored_lmax_gt1`. It requires
+`allow_experimental_operator: true`. This path anchors f0, rates, and flux
+transport to the native two-term Scharfetter-Gummel reference, then adds bounded
+higher-Legendre coefficients using the available integral momentum relaxation.
+Runs are marked
+`meta_physical_validity=reference_anchored_lmax_gt1_integral_cross_section_closure`.
+This is intentionally not a full multi-term differential-scattering solution;
+it prevents the previous cold, nonphysical lmax>1 eigenmode from entering
+transport tables while keeping a clean extension point for future physics.
+
+A true `lmax>1` implementation needs information that an LXCat-style integral
+cross-section table usually does not contain:
+
+- Legendre moments of the differential elastic scattering kernel, not only an
+  elastic or momentum-transfer integral.
+- Consistent anisotropic source/sink blocks for excitation, ionization,
+  attachment, and superelastic channels.
+- Conservative energy-space discretization that reduces exactly to the native
+  two-term Scharfetter-Gummel block for `lmax=1`.
+- A finite-k or equivalent hydrodynamic benchmark before bulk diffusion and
+  source-gradient coefficients are published as standard transport data.
 
 The shared boundary is split into two public native helpers:
 `BoltzmannTwoTermSolver.solve_native_distribution()` returns the native energy
@@ -122,26 +133,9 @@ grid, quadrature widths, normalized EEDF, diagnostics, and metadata before
 public CSV/result postprocessing. `assemble_native_operator_block()` returns
 the Scharfetter-Gummel sparse matrix, projected collision data, electric field,
 and density on the same grid. Future multi-term operator assembly should reuse
-that block as the `lmax=1` regression anchor while replacing the current
-compatibility adapter with direct Legendre block assembly for `l>1`.
-`assemble_operator_system()` is the single executable `lmax>1` assembly path.
-The `l=0` block uses an E=0 energy/collision operator to avoid double-counting
-electric-field heating. Higher Legendre terms use momentum/effective
-relaxation plus a conservative inelastic sink and an upwind finite-volume
-electric-field coupling in energy space. The energy-space face flux uses the
-electron energy-advection sign with zero boundary flux. Anisotropic inelastic
-source terms are still approximated as isotropic `l=0` source plus high-order
-sink; this keeps the result honest while avoiding a separate non-executing
-scaffold API.
-`build_density_normalization_constraint()` defines the operator normalization
-row for flattened coefficient vectors: coefficients are ordered by Legendre
-term first, then energy cell, and only the `l=0` block carries quadrature
-weights for `integral f_0(epsilon) d epsilon = 1`.
-`build_operator_assembly_diagnostics()` checks this contract together with the
-native `l=0` Scharfetter-Gummel block and field-coupling block sizes.
-Metadata keys containing `operator_assembly_scaffold_*` are legacy CSV names
-kept for compatibility. They now describe the executable sparse operator
-matrix and should not be interpreted as a separate scaffold backend.
+that block as the `lmax=1` regression anchor. A future true `l>1` solver should
+be added only after the input model carries the missing higher-order collision
+moments; until then there is no public direct sparse Legendre block assembly.
 
 Operator runs also emit compact quality indicators rather than a separate
 benchmark contract: `meta_operator_tail_probability`,
@@ -151,10 +145,12 @@ benchmark contract: `meta_operator_tail_probability`,
 screening flag for whether a higher `lmax` check is worth running.
 The collision model is reported with
 `meta_operator_ionization_source_model` and
+`meta_operator_l_gt_0_elastic_model` and
 `meta_operator_l_gt_0_inelastic_model`. In the current integral-cross-section
 scope, `l=0` ionization follows the native two-term
-`ionization_energy_sharing` setting and higher-order inelastic terms use a
-sink-only model with isotropic `l=0` source closure.
+`ionization_energy_sharing` setting. Higher-order elastic damping is reported
+as `reference_anchored_integral_momentum_closure`, and higher-order inelastic
+terms use a sink-only model with isotropic `l=0` source closure.
 
 ## Extension Path
 
@@ -162,20 +158,17 @@ The next implementation stages should be:
 
 1. Keep `operator.py`'s `lmax=1` two-term compatibility path as the regression
    baseline.
-2. Use `assemble_native_operator_block()` as the reusable Scharfetter-Gummel
-   block boundary for `lmax=1` tests and future block assembly.
-3. Keep `operator_core.py` as the single place for `lmax>1` assembly/solve so
-   collision and field-coupling changes do not leak into result adaptation code.
-4. Keep `build_operator_assembly_diagnostics()` green for `lmax=1` whenever
-   operator assembly internals change.
-5. Replace the current integral-cross-section anisotropy approximation with
-   differential sparse Legendre collision/source blocks when that input data
-   model is added.
-6. Benchmark finite-k diffusion extraction over Ar, Ar/N2, attachment, and
-   superelastic cases before broadening scope.
-7. Add differential cross-section anisotropy only after the integral model is
-   stable.
-8. Use `tools/validate_multiterm_operator.py --quick` for compact Ar, Ar/N2,
-   attachment, superelastic, lmax, and finite-k smoke checks. Add
-   `--with-bolos` only on environments where the optional BOLOS dependency is
-   installed.
+2. Keep lmax>1 public results anchored to the native two-term reference while
+   only integral cross sections are available.
+3. Use `assemble_native_operator_block()` as the reusable Scharfetter-Gummel
+   block boundary for future direct block assembly.
+4. Add differential sparse Legendre collision/source blocks only after the input
+   model includes higher-order scattering moments.
+5. Benchmark finite-k diffusion extraction over Ar, Ar/N2, attachment, and
+   superelastic cases before exposing bulk/source-gradient output.
+6. Use `tools/validate_multiterm_operator.py --quick` only as a compact
+   executable smoke sweep for Ar, Ar/N2, attachment, superelastic, and lmax
+   trends. It is not a physics validation gate.
+7. Use `tools/benchmark_operator_gate.py --quick` as the small reference gate.
+   BOLOS is optional unless `--require-bolos` is passed; MC is included only
+   with `--with-mc`.

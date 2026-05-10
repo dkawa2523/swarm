@@ -25,12 +25,11 @@ consume them without new solver contracts.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 import numpy as np
-import yaml
 
+from electron_swarm.collisions.config import raw_config_from_source
 from electron_swarm.core.cross_sections import (
     CrossSectionProcess,
     CrossSectionSet,
@@ -45,17 +44,6 @@ class SpeciesState:
     energy_eV: float
     population: float
     degeneracy: float | None = None
-
-
-def _raw_config_from_source(config: object) -> dict[str, Any]:
-    path = getattr(config, "source_path", None)
-    if path is None:
-        return {}
-    try:
-        data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
-    except OSError:
-        return {}
-    return data if isinstance(data, dict) else {}
 
 
 def _state_items(species: str, raw_states: object) -> list[SpeciesState]:
@@ -135,6 +123,7 @@ def _superelastic_from_excitation(
     upper: SpeciesState,
     *,
     detailed_balance: str,
+    energy_floor_eV: float | None,
 ) -> CrossSectionProcess | None:
     delta = float(upper.energy_eV - lower.energy_eV)
     if delta <= 0.0 or upper.population <= 0.0:
@@ -142,11 +131,21 @@ def _superelastic_from_excitation(
     energy = np.asarray(process.energy_eV, dtype=float)
     shifted = energy + delta
     sigma_exc = process.sigma(shifted, left=0.0, right=0.0)
+    floor = (
+        float(energy_floor_eV)
+        if energy_floor_eV is not None
+        else max(1.0e-3, 0.01 * delta)
+    )
     degeneracy_ratio = 1.0
     if detailed_balance == "degeneracy" and lower.degeneracy and upper.degeneracy:
         degeneracy_ratio = float(lower.degeneracy) / float(upper.degeneracy)
     population_ratio = upper.population / max(lower.population, 1.0e-300)
-    sigma = sigma_exc * (shifted / np.maximum(energy, 1.0e-12)) * degeneracy_ratio * population_ratio
+    sigma = (
+        sigma_exc
+        * (shifted / np.maximum(energy, max(floor, 1.0e-12)))
+        * degeneracy_ratio
+        * population_ratio
+    )
     sigma = np.nan_to_num(np.clip(sigma, 0.0, None), nan=0.0, posinf=0.0, neginf=0.0)
     if not np.any(sigma > 0.0):
         return None
@@ -160,6 +159,8 @@ def _superelastic_from_excitation(
             "state_energy_gap_eV": delta,
             "population_ratio": population_ratio,
             "detailed_balance": detailed_balance,
+            "detailed_balance_energy_floor_eV": floor,
+            "regularized_low_energy_singularity": True,
         }
     )
     return CrossSectionProcess(
@@ -184,6 +185,8 @@ def generate_superelastic_processes(
     if not bool(state_cfg.get("generate_superelastic", True)):
         return []
     detailed_balance = str(state_cfg.get("detailed_balance", "simple"))
+    floor_raw = state_cfg.get("superelastic_energy_floor_eV")
+    energy_floor = float(floor_raw) if floor_raw is not None else None
     states = parse_species_states(raw)
     generated: list[CrossSectionProcess] = []
     for transition in state_cfg.get("transitions", []) or []:
@@ -202,7 +205,11 @@ def generate_superelastic_processes(
             if not _transition_matches(process, transition):
                 continue
             new_process = _superelastic_from_excitation(
-                process, lower, upper, detailed_balance=detailed_balance
+                process,
+                lower,
+                upper,
+                detailed_balance=detailed_balance,
+                energy_floor_eV=energy_floor,
             )
             if new_process is not None:
                 generated.append(new_process)
@@ -215,7 +222,7 @@ def augment_cross_sections_from_config(
 ) -> CrossSectionSet:
     """Return a cross-section set augmented by optional state-resolved physics."""
 
-    raw = _raw_config_from_source(config)
+    raw = raw_config_from_source(config)
     generated = generate_superelastic_processes(cross_sections, raw)
     if not generated:
         return cross_sections

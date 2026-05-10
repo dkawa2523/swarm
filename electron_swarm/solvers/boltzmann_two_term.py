@@ -42,6 +42,7 @@ from electron_swarm.core.cross_sections import (
 )
 from electron_swarm.core.results import RateResult, SwarmCaseResult
 from electron_swarm.core.transport import FluxTransport, TransportMetadata, TransportSet
+from electron_swarm.grids.energy import build_energy_grid
 from .base import SwarmSolver
 
 
@@ -78,6 +79,7 @@ def _make_energy_grid(
     *,
     max_eV_override: float | None = None,
     n_override: int | None = None,
+    cross_sections: CrossSectionSet | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     grid = cfg.energy_grid
     n = int(n_override or grid.n)
@@ -87,6 +89,20 @@ def _make_energy_grid(
         raise ValueError("Boltzmann energy grid requires at least 8 cells")
     if emax <= emin:
         raise ValueError("Boltzmann energy grid max_eV must be larger than min_eV")
+
+    if grid.refine.enabled:
+        refined = build_energy_grid(
+            min_eV=emin,
+            max_eV=emax,
+            n=n,
+            spacing=grid.spacing,
+            cross_sections=cross_sections,
+            refine=True,
+            threshold_padding_eV=grid.refine.threshold_padding_eV,
+            points_per_threshold=grid.refine.points_per_threshold,
+            max_extra_points=grid.refine.max_extra_points,
+        )
+        return refined.centers_eV, refined.edges_eV, refined.widths_eV
 
     if grid.spacing == "linear":
         centers = np.linspace(emin, emax, n)
@@ -101,6 +117,19 @@ def _make_energy_grid(
         raise ValueError(f"Unsupported energy spacing: {grid.spacing}")
     edges, widths = _cell_edges_from_centers(centers)
     return centers, edges, widths
+
+
+def _grid_metadata(
+    cfg: BoltzmannTwoTermConfig, energy: np.ndarray
+) -> dict[str, bool | float | int | str]:
+    grid = cfg.energy_grid
+    return {
+        "grid_n_cells": int(len(energy)),
+        "grid_min_eV": float(np.min(energy)) if len(energy) else float("nan"),
+        "grid_max_eV": float(np.max(energy)) if len(energy) else float("nan"),
+        "grid_spacing": grid.spacing,
+        "threshold_refined": bool(grid.refine.enabled and len(energy) > grid.n),
+    }
 
 
 def _bernoulli(x: np.ndarray | float) -> np.ndarray | float:
@@ -315,6 +344,10 @@ class BoltzmannTwoTermSolver(SwarmSolver):
             "backend": "bolos",
             "grid_max_eV": float(np.max(energy)),
             "adaptive_cycles": int(cycle + 1),
+            "grid_n_cells": int(len(energy)),
+            "grid_min_eV": float(np.min(energy)),
+            "grid_spacing": self.config.boltzmann_two_term.energy_grid.spacing,
+            "threshold_refined": False,
         }
         return self._postprocess(e_over_n_Td, case_id, energy, widths, eedf, metadata=metadata, transport_override=transport)
 
@@ -348,7 +381,11 @@ class BoltzmannTwoTermSolver(SwarmSolver):
         last_diag: NativeSolveDiagnostics | None = None
         cycles = max(1, cfg.adaptive_grid.max_cycles if cfg.adaptive_grid.enabled else 1)
         for cycle in range(cycles):
-            energy, edges, widths = _make_energy_grid(cfg, max_eV_override=max_eV)
+            energy, edges, widths = _make_energy_grid(
+                cfg,
+                max_eV_override=max_eV,
+                cross_sections=self.cross_sections,
+            )
             initial = None
             if previous is not None:
                 old_e, old_f = previous
@@ -387,6 +424,7 @@ class BoltzmannTwoTermSolver(SwarmSolver):
                 self.config.cross_sections.high_energy_extrapolation
             ),
         }
+        metadata.update(_grid_metadata(cfg, energy))
         return NativeDistributionResult(
             energy_eV=energy,
             edges_eV=edges,
@@ -408,6 +446,7 @@ class BoltzmannTwoTermSolver(SwarmSolver):
             self.config.boltzmann_two_term,
             max_eV_override=max_eV_override,
             n_override=n_override,
+            cross_sections=self.cross_sections,
         )
 
     def assemble_native_operator_block(
