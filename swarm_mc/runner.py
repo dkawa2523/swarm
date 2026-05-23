@@ -330,17 +330,17 @@ class SimulationRunner:
                 summary_df = summary_df.sort_values(by="E/N (Td)")
             summary_dir = self.experiment.output_root / self.experiment.name
             summary_dir.mkdir(parents=True, exist_ok=True)
-            summary_df.to_csv(summary_dir / "summary.csv", index=False)
+            summary_df.to_csv(summary_dir / "swarm_mc_summary.csv", index=False)
         if eedf_rows:
             eedf_df = pd.DataFrame(eedf_rows)
-            eedf_df.to_csv(log_dir / "energy_table.csv", index=False)
+            eedf_df.to_csv(log_dir / "swarm_mc_energy.csv", index=False)
             eedf_df[["mean energy (eV)", "energy (eV)", "eedf (eV-1)"]].to_csv(
-                log_dir / "eedf_table.csv", index=False
+                log_dir / "swarm_mc_eedf.csv", index=False
             )
         if eepf_rows:
             eepf_df = pd.DataFrame(eepf_rows)
             eepf_df[["mean energy (eV)", "energy (eV)", "eepf (eV-3/2)"]].to_csv(
-                log_dir / "eepf_table.csv", index=False
+                log_dir / "swarm_mc_eepf.csv", index=False
             )
         if self.run_stats:
             timing_df = pd.DataFrame(self.run_stats)

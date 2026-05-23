@@ -20,10 +20,6 @@ from .closure import (
 )
 from .grid import EnergyGrid, electron_speed_m_s, make_energy_grid
 from .models import MultiTermCase, MultiTermSolution
-from .operator import (
-    MultiTermOperatorBackend,
-    OperatorBackendUnavailable,
-)
 from .projection import (
     ProjectedCollisionData,
     compute_rate_set,
@@ -33,7 +29,8 @@ from .projection import (
     threshold_masked_sigma,
 )
 
-MULTITERM_SOLVER_NAME = "multiterm_boltzmann"
+MULTITERM_SOLVER_NAME = "multi_term"
+DIRECT_PN_ROADMAP = "docs/roadmap/direct_pn_closure_operator.md"
 
 
 def _gas_number_density(config: SwarmConfig) -> float:
@@ -93,43 +90,39 @@ _energy_loss_eV = energy_loss_eV
 
 
 class MultiTermBoltzmannSolver(SwarmSolver):
-    """Unified axisymmetric multi-term Boltzmann entry point.
-
-    The solver exposes a conservative moment-closure estimator, an lmax=1
-    two-term reference adapter, and an opt-in lmax>1 reference-anchored closure
-    for integral-cross-section inputs.
-    """
+    """Product multi-term entry point for ordinary-XS PN closure runs."""
 
     name = MULTITERM_SOLVER_NAME
 
+    def _require_supported_product_method(self) -> None:
+        method = self.config.solvers.multi_term.method
+        if method == "pn_closure_surrogate":
+            return
+        if method == "pn_closure_direct":
+            raise NotImplementedError(
+                "multi_term method 'pn_closure_direct' is not implemented: "
+                "the direct PN block operator equations and lmax=1 regression "
+                f"path are not fixed; see {DIRECT_PN_ROADMAP}"
+            )
+        if method == "pn_dcs":
+            raise NotImplementedError(
+                "multi_term method 'pn_dcs' is not implemented: a DCS angular "
+                f"moment provider is required; see {DIRECT_PN_ROADMAP}"
+            )
+        raise NotImplementedError(f"Unsupported multi_term product method {method!r}")
+
     def solve_case(self, e_over_n_Td: float, case_id: str) -> SwarmCaseResult:
         started = perf_counter()
+        self._require_supported_product_method()
         case = build_multiterm_case(self.config, self.cross_sections, e_over_n_Td)
-        cfg = self.config.multiterm_boltzmann
-        if cfg.method == "operator":
-            if cfg.lmax > 1 and not cfg.allow_experimental_operator:
-                raise RuntimeError(
-                    "multiterm_boltzmann.method='operator' with lmax > 1 is "
-                    "experimental. Set allow_experimental_operator: true only "
-                    "for validation and development runs."
-                )
-            solution = MultiTermOperatorBackend(self.name).solve(case, case_id)
-            run_time_s = perf_counter() - started
-            return self._to_case_result(
-                case, solution, case_id, run_time_s, cfg.method
-            )
-        if cfg.method == "hybrid":
-            raise NotImplementedError(
-                "multiterm_boltzmann.method='hybrid' is reserved until the "
-                "operator and moment-closure dispatch policy is implemented."
-            )
+        cfg = self.config.internal.multi_term
         if cfg.method != "moment_closure":
-            raise OperatorBackendUnavailable(
-                f"Unsupported multiterm_boltzmann.method={cfg.method!r}"
+            raise NotImplementedError(
+                f"Unsupported multi_term internal method {cfg.method!r}"
             )
         solution = MomentClosureEngine(self.name).solve(case, case_id)
         run_time_s = perf_counter() - started
-        return self._to_case_result(case, solution, case_id, run_time_s, cfg.method)
+        return self._to_case_result(case, solution, case_id, run_time_s)
 
     def _to_case_result(
         self,
@@ -137,12 +130,10 @@ class MultiTermBoltzmannSolver(SwarmSolver):
         solution: MultiTermSolution,
         case_id: str,
         run_time_s: float,
-        requested_method: str,
     ) -> SwarmCaseResult:
         transport = solution.transport
         flux = transport.flux
         bulk = transport.bulk
-        source = transport.source
         estimated_bulk = solution.estimated_bulk
         number_density = case.gas_number_density_m3
         diffusion_l = (
@@ -161,48 +152,19 @@ class MultiTermBoltzmannSolver(SwarmSolver):
         )
         eedf = solution.eedf_eV_inv
         eepf = eedf / np.sqrt(np.maximum(solution.energy_eV, 1.0e-30))
-        estimated_gradient = (
-            estimated_bulk.drift_velocity_m_s - flux.drift_velocity_m_s
-            if estimated_bulk is not None
-            else np.nan
-        )
-        is_operator_lmax1 = solution.method_used == "operator_lmax1_two_term"
-        is_operator_anchored = (
-            solution.method_used == "operator_reference_anchored_lmax_gt1"
-        )
-        is_operator = is_operator_lmax1 or is_operator_anchored
-        if is_operator_lmax1:
-            backend = "native_operator_lmax1_two_term"
-            physical_validity = "operator_lmax1_two_term_reference"
-            operator_status = "reference"
-        elif is_operator_anchored:
-            backend = "native_operator_reference_anchored"
-            physical_validity = (
-                "reference_anchored_lmax_gt1_integral_cross_section_closure"
-            )
-            operator_status = "experimental_reference_anchored"
-        else:
-            backend = "native_moment_closure"
-            physical_validity = "moment_closure_estimate_not_multiterm_operator"
-            operator_status = "not_operator"
-        energy_grid = case.config.multiterm_boltzmann.energy_grid
+        energy_grid = case.config.internal.multi_term.energy_grid
         metadata = {
-            "backend": backend,
+            "backend": "pn_closure_surrogate",
             "run_label": case_id,
             "sweep_param": "E_over_N_Td",
             "sweep_value": float(case.e_over_n_Td),
             "run_time_s": float(run_time_s),
             "gas_number_density_m-3": float(number_density),
             "electric_field_V_m": float(case.electric_field_V_m),
-            "lmax": int(case.config.multiterm_boltzmann.lmax),
+            "lmax": int(case.config.internal.multi_term.lmax),
+            "direct_pn_operator": False,
             "hydrodynamic": bool(bulk is not None),
-            "hydrodynamic_requested": bool(case.config.multiterm_boltzmann.hydrodynamic),
             "transport_definition": "flux_bulk_source" if bulk is not None else "flux",
-            "physical_validity": physical_validity,
-            "multiterm_operator_status": operator_status,
-            "operator_validation_required": bool(
-                is_operator and case.config.multiterm_boltzmann.lmax > 1
-            ),
             "grid_n_cells": int(len(solution.energy_eV)),
             "grid_min_eV": float(np.min(solution.energy_eV)),
             "grid_max_eV": float(np.max(solution.energy_eV)),
@@ -212,17 +174,6 @@ class MultiTermBoltzmannSolver(SwarmSolver):
             ),
             "cross_section_high_energy_extrapolation": (
                 case.config.cross_sections.high_energy_extrapolation
-            ),
-            "multiterm_method_requested": requested_method,
-            "multiterm_method_used": solution.method_used,
-            "eedf_shape": (
-                "two_term_reference"
-                if is_operator_lmax1
-                else "two_term_reference_with_lmax_gt1_closure"
-                if is_operator_anchored
-                else "operator_solution"
-                if is_operator
-                else case.config.multiterm_boltzmann.eedf_shape
             ),
             "tail_fraction": solution.diagnostics.eedf_tail_fraction,
             "power_balance_relative_residual": (
@@ -252,9 +203,6 @@ class MultiTermBoltzmannSolver(SwarmSolver):
             "effective_townsend_1_m": float(
                 net_freq / max(abs(flux.drift_velocity_m_s), 1.0e-300)
             ),
-            "source_gradient_velocity_m_s": source.gradient_velocity_m_s
-            if source.gradient_velocity_m_s is not None
-            else np.nan,
             "estimated_bulk_definition": (
                 "moment_closure_estimate" if estimated_bulk is not None else ""
             ),
@@ -275,9 +223,7 @@ class MultiTermBoltzmannSolver(SwarmSolver):
                 and estimated_bulk.diffusion_transverse_m2_s is not None
                 else np.nan
             ),
-            "estimated_source_gradient_velocity_m_s": float(estimated_gradient),
         }
-        metadata.update(solution.metadata)
         if bulk is not None:
             metadata.update(
                 {
@@ -322,9 +268,7 @@ __all__ = [
     "LegendreBasis",
     "MultiTermBoltzmannSolver",
     "MultiTermCase",
-    "MultiTermOperatorBackend",
     "MultiTermSolution",
-    "OperatorBackendUnavailable",
     "build_multiterm_case",
     "druyvesteyn_energy_pdf",
     "electron_speed_m_s",

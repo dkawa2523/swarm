@@ -107,7 +107,7 @@ def make_energy_grid(
     config: SwarmConfig,
     cross_sections: CrossSectionSet | None = None,
 ) -> EnergyGrid:
-    grid = config.multiterm_boltzmann.energy_grid
+    grid = config.internal.multi_term.energy_grid
     if grid.refine.enabled:
         shared = build_shared_energy_grid(
             min_eV=grid.min_eV,

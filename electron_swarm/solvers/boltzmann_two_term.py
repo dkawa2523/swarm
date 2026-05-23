@@ -200,7 +200,7 @@ class TransportCoefficients:
 
 @dataclass(slots=True)
 class NativeDistributionResult:
-    """Reusable native two-term distribution block for operator integration."""
+    """Reusable native two-term distribution block for future direct-PN work."""
 
     energy_eV: np.ndarray
     edges_eV: np.ndarray
@@ -227,11 +227,11 @@ class NativeOperatorBlock:
 class BoltzmannTwoTermSolver(SwarmSolver):
     """Unified electron Boltzmann two-term solver."""
 
-    name = "boltzmann_two_term"
+    name = "two_term"
 
     def __init__(self, config: SwarmConfig, cross_sections: CrossSectionSet) -> None:
         super().__init__(config, cross_sections)
-        backend = config.boltzmann_two_term.backend
+        backend = config.internal.two_term.backend
         if backend == "auto":
             # BOLOS is a useful independent reference implementation.  Use it
             # when explicitly available; otherwise use the built-in production
@@ -263,7 +263,7 @@ class BoltzmannTwoTermSolver(SwarmSolver):
         except Exception as exc:  # pragma: no cover - optional dependency
             raise RuntimeError("backend=bolos requires the optional 'bolos' package") from exc
 
-        cfg = self.config.boltzmann_two_term
+        cfg = self.config.internal.two_term
 
         def make_bolos_grid(max_eV: float):
             if cfg.energy_grid.spacing == "quadratic" and hasattr(bolos_grid, "QuadraticGrid"):
@@ -346,7 +346,7 @@ class BoltzmannTwoTermSolver(SwarmSolver):
             "adaptive_cycles": int(cycle + 1),
             "grid_n_cells": int(len(energy)),
             "grid_min_eV": float(np.min(energy)),
-            "grid_spacing": self.config.boltzmann_two_term.energy_grid.spacing,
+            "grid_spacing": self.config.internal.two_term.energy_grid.spacing,
             "threshold_refined": False,
         }
         return self._postprocess(e_over_n_Td, case_id, energy, widths, eedf, metadata=metadata, transport_override=transport)
@@ -375,7 +375,7 @@ class BoltzmannTwoTermSolver(SwarmSolver):
     def solve_native_distribution(self, e_over_n_Td: float) -> NativeDistributionResult:
         """Solve only the native EEDF block and return reusable arrays/metadata."""
 
-        cfg = self.config.boltzmann_two_term
+        cfg = self.config.internal.two_term
         max_eV = float(cfg.energy_grid.max_eV)
         previous: tuple[np.ndarray, np.ndarray] | None = None
         last_diag: NativeSolveDiagnostics | None = None
@@ -443,7 +443,7 @@ class BoltzmannTwoTermSolver(SwarmSolver):
         """Return the native two-term energy grid used by the SG operator."""
 
         return _make_energy_grid(
-            self.config.boltzmann_two_term,
+            self.config.internal.two_term,
             max_eV_override=max_eV_override,
             n_override=n_override,
             cross_sections=self.cross_sections,
@@ -458,10 +458,9 @@ class BoltzmannTwoTermSolver(SwarmSolver):
     ) -> NativeOperatorBlock:
         """Assemble the reusable native two-term energy-space operator.
 
-        This is the public handoff point for the multi-term operator backend:
-        it exposes the validated lmax=1 Scharfetter-Gummel block without
-        forcing callers to run the distribution solve or depend on private
-        helper names.
+        Future direct-PN work may reuse this validated lmax=1
+        Scharfetter-Gummel block, but schema v2 does not route multi_term
+        product runs through it.
         """
 
         energy = np.asarray(energy, dtype=float)
@@ -498,7 +497,7 @@ class BoltzmannTwoTermSolver(SwarmSolver):
         initial: np.ndarray | None,
         cycle: int,
     ) -> tuple[np.ndarray, NativeSolveDiagnostics]:
-        cfg = self.config.boltzmann_two_term
+        cfg = self.config.internal.two_term
         block = self.assemble_native_operator_block(e_over_n_Td, energy, edges, widths)
         op = block.matrix
 
@@ -550,7 +549,7 @@ class BoltzmannTwoTermSolver(SwarmSolver):
         return p, diag
 
     def _effective_collision_data(self, energy: np.ndarray, N: float) -> EffectiveCollisionData:
-        cfg = self.config.boltzmann_two_term
+        cfg = self.config.internal.two_term
         speed = _electron_speed(energy)
         sigma_m = np.zeros_like(energy)
         nu_m = np.zeros_like(energy)
@@ -669,7 +668,7 @@ class BoltzmannTwoTermSolver(SwarmSolver):
                 continue
             nu = N * frac * proc.sigma(energy) * speed
             if proc.process_type == ProcessType.ATTACHMENT:
-                if self.config.boltzmann_two_term.nonconservative_model == "ignore":
+                if self.config.internal.two_term.nonconservative_model == "ignore":
                     continue
                 for i, val in enumerate(nu):
                     mat[i, i] += -float(val)
@@ -681,11 +680,11 @@ class BoltzmannTwoTermSolver(SwarmSolver):
                 self._add_energy_shift_transition(mat, energy, widths, nu, threshold, multiplicity=1.0)
             elif proc.process_type == ProcessType.IONIZATION:
                 if (
-                    self.config.boltzmann_two_term.nonconservative_model == "ignore"
-                    or self.config.boltzmann_two_term.ionization_energy_sharing == "loss_only"
+                    self.config.internal.two_term.nonconservative_model == "ignore"
+                    or self.config.internal.two_term.ionization_energy_sharing == "loss_only"
                 ):
                     self._add_energy_shift_transition(mat, energy, widths, nu, threshold, multiplicity=1.0)
-                elif self.config.boltzmann_two_term.ionization_energy_sharing == "primary_secondary":
+                elif self.config.internal.two_term.ionization_energy_sharing == "primary_secondary":
                     self._add_primary_secondary_ionization(mat, energy, widths, nu, threshold)
                 else:
                     self._add_equal_sharing_ionization(mat, energy, widths, nu, threshold)
@@ -738,7 +737,7 @@ class BoltzmannTwoTermSolver(SwarmSolver):
         differential ionization data are supplied.
         """
 
-        secondary_eV = max(float(self.config.boltzmann_two_term.secondary_electron_energy_eV), 0.0)
+        secondary_eV = max(float(self.config.internal.two_term.secondary_electron_energy_eV), 0.0)
         for i, rate in enumerate(np.asarray(nu, dtype=float)):
             if rate <= 0.0:
                 continue
@@ -800,7 +799,7 @@ class BoltzmannTwoTermSolver(SwarmSolver):
         return eedf / total
 
     def _tail_probability(self, eedf: np.ndarray, widths: np.ndarray) -> float:
-        cfg = self.config.boltzmann_two_term.adaptive_grid
+        cfg = self.config.internal.two_term.adaptive_grid
         n_tail = max(1, int(len(eedf) * cfg.tail_cells_fraction))
         return float(np.sum(np.clip(eedf[-n_tail:], 0.0, None) * widths[-n_tail:]))
 

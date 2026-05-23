@@ -1,54 +1,43 @@
-"""Command-line and Python entry points for unified swarm runs."""
+"""Command-line and Python entry points for product swarm runs."""
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
-from electron_swarm.collisions import augment_cross_sections_from_config
 from electron_swarm.collisions.postprocess import apply_case_hooks
-from electron_swarm.core.config import SwarmConfig, load_config
+from electron_swarm.core.config import MIGRATION_ERROR, SwarmConfig, load_config
 from electron_swarm.core.cross_sections import load_cross_sections
 from electron_swarm.core.results import SwarmRunResult
-from electron_swarm.diagnostics import enrich_run_diagnostics
+from electron_swarm.diagnostics import enrich_run_diagnostics, enrich_tail_metrics
 from electron_swarm.io.writers import write_outputs
-from electron_swarm.plotting import write_plots
-from electron_swarm.solvers.boltzmann_two_term import BoltzmannTwoTermSolver
-from electron_swarm.solvers.monte_carlo_adapter import MonteCarloAdapter
-from electron_swarm.solvers.multiterm_boltzmann import MultiTermBoltzmannSolver
+from electron_swarm.orchestration.executor import execute_solve_plan
+from electron_swarm.orchestration.plan import (
+    build_solve_plan,
+    solver_plan_metadata,
+)
 
 
 def run(config: SwarmConfig, *, write: bool = True) -> SwarmRunResult:
+    if config.schema_version != 2:
+        raise ValueError(MIGRATION_ERROR)
     cross_sections = load_cross_sections(config.cross_sections, config.conditions)
-    cross_sections = augment_cross_sections_from_config(cross_sections, config)
-    cases = []
-    if (
-        config.run.mode in {"boltzmann_two_term", "both", "all"}
-        and config.boltzmann_two_term.enabled
-    ):
-        cases.extend(BoltzmannTwoTermSolver(config, cross_sections).solve_all())
-    if (
-        config.run.mode in {"multiterm_boltzmann", "all"}
-        and config.multiterm_boltzmann.enabled
-    ):
-        cases.extend(MultiTermBoltzmannSolver(config, cross_sections).solve_all())
-    if (
-        config.run.mode in {"monte_carlo", "both", "all"}
-        and config.monte_carlo.enabled
-    ):
-        cases.extend(MonteCarloAdapter(config, cross_sections).solve_all())
+    plan = build_solve_plan(config)
+    cases = execute_solve_plan(config, cross_sections, plan)
     cases = apply_case_hooks(cases, config, cross_sections)
+    cases = enrich_tail_metrics(cases, config, cross_sections)
     result = SwarmRunResult(
         cases=cases,
         metadata={
-            "source_config": str(config.source_path) if config.source_path else None
+            "source_config": str(config.source_path) if config.source_path else None,
+            "schema_version": config.schema_version,
+            "solver_plan": solver_plan_metadata(plan),
         },
     )
     enrich_run_diagnostics(result)
     if write:
-        paths = write_outputs(result, config.output)
-        paths.update(write_plots(result, config.output))
-        result.metadata["output_paths"] = {k: str(v) for k, v in paths.items()}
+        paths = write_outputs(result, config.output, comparison=config.comparison)
+        result.metadata["output_paths"] = {key: str(value) for key, value in paths.items()}
     return result
 
 
@@ -58,11 +47,11 @@ def run_from_config(path: str | Path, *, write: bool = True) -> SwarmRunResult:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        description="Unified particle-MC/Boltzmann two-term electron swarm runner"
+        description="Product electron swarm solver comparison runner"
     )
-    parser.add_argument("config", type=Path, help="YAML configuration file")
+    parser.add_argument("config", type=Path, help="schema v2 YAML configuration file")
     parser.add_argument(
-        "--no-write", action="store_true", help="Run without writing CSV or plot outputs"
+        "--no-write", action="store_true", help="Run without writing CSV outputs"
     )
     args = parser.parse_args(argv)
     result = run_from_config(args.config, write=not args.no_write)

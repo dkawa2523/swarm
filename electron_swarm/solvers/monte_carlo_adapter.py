@@ -84,11 +84,11 @@ class MonteCarloAdapter(SwarmSolver):
     name = "monte_carlo"
 
     def solve_all(self) -> list[SwarmCaseResult]:
-        cfg = self.config.monte_carlo
+        cfg = self.config.internal.monte_carlo
         if not cfg.command and not cfg.python_api:
             raise RuntimeError(
-                "run.mode includes monte_carlo but monte_carlo.command or "
-                "monte_carlo.python_api is not configured. Set one of these to "
+                "run.solvers includes monte_carlo but solvers.monte_carlo.command or "
+                "solvers.monte_carlo.python_api is not configured. Set one of these to "
                 "delegate to the repository's existing MC solver."
             )
         if cfg.python_api:
@@ -99,7 +99,7 @@ class MonteCarloAdapter(SwarmSolver):
         raise NotImplementedError("MonteCarloAdapter executes through solve_all()")
 
     def _run_python_api(self) -> list[SwarmCaseResult]:
-        cfg = self.config.monte_carlo
+        cfg = self.config.internal.monte_carlo
         assert cfg.python_api is not None
         module_name, func_name = cfg.python_api.split(":", 1)
         func = getattr(importlib.import_module(module_name), func_name)
@@ -116,7 +116,7 @@ class MonteCarloAdapter(SwarmSolver):
         )
 
     def _run_command(self) -> list[SwarmCaseResult]:
-        cfg = self.config.monte_carlo
+        cfg = self.config.internal.monte_carlo
         assert cfg.command is not None
         env = os.environ.copy()
         env.update(cfg.environment)
@@ -134,7 +134,7 @@ class MonteCarloAdapter(SwarmSolver):
         return self._read_existing_outputs()
 
     def _read_existing_outputs(self) -> list[SwarmCaseResult]:
-        cfg = self.config.monte_carlo
+        cfg = self.config.internal.monte_carlo
         if cfg.output_summary_csv is None:
             raise RuntimeError(
                 "monte_carlo.output_summary_csv is required to parse command output"

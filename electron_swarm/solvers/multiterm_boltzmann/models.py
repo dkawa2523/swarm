@@ -48,6 +48,7 @@ class MultiTermSolution:
     diagnostics: SolverDiagnostics
     method_used: str
     metadata: dict[str, object] = field(default_factory=dict)
+    angular_moments: np.ndarray | None = None
 
     @property
     def mean_energy_eV(self) -> float:

@@ -17,6 +17,7 @@ from electron_swarm.core.transport import (
     TransportMetadata,
     TransportSet,
 )
+from electron_swarm.physics.angular_scattering import build_angular_model
 
 from .angular import LegendreBasis
 from .diagnostics import SolverDiagnostics
@@ -54,6 +55,59 @@ def druyvesteyn_energy_pdf(grid: EnergyGrid, mean_energy_eV: float) -> np.ndarra
     with np.errstate(under="ignore"):
         F = np.sqrt(np.maximum(e, 0.0)) * np.exp(exponent)
     return grid.normalize_energy_pdf(F)
+
+
+def _angular_cross_sections(
+    case: MultiTermCase,
+    collisions: ProjectedCollisionData,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    sigma_total = np.zeros_like(case.grid.centers_eV)
+    sigma_momentum = np.zeros_like(case.grid.centers_eV)
+    for item in collisions.processes:
+        weighted_sigma = item.fraction * item.sigma_m2
+        sigma_total += weighted_sigma
+        if item.contributes_to_momentum:
+            sigma_momentum += weighted_sigma
+    valid = np.isfinite(sigma_total) & np.isfinite(sigma_momentum) & (sigma_total > 0.0)
+    return sigma_total, sigma_momentum, valid
+
+
+def _angular_moment_closure(
+    case: MultiTermCase,
+    collisions: ProjectedCollisionData,
+    energy_pdf_eV_inv: np.ndarray,
+) -> tuple[np.ndarray, dict[str, object]]:
+    cfg = case.config.internal.multi_term
+    angular_model = build_angular_model(case.config)
+    energy = case.grid.centers_eV
+
+    if angular_model.name == "isotropic":
+        moments = angular_model.moments(energy, cfg.lmax)
+        valid = np.ones_like(energy, dtype=bool)
+    else:
+        sigma_total, sigma_momentum, valid = _angular_cross_sections(case, collisions)
+        safe_total = np.where(valid, sigma_total, 1.0)
+        safe_momentum = np.where(valid, sigma_momentum, 1.0)
+        moments = angular_model.moments(
+            energy,
+            cfg.lmax,
+            sigma_total=safe_total,
+            sigma_momentum=safe_momentum,
+        )
+        if not np.all(valid):
+            moments[:, ~valid] = 0.0
+            moments[0, ~valid] = 1.0
+
+    weights = case.grid.normalize_energy_pdf(energy_pdf_eV_inv) * case.grid.widths_eV
+    averaged = np.sum(moments * weights[np.newaxis, :], axis=1)
+    metadata = {
+        "angular_moment_lmax": int(cfg.lmax),
+        "angular_moment_valid_fraction": float(np.mean(valid)),
+        "angular_moment_invalid_cells": int(np.size(valid) - np.count_nonzero(valid)),
+        "angular_moment_m1_average": float(averaged[1]) if cfg.lmax >= 1 else 0.0,
+        "angular_moment_highest_average": float(averaged[-1]),
+    }
+    return moments, metadata
 
 
 def mean_energy_from_power_balance(
@@ -153,7 +207,7 @@ class MomentClosureEngine:
         case_id: str,
         previous: MultiTermSolution | None = None,
     ) -> MultiTermSolution:
-        cfg = case.config.multiterm_boltzmann
+        cfg = case.config.internal.multi_term
         basis = LegendreBasis(cfg.lmax)
         collisions = project_collision_data(case)
         mean_e, F0, rates, drift, mobility, residual = mean_energy_from_power_balance(
@@ -171,6 +225,9 @@ class MomentClosureEngine:
             coeff[1] = anis * scale
         for ell in range(2, basis.n_terms):
             coeff[ell] = coeff[ell - 1] * min(0.35, 0.8 / (ell + 1))
+        angular_moments, angular_metadata = _angular_moment_closure(
+            case, collisions, F0
+        )
 
         diffusion = max((2.0 / 3.0) * mean_e * abs(mobility), 0.0)
         flux = FluxTransport.from_drift_and_field(
@@ -232,4 +289,6 @@ class MomentClosureEngine:
             estimated_bulk,
             diagnostics,
             method_used="moment_closure",
+            metadata=angular_metadata,
+            angular_moments=angular_moments,
         )

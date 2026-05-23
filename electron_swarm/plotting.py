@@ -1,4 +1,4 @@
-"""Plot helpers for the unified output schema."""
+"""Optional plot helpers for product run results."""
 
 from __future__ import annotations
 
@@ -37,8 +37,6 @@ def _truncate_mc_curve(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.nda
 
 
 def write_plots(result: SwarmRunResult, output: OutputConfig) -> dict[str, Path]:
-    if not output.write_plots:
-        return {}
     output.directory.mkdir(parents=True, exist_ok=True)
     summary = pd.DataFrame([case.summary_dict() for case in result.cases])
     paths: dict[str, Path] = {}

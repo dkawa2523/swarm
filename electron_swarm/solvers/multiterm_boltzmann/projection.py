@@ -124,8 +124,8 @@ def project_collision_data(case: MultiTermCase) -> ProjectedCollisionData:
                     ratio = ELECTRON_MASS_KG / (mass_amu * AMU_KG)
                     elastic_energy_frequency += 2.0 * ratio * frequency
         elif proc.process_type in INELASTIC_TYPES:
-            # Moment-closure drift estimate only. The operator uses explicit
-            # isotropic source/sink projection from the per-process frequencies.
+            # Moment-closure drift estimate only. Inelastic processes enter as
+            # bounded isotropic source/sink contributions in this surrogate path.
             contributes_to_momentum = True
             momentum_frequency += 0.2 * frequency
 

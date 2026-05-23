@@ -1,17 +1,7 @@
-"""Unified electron swarm calculation package.
+"""Product electron swarm solver comparison package.
 
-This package adds a common configuration/results layer and multiple solver slots:
-
-* particle Monte Carlo: delegated to an existing repository implementation through
-  a command/API adapter;
-* Boltzmann two-term approximation: production native BOLSIG-like
-  energy-space solver with an optional BOLOS reference backend.
-* multi-term Boltzmann entry point: moment-closure by default, lmax=1 as a
-  two-term reference adapter, and lmax>1 as a reference-anchored closure for
-  integral-cross-section inputs.
-
-The code is intentionally additive so it can be copied into an existing swarm
-repository without forcing a rewrite of the current Monte Carlo code.
+Public product configs use schema v2 and canonical solver ids:
+``two_term``, ``multi_term``, and ``monte_carlo``.
 """
 
 from .core.config import load_config, SwarmConfig

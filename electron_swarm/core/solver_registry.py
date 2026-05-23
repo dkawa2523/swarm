@@ -1,52 +1,36 @@
-"""Shared solver identifiers and presentation metadata."""
+"""Canonical solver identifiers and presentation metadata."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
+CANONICAL_SOLVER_IDS = ("two_term", "multi_term", "monte_carlo")
+
 
 @dataclass(frozen=True, slots=True)
 class SolverInfo:
     name: str
-    legacy_tag: str
     plot_label: str
     plot_color: str
 
 
 SOLVER_REGISTRY: dict[str, SolverInfo] = {
-    "monte_carlo": SolverInfo(
-        name="monte_carlo",
-        legacy_tag="mc",
-        plot_label="Monte Carlo",
-        plot_color="#c62828",
-    ),
-    "boltzmann_two_term": SolverInfo(
-        name="boltzmann_two_term",
-        legacy_tag="boltzmann",
-        plot_label="Boltzmann",
+    "two_term": SolverInfo(
+        name="two_term",
+        plot_label="Two-term",
         plot_color="#1565c0",
     ),
-    "multiterm_boltzmann": SolverInfo(
-        name="multiterm_boltzmann",
-        legacy_tag="multiterm",
+    "multi_term": SolverInfo(
+        name="multi_term",
         plot_label="Multi-term closure",
         plot_color="#2e7d32",
     ),
+    "monte_carlo": SolverInfo(
+        name="monte_carlo",
+        plot_label="Monte Carlo",
+        plot_color="#c62828",
+    ),
 }
-
-RUN_MODES = (
-    "monte_carlo",
-    "boltzmann_two_term",
-    "multiterm_boltzmann",
-    "both",
-    "all",
-)
-PRIMARY_SOLVERS = tuple(SOLVER_REGISTRY)
-
-
-def solver_legacy_tag(solver: str) -> str:
-    info = SOLVER_REGISTRY.get(solver)
-    return info.legacy_tag if info is not None else solver
 
 
 def solver_plot_label(solver: str) -> str:

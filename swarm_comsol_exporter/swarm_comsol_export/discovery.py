@@ -6,12 +6,6 @@ from typing import Dict, Iterable, Optional, Sequence
 
 import glob
 
-_SOLVER_TAGS = {
-    "monte_carlo": "mc",
-    "boltzmann_two_term": "boltzmann",
-    "multiterm_boltzmann": "multiterm",
-}
-
 
 @dataclass
 class DiscoveredInputs:
@@ -58,98 +52,17 @@ def resolve_with_fallbacks(
     return p
 
 
-def _primary_solver_name(input_cfg: Dict) -> Optional[str]:
-    value = input_cfg.get("primary_solver", input_cfg.get("solver"))
-    if value in (None, "", "null"):
-        return None
-    return str(value)
-
-
-def _solver_first_fallbacks(primary_solver: Optional[str], prefix: str) -> tuple[str, ...]:
-    names = (
-        f"{prefix}.csv",
-        f"{prefix}_mc.csv",
-        f"{prefix}_boltzmann.csv",
-        f"{prefix}_multiterm.csv",
-    )
-    if primary_solver is None:
-        return names
-    tag = _SOLVER_TAGS.get(primary_solver)
-    if tag is None:
-        raise ValueError(f"Unknown COMSOL input primary_solver: {primary_solver}")
-    preferred = f"{prefix}_{tag}.csv"
-    return (preferred,) + tuple(name for name in names if name != preferred)
-
-
-def _solver_first_table_fallbacks(
-    primary_solver: Optional[str], table_prefix: str
-) -> tuple[str, ...]:
-    names = (
-        f"{table_prefix}.csv",
-        f"{table_prefix}_mc.csv",
-        f"{table_prefix}_boltzmann.csv",
-        f"{table_prefix}_multiterm.csv",
-    )
-    if primary_solver is None:
-        return names
-    tag = _SOLVER_TAGS.get(primary_solver)
-    if tag is None:
-        raise ValueError(f"Unknown COMSOL input primary_solver: {primary_solver}")
-    preferred = f"{table_prefix}_{tag}.csv"
-    return (preferred,) + tuple(name for name in names if name != preferred)
-
-
-def _ensure_unambiguous_solver_fallback(
-    run_dir: Path,
-    maybe_rel: Optional[str],
-    default_names: Sequence[str],
-    primary_solver: Optional[str],
-) -> None:
-    if primary_solver is not None or not _is_default_name(maybe_rel, default_names):
-        return
-    p = resolve_rel(run_dir, maybe_rel)
-    if p is not None and p.exists():
-        return
-    if (run_dir / "summary.csv").exists():
-        return
-    existing = [
-        name
-        for name in ("summary_mc.csv", "summary_boltzmann.csv", "summary_multiterm.csv")
-        if (run_dir / name).exists()
-    ]
-    if len(existing) > 1:
-        raise ValueError(
-            "Multiple solver-specific summary files were found "
-            f"({existing}). Set comsol_export.input.primary_solver explicitly."
-        )
-
-
 def discover_inputs(run_dir: Path, input_cfg: Dict) -> DiscoveredInputs:
-    primary_solver = _primary_solver_name(input_cfg)
-    _ensure_unambiguous_solver_fallback(
-        run_dir,
-        input_cfg.get("transport_csv"),
-        ("transport.csv",),
-        primary_solver,
-    )
     transport_csv = resolve_with_fallbacks(
         run_dir,
         input_cfg.get("transport_csv"),
-        fallbacks=_solver_first_fallbacks(primary_solver, "summary")
-        + ("transport_table.csv",),
+        fallbacks=("transport.csv",),
         default_names=("transport.csv",),
-    )
-    _ensure_unambiguous_solver_fallback(
-        run_dir,
-        input_cfg.get("rates_csv"),
-        ("rates.csv",),
-        primary_solver,
     )
     rates_csv = resolve_with_fallbacks(
         run_dir,
         input_cfg.get("rates_csv"),
-        fallbacks=_solver_first_fallbacks(primary_solver, "summary")
-        + ("rates_table.csv",),
+        fallbacks=("rates.csv",),
         default_names=("rates.csv",),
     )
 
@@ -159,8 +72,7 @@ def discover_inputs(run_dir: Path, input_cfg: Dict) -> DiscoveredInputs:
     eedf_stacked_csv = resolve_with_fallbacks(
         run_dir,
         eedf_cfg.get("stacked_csv"),
-        fallbacks=_solver_first_table_fallbacks(primary_solver, "eedf_table")
-        + _solver_first_table_fallbacks(primary_solver, "energy_table"),
+        fallbacks=("eedf.csv",),
         default_names=("eedf.csv",),
     )
     eedf_files_glob = eedf_cfg.get("files_glob", None)

@@ -2,9 +2,10 @@ import json
 from pathlib import Path
 
 import pandas as pd
-import yaml
+import pytest
 
 from swarm_comsol_export.converter import export_to_comsol
+from swarm_comsol_export.discovery import discover_inputs
 
 
 def test_export_minimal(tmp_path: Path):
@@ -66,3 +67,20 @@ def test_export_minimal(tmp_path: Path):
 
     rep = json.loads(paths.report_json.read_text())
     assert rep["transport"]["rows"] == 3
+
+
+def test_discovery_does_not_fallback_to_legacy_alias_outputs(tmp_path: Path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    pd.DataFrame({"x": [1]}).to_csv(run_dir / "summary_boltzmann.csv", index=False)
+    pd.DataFrame({"x": [1]}).to_csv(run_dir / "eedf_table.csv", index=False)
+
+    with pytest.raises(FileNotFoundError):
+        discover_inputs(
+            run_dir,
+            {
+                "transport_csv": "transport.csv",
+                "rates_csv": "rates.csv",
+                "eedf": {"mode": "stacked_csv", "stacked_csv": "eedf.csv"},
+            },
+        )

@@ -8,11 +8,10 @@ preserves the mean energy unless configured otherwise.
 
 from __future__ import annotations
 
-from typing import Any, Iterable
+from typing import Iterable
 
 import numpy as np
 
-from electron_swarm.collisions.config import raw_config_from_source
 from electron_swarm.collisions.electron_electron import mean_energy_eV, relaxation_target
 from electron_swarm.core.constants import BOLTZMANN_J_K, ELECTRON_MASS_KG, EV_TO_J
 from electron_swarm.core.cross_sections import (
@@ -24,12 +23,14 @@ from electron_swarm.core.results import RateResult, SwarmCaseResult
 from electron_swarm.diagnostics.common import widths_from_centers
 
 
-_BOLTZMANN_SOLVERS = {"boltzmann_two_term", "multiterm_boltzmann"}
+_BOLTZMANN_SOLVERS = {
+    "two_term",
+    "multi_term",
+}
 
 
-def _ee_section(raw: dict[str, Any]) -> dict[str, Any]:
-    section = raw.get("electron_electron", raw.get("electron_electron_collision", {}))
-    return section if isinstance(section, dict) else {}
+def _ee_config(config: object) -> object:
+    return config.physics.electron_electron
 
 
 def _normalise(energy_eV: np.ndarray, eedf: np.ndarray) -> np.ndarray:
@@ -43,14 +44,7 @@ def _normalise(energy_eV: np.ndarray, eedf: np.ndarray) -> np.ndarray:
 def _update_eepf(case: SwarmCaseResult) -> None:
     energy = np.asarray(case.energy_eV, dtype=float)
     denom = np.sqrt(np.maximum(energy, 1.0e-30))
-    try:
-        case.eepf = np.asarray(case.eedf, dtype=float) / denom
-    except Exception:
-        # Some result implementations may not expose mutable eepf.  The EEDF
-        # and metadata are still updated; diagnostics will flag the case.
-        case.metadata["ee_eepf_recomputed"] = False
-    else:
-        case.metadata["ee_eepf_recomputed"] = True
+    case.eepf = np.asarray(case.eedf, dtype=float) / denom
 
 
 def _gas_number_density(config: object) -> float:
@@ -135,28 +129,33 @@ def _recompute_rates(
 
 def _apply_to_case(
     case: SwarmCaseResult,
-    section: dict[str, Any],
+    ee_config: object,
     config: object,
     cross_sections: CrossSectionSet | None,
 ) -> SwarmCaseResult:
     if case.solver not in _BOLTZMANN_SOLVERS:
-        case.metadata.setdefault("ee_relaxation_skipped", "non_boltzmann_solver")
+        case.metadata.update(
+            {
+                "electron_electron_treatment": "unsupported",
+                "electron_electron_affects_eedf": False,
+                "electron_electron_affects_rates": False,
+                "electron_electron_affects_transport": False,
+                "electron_electron_transport_stale": False,
+            }
+        )
         return case
     energy = np.asarray(case.energy_eV, dtype=float)
     old = np.asarray(case.eedf, dtype=float)
     widths = widths_from_centers(energy)
     if len(energy) == 0 or len(old) != len(energy):
-        case.metadata["ee_relaxation_skipped"] = "invalid_eedf_shape"
-        return case
+        raise ValueError("Cannot apply electron_electron relaxation to invalid EEDF")
 
-    alpha = section.get("relaxation_fraction", section.get("strength_scale", 0.05))
-    alpha = float(np.clip(float(alpha), 0.0, 1.0))
-    model = str(section.get("model", "relaxation")).lower()
-    conserve = bool(section.get("conserve_mean_energy", True))
-    fallback_te = float(
-        section.get("fallback_temperature_eV", section.get("temperature_eV", 2.0))
-    )
-    before = mean_energy_eV(energy, widths, old)
+    alpha = float(ee_config.relaxation_fraction)
+    model = str(ee_config.model).lower()
+    if model != "relaxation_postprocess":
+        raise ValueError("Unsupported electron_electron model for postprocess")
+    conserve = bool(ee_config.conserve_mean_energy)
+    fallback_te = float(ee_config.fallback_temperature_eV)
     target = relaxation_target(
         energy,
         widths,
@@ -173,16 +172,11 @@ def _apply_to_case(
     rates_recomputed = _recompute_rates(case, config, cross_sections)
     case.metadata.update(
         {
-            "ee_enabled": True,
-            "ee_model": model,
-            "ee_model_implementation": "relaxation_postprocess",
-            "ee_relaxation_fraction": alpha,
-            "ee_conserve_mean_energy": conserve,
-            "ee_mean_energy_before_eV": before,
-            "ee_mean_energy_after_eV": after,
-            "ee_rates_recomputed": rates_recomputed,
-            "ee_transport_recomputed": False,
-            "ee_transport_stale_after_relaxation": True,
+            "electron_electron_treatment": "relaxation_postprocess",
+            "electron_electron_affects_eedf": True,
+            "electron_electron_affects_rates": rates_recomputed,
+            "electron_electron_affects_transport": False,
+            "electron_electron_transport_stale": True,
         }
     )
     return case
@@ -195,13 +189,9 @@ def apply_electron_electron_relaxation_from_config(
 ) -> list[SwarmCaseResult]:
     """Apply optional e-e relaxation to Boltzmann-family cases only."""
 
-    raw = raw_config_from_source(config)
-    section = _ee_section(raw)
-    if not bool(section.get("enabled", False)):
+    ee_config = _ee_config(config)
+    if not bool(ee_config.enabled):
         return list(cases)
-    if str(section.get("model", "relaxation")).lower() not in {
-        "relaxation",
-        "relaxation_postprocess",
-    }:
-        return list(cases)
-    return [_apply_to_case(case, section, config, cross_sections) for case in cases]
+    if str(ee_config.model).lower() != "relaxation_postprocess":
+        raise ValueError("Unsupported electron_electron model for postprocess")
+    return [_apply_to_case(case, ee_config, config, cross_sections) for case in cases]

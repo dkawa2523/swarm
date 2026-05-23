@@ -25,6 +25,7 @@ class RateResult:
     mixture_weighted_rate_m3_s: float
     frequency_s_inv: float | None = None
     power_loss_eV_s: float | None = None
+    tail_fraction: float | None = None
 
 
 @dataclass(slots=True)
