@@ -8,6 +8,7 @@ fed through internal implementation configs derived from the product schema.
 from __future__ import annotations
 
 from dataclasses import dataclass, field as dc_field
+from math import isfinite as np_isfinite
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -18,7 +19,12 @@ UnsupportedPolicy = Literal["fail", "skip_solver", "approximate"]
 DegradedPolicy = Literal["fail", "warn", "record_only"]
 
 CANONICAL_SOLVER_IDS: tuple[str, ...] = ("two_term", "multi_term", "monte_carlo")
-OBSOLETE_PUBLIC_NAMES = {"both", "all", "boltzmann_two_term", "multiterm_boltzmann"}
+OBSOLETE_PUBLIC_NAMES = {
+    "both",
+    "all",
+    "boltzmann_two_term",
+    "multiterm_boltzmann",
+}
 OBSOLETE_TOP_LEVEL_SOLVER_KEYS = {
     "boltzmann_two_term",
     "multiterm_boltzmann",
@@ -39,6 +45,9 @@ MULTI_TERM_SOLVER_FIELDS = {
     "dense_threshold",
 }
 MONTE_CARLO_SOLVER_FIELDS = {
+    "backend",
+    "angular_scattering",
+    "seed",
     "particles",
     "max_collisions",
     "timeout_s",
@@ -151,7 +160,7 @@ class ConvergenceConfig:
 
 
 @dataclass(slots=True)
-class BoltzmannTwoTermConfig:
+class TwoTermInternalConfig:
     enabled: bool = True
     backend: InternalBoltzmannBackend = "native_bolsig"
     energy_grid: EnergyGridConfig = dc_field(default_factory=EnergyGridConfig)
@@ -167,7 +176,7 @@ class BoltzmannTwoTermConfig:
 
 
 @dataclass(slots=True)
-class MultiTermBoltzmannConfig:
+class MultiTermInternalConfig:
     enabled: bool = True
     lmax: int = 4
     method: Literal["moment_closure"] = "moment_closure"
@@ -188,6 +197,9 @@ class MultiTermBoltzmannConfig:
 @dataclass(slots=True)
 class MonteCarloAdapterConfig:
     enabled: bool = True
+    backend: Literal["external", "internal"] = "external"
+    angular_scattering: Literal["external", "same_as_physics"] = "external"
+    seed: int | None = None
     command: str | None = None
     python_api: str | None = None
     working_directory: Path | None = None
@@ -202,9 +214,9 @@ class MonteCarloAdapterConfig:
 
 @dataclass(slots=True)
 class InternalSolverConfigs:
-    two_term: BoltzmannTwoTermConfig = dc_field(default_factory=BoltzmannTwoTermConfig)
-    multi_term: MultiTermBoltzmannConfig = dc_field(
-        default_factory=MultiTermBoltzmannConfig
+    two_term: TwoTermInternalConfig = dc_field(default_factory=TwoTermInternalConfig)
+    multi_term: MultiTermInternalConfig = dc_field(
+        default_factory=MultiTermInternalConfig
     )
     monte_carlo: MonteCarloAdapterConfig = dc_field(
         default_factory=MonteCarloAdapterConfig
@@ -232,6 +244,9 @@ class MultiTermProductConfig:
 
 @dataclass(slots=True)
 class MonteCarloProductConfig:
+    backend: Literal["external", "internal"] = "external"
+    angular_scattering: Literal["external", "same_as_physics"] = "external"
+    seed: int | None = None
     particles: int | None = None
     max_collisions: int | None = None
     timeout_s: float | None = None
@@ -281,15 +296,25 @@ class FieldConfig:
 
 
 @dataclass(slots=True)
+class MomentTableConfig:
+    path: Path
+    format: Literal["csv"] = "csv"
+    provenance: Literal["precomputed_moments", "dcs_derived"] = "precomputed_moments"
+    extrapolation: Literal["error"] = "error"
+
+
+@dataclass(slots=True)
 class AngularScatteringConfig:
-    model: Literal["isotropic", "momentum_power", "maxent_p1"] = "isotropic"
-    higher_moment_closure: Literal["zero", "power", "maxent"] = "zero"
+    model: Literal["isotropic", "momentum_power", "maxent_p1", "moment_table"] = "isotropic"
+    higher_moment_closure: Literal["zero", "power", "maxent", "table"] = "zero"
+    moment_table: MomentTableConfig | None = None
 
 
 @dataclass(slots=True)
 class ElectronElectronConfig:
     enabled: bool = False
-    model: str = "none"
+    model: Literal["none", "relaxation_postprocess", "fp_energy"] = "none"
+    strength_model: Literal["simple_relaxation", "density_based"] = "simple_relaxation"
     relaxation_fraction: float = 0.05
     conserve_mean_energy: bool = True
     fallback_temperature_eV: float = 2.0
@@ -422,6 +447,28 @@ def _bool_field(raw: dict[str, Any], key: str, default: bool, field_name: str) -
     if not isinstance(value, bool):
         raise ValueError(f"{field_name} must be a boolean")
     return value
+
+
+def _float_field(raw: dict[str, Any], key: str, default: float, field_name: str) -> float:
+    try:
+        return float(raw.get(key, default))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} must be a finite number") from exc
+
+
+def _parse_finite_k(raw: dict[str, Any]) -> FiniteKConfig:
+    enabled = _bool_field(raw, "enabled", False, "physics.finite_k.enabled")
+    if raw.get("k_m_inv") is None:
+        if enabled:
+            raise ValueError("physics.finite_k.k_m_inv is required when finite_k is enabled")
+        return FiniteKConfig(enabled=enabled, k_m_inv=None)
+    try:
+        k_m_inv = float(raw["k_m_inv"])
+    except (TypeError, ValueError) as exc:
+        raise ValueError("physics.finite_k.k_m_inv must be finite and > 0") from exc
+    if not np_isfinite(k_m_inv) or k_m_inv <= 0.0:
+        raise ValueError("physics.finite_k.k_m_inv must be finite and > 0")
+    return FiniteKConfig(enabled=enabled, k_m_inv=k_m_inv)
 
 
 def _validate_schema(raw: dict[str, Any]) -> None:
@@ -661,6 +708,7 @@ def _parse_physics(raw: dict[str, Any], base: Path) -> PhysicsConfig:
     ee_unknown = set(ee_raw) - {
         "enabled",
         "model",
+        "strength_model",
         "relaxation_fraction",
         "conserve_mean_energy",
         "fallback_temperature_eV",
@@ -670,30 +718,47 @@ def _parse_physics(raw: dict[str, Any], base: Path) -> PhysicsConfig:
             "Unsupported physics.electron_electron fields: "
             f"{sorted(ee_unknown)}"
         )
-    angular_unknown = set(angular_raw) - {"model", "higher_moment_closure"}
+    angular_name = str(angular_raw.get("model", "isotropic")).lower()
+    if angular_name == "dcs_table" or "dcs_table" in angular_raw:
+        raise ValueError(
+            "physics.angular_scattering.dcs_table input is not implemented; "
+            "use model=moment_table"
+        )
+    angular_unknown = set(angular_raw) - {
+        "model",
+        "higher_moment_closure",
+        "moment_table",
+    }
     if angular_unknown:
         raise ValueError(
             "Unsupported physics.angular_scattering fields: "
             f"{sorted(angular_unknown)}"
         )
-    angular_name = str(angular_raw.get("model", "isotropic")).lower()
+    moment_table_raw = _as_mapping_section(
+        angular_raw, "moment_table", "physics.angular_scattering.moment_table"
+    )
     angular_closure_defaults = {
         "isotropic": "zero",
         "momentum_power": "power",
         "maxent_p1": "maxent",
+        "moment_table": "table",
     }
     if angular_name not in angular_closure_defaults:
         raise ValueError(
-            "physics.angular_scattering.model must be isotropic, momentum_power, or maxent_p1"
+            "physics.angular_scattering.model must be isotropic, momentum_power, maxent_p1, or moment_table"
+        )
+    if angular_name != "moment_table" and moment_table_raw:
+        raise ValueError(
+            "physics.angular_scattering.moment_table is only valid with model=moment_table"
         )
     closure_raw = angular_raw.get(
         "higher_moment_closure", angular_closure_defaults[angular_name]
     )
     higher_moment_closure = cast(
-        Literal["zero", "power", "maxent"],
+        Literal["zero", "power", "maxent", "table"],
         _validate_literal(
             str(closure_raw).lower(),
-            {"zero", "power", "maxent"},
+            {"zero", "power", "maxent", "table"},
             "physics.angular_scattering.higher_moment_closure",
         ),
     )
@@ -701,16 +766,61 @@ def _parse_physics(raw: dict[str, Any], base: Path) -> PhysicsConfig:
         raise ValueError(
             "physics.angular_scattering model and higher_moment_closure mismatch"
         )
+    moment_table: MomentTableConfig | None = None
+    if angular_name == "moment_table":
+        _reject_unknown_fields(
+            moment_table_raw,
+            {"path", "format", "provenance", "extrapolation"},
+            "physics.angular_scattering.moment_table",
+        )
+        if "path" not in moment_table_raw:
+            raise ValueError("physics.angular_scattering.moment_table.path is required")
+        moment_table = MomentTableConfig(
+            path=_as_path(moment_table_raw["path"], base)
+            or Path(moment_table_raw["path"]),
+            format=cast(
+                Literal["csv"],
+                _validate_literal(
+                    str(moment_table_raw.get("format", "csv")),
+                    {"csv"},
+                    "physics.angular_scattering.moment_table.format",
+                ),
+            ),
+            provenance=cast(
+                Literal["precomputed_moments", "dcs_derived"],
+                _validate_literal(
+                    str(moment_table_raw.get("provenance", "precomputed_moments")),
+                    {"precomputed_moments", "dcs_derived"},
+                    "physics.angular_scattering.moment_table.provenance",
+                ),
+            ),
+            extrapolation=cast(
+                Literal["error"],
+                _validate_literal(
+                    str(moment_table_raw.get("extrapolation", "error")),
+                    {"error"},
+                    "physics.angular_scattering.moment_table.extrapolation",
+                ),
+            ),
+        )
     ee_enabled = _bool_field(ee_raw, "enabled", False, "physics.electron_electron.enabled")
     ee_model = str(ee_raw.get("model", "none")).lower()
-    if ee_enabled and ee_model != "relaxation_postprocess":
+    if ee_enabled and ee_model not in {"relaxation_postprocess", "fp_energy"}:
         raise ValueError(
-            "physics.electron_electron.model must be relaxation_postprocess when enabled"
+            "physics.electron_electron.model must be relaxation_postprocess or fp_energy when enabled"
         )
     if not ee_enabled and ee_model != "none":
         raise ValueError(
             "physics.electron_electron.model must be none when electron_electron is disabled"
         )
+    ee_strength_model = cast(
+        Literal["simple_relaxation", "density_based"],
+        _validate_literal(
+            str(ee_raw.get("strength_model", "simple_relaxation")).lower(),
+            {"simple_relaxation", "density_based"},
+            "physics.electron_electron.strength_model",
+        ),
+    )
     ee_relaxation_fraction = float(ee_raw.get("relaxation_fraction", 0.05))
     if not (0.0 <= ee_relaxation_fraction <= 1.0):
         raise ValueError("physics.electron_electron.relaxation_fraction must be in [0, 1]")
@@ -718,6 +828,23 @@ def _parse_physics(raw: dict[str, Any], base: Path) -> PhysicsConfig:
     if ee_fallback_temperature <= 0.0:
         raise ValueError(
             "physics.electron_electron.fallback_temperature_eV must be positive"
+        )
+    ionization_energy_sharing = cast(
+        Literal["equal", "primary_secondary", "loss_only"],
+        _validate_literal(
+            str(ion_raw.get("energy_sharing", "equal")),
+            {"equal", "primary_secondary", "loss_only"},
+            "physics.ionization.energy_sharing",
+        ),
+    )
+    secondary_electron_energy_eV = float(
+        ion_raw.get("secondary_electron_energy_eV", 0.0)
+    )
+    if secondary_electron_energy_eV < 0.0:
+        raise ValueError("physics.ionization.secondary_electron_energy_eV must be >= 0")
+    if ionization_energy_sharing != "primary_secondary" and secondary_electron_energy_eV != 0.0:
+        raise ValueError(
+            "physics.ionization.secondary_electron_energy_eV is only used with primary_secondary"
         )
     tail_threshold = (
         float(grid_raw["tail_threshold_eV"])
@@ -736,6 +863,23 @@ def _parse_physics(raw: dict[str, Any], base: Path) -> PhysicsConfig:
     tail_metrics_raw = grid_raw.get("tail_metrics", True)
     if not isinstance(tail_metrics_raw, bool):
         raise ValueError("physics.energy_grid_policy.tail_metrics must be a boolean")
+    magnetic_B_T = _float_field(
+        magnetic_raw, "B_T", 0.0, "physics.field.magnetic_field.B_T"
+    )
+    magnetic_angle = _float_field(
+        magnetic_raw,
+        "angle_EB_deg",
+        0.0,
+        "physics.field.magnetic_field.angle_EB_deg",
+    )
+    if not np_isfinite(magnetic_B_T) or magnetic_B_T < 0.0:
+        raise ValueError("physics.field.magnetic_field.B_T must be finite and >= 0")
+    if not np_isfinite(magnetic_angle):
+        raise ValueError("physics.field.magnetic_field.angle_EB_deg must be finite")
+    if magnetic_angle < 0.0 or magnetic_angle > 180.0:
+        raise ValueError(
+            "physics.field.magnetic_field.angle_EB_deg must be in [0, 180]"
+        )
     return PhysicsConfig(
         field=FieldConfig(
             type=cast(
@@ -753,19 +897,22 @@ def _parse_physics(raw: dict[str, Any], base: Path) -> PhysicsConfig:
                     False,
                     "physics.field.magnetic_field.enabled",
                 ),
-                B_T=float(magnetic_raw.get("B_T", 0.0)),
-                angle_EB_deg=float(magnetic_raw.get("angle_EB_deg", 0.0)),
+                B_T=magnetic_B_T,
+                angle_EB_deg=magnetic_angle,
             ),
         ),
         angular_scattering=AngularScatteringConfig(
             model=cast(
-                Literal["isotropic", "momentum_power", "maxent_p1"], angular_name
+                Literal["isotropic", "momentum_power", "maxent_p1", "moment_table"],
+                angular_name,
             ),
             higher_moment_closure=higher_moment_closure,
+            moment_table=moment_table,
         ),
         electron_electron=ElectronElectronConfig(
             enabled=ee_enabled,
-            model=ee_model,
+            model=cast(Literal["none", "relaxation_postprocess", "fp_energy"], ee_model),
+            strength_model=ee_strength_model,
             relaxation_fraction=ee_relaxation_fraction,
             conserve_mean_energy=_bool_field(
                 ee_raw,
@@ -776,17 +923,8 @@ def _parse_physics(raw: dict[str, Any], base: Path) -> PhysicsConfig:
             fallback_temperature_eV=ee_fallback_temperature,
         ),
         ionization=IonizationConfig(
-            energy_sharing=cast(
-                Literal["equal", "primary_secondary", "loss_only"],
-                _validate_literal(
-                    str(ion_raw.get("energy_sharing", "equal")),
-                    {"equal", "primary_secondary", "loss_only"},
-                    "physics.ionization.energy_sharing",
-                ),
-            ),
-            secondary_electron_energy_eV=float(
-                ion_raw.get("secondary_electron_energy_eV", 0.0)
-            ),
+            energy_sharing=ionization_energy_sharing,
+            secondary_electron_energy_eV=secondary_electron_energy_eV,
         ),
         energy_grid_policy=EnergyGridPolicyConfig(
             adaptive=_bool_field(
@@ -809,14 +947,7 @@ def _parse_physics(raw: dict[str, Any], base: Path) -> PhysicsConfig:
             tail_rate_warning_fraction=tail_rate_warning_fraction,
             max_eV_limit=float(grid_raw.get("max_eV_limit", 2000.0)),
         ),
-        finite_k=FiniteKConfig(
-            enabled=_bool_field(finite_k_raw, "enabled", False, "physics.finite_k.enabled"),
-            k_m_inv=(
-                float(finite_k_raw["k_m_inv"])
-                if finite_k_raw.get("k_m_inv") is not None
-                else None
-            ),
-        ),
+        finite_k=_parse_finite_k(finite_k_raw),
     )
 
 
@@ -895,15 +1026,51 @@ def _parse_solvers(
     if multi_term.lmax < 1:
         raise ValueError("solvers.multi_term.lmax must be >= 1")
 
+    mc_backend = cast(
+        Literal["external", "internal"],
+        _validate_literal(
+            str(mc_raw.get("backend", "external")),
+            {"external", "internal"},
+            "solvers.monte_carlo.backend",
+        ),
+    )
+    mc_angular_scattering = cast(
+        Literal["external", "same_as_physics"],
+        _validate_literal(
+            str(mc_raw.get("angular_scattering", "external")),
+            {"external", "same_as_physics"},
+            "solvers.monte_carlo.angular_scattering",
+        ),
+    )
+    if mc_backend == "internal":
+        if mc_raw.get("command") is not None or mc_raw.get("python_api") is not None:
+            raise ValueError(
+                "solvers.monte_carlo backend=internal cannot use command or python_api"
+            )
+        if mc_angular_scattering != "same_as_physics":
+            raise ValueError(
+                "solvers.monte_carlo backend=internal requires angular_scattering=same_as_physics"
+            )
+    mc_particles = (
+        int(mc_raw["particles"]) if mc_raw.get("particles") is not None else None
+    )
+    mc_max_collisions = (
+        int(mc_raw["max_collisions"])
+        if mc_raw.get("max_collisions") is not None
+        else None
+    )
+    if mc_particles is not None and mc_particles <= 0:
+        raise ValueError("solvers.monte_carlo.particles must be positive")
+    if mc_max_collisions is not None and mc_max_collisions <= 0:
+        raise ValueError("solvers.monte_carlo.max_collisions must be positive")
+    mc_seed = int(mc_raw["seed"]) if mc_raw.get("seed") is not None else None
+
     monte_carlo = MonteCarloProductConfig(
-        particles=(
-            int(mc_raw["particles"]) if mc_raw.get("particles") is not None else None
-        ),
-        max_collisions=(
-            int(mc_raw["max_collisions"])
-            if mc_raw.get("max_collisions") is not None
-            else None
-        ),
+        backend=mc_backend,
+        angular_scattering=mc_angular_scattering,
+        seed=mc_seed,
+        particles=mc_particles,
+        max_collisions=mc_max_collisions,
         timeout_s=(
             float(mc_raw["timeout_s"]) if mc_raw.get("timeout_s") is not None else None
         ),
@@ -926,7 +1093,7 @@ def _parse_solvers(
         max_max_eV=physics.energy_grid_policy.max_eV_limit,
         tail_probability=physics.energy_grid_policy.tail_probability_target,
     )
-    boltzmann = BoltzmannTwoTermConfig(
+    boltzmann = TwoTermInternalConfig(
         backend=internal_backend,
         energy_grid=EnergyGridConfig(refine=refine),
         adaptive_grid=adaptive,
@@ -935,7 +1102,7 @@ def _parse_solvers(
         secondary_electron_energy_eV=physics.ionization.secondary_electron_energy_eV,
         min_momentum_cross_section_m2=two_term.min_momentum_cross_section_m2,
     )
-    mt_internal = MultiTermBoltzmannConfig(
+    mt_internal = MultiTermInternalConfig(
         lmax=multi_term.lmax,
         method="moment_closure",
         hydrodynamic=False,
@@ -947,6 +1114,9 @@ def _parse_solvers(
         energy_grid=MultiTermEnergyGridConfig(refine=refine),
     )
     mc_internal = MonteCarloAdapterConfig(
+        backend=monte_carlo.backend,
+        angular_scattering=monte_carlo.angular_scattering,
+        seed=monte_carlo.seed,
         command=monte_carlo.command,
         python_api=monte_carlo.python_api,
         working_directory=monte_carlo.working_directory,

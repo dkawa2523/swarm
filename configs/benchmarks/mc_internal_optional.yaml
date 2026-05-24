@@ -1,0 +1,68 @@
+schema_version: 2
+
+run:
+  solvers:
+    - id: monte_carlo
+  e_over_n_Td: [50]
+  case_prefix: bench_mc
+
+conditions:
+  gas_temperature_K: 300.0
+  pressure_Pa: 13.3
+  gas_mixture:
+    - species: Ar
+      fraction: 1.0
+      mass_amu: 39.948
+
+cross_sections:
+  format: csv
+  files:
+    - path: ../../examples/cross_sections/argon_minimal.csv
+      species: Ar
+      format: csv
+  high_energy_extrapolation: zero
+
+physics:
+  field:
+    type: dc
+    magnetic_field:
+      enabled: false
+      B_T: 0.0
+      angle_EB_deg: 0.0
+  angular_scattering:
+    model: isotropic
+    higher_moment_closure: zero
+  electron_electron:
+    enabled: false
+    model: none
+  ionization:
+    energy_sharing: equal
+    secondary_electron_energy_eV: 0.0
+  energy_grid_policy:
+    adaptive: true
+    threshold_refinement: true
+    tail_metrics: true
+    tail_threshold_eV: null
+    tail_rate_warning_fraction: 0.05
+  finite_k:
+    enabled: false
+    k_m_inv: null
+
+solvers:
+  monte_carlo:
+    backend: internal
+    angular_scattering: same_as_physics
+    particles: 32
+    max_collisions: 12
+    seed: 123
+
+comparison:
+  enabled: false
+
+feature_policy:
+  unsupported: fail
+  degraded: warn
+
+output:
+  directory: ../../outputs/benchmarks
+  base_name: mc_internal_optional

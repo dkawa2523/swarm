@@ -11,9 +11,8 @@ Supported types are case-insensitive aliases of
 ``attachment``. The canonical representation keeps all cross sections as
 functions of electron energy in eV and cross section in m^2.
 
-For legacy swarm repositories, ``txt|lxcat|bolsig|dat`` inputs are delegated to
-the existing ``swarm_mc.cross_section`` parser so the same LXCat/BOLSIG-style
-files can be used unchanged by both MC and Boltzmann workflows.
+For LXCat/BOLSIG-style ``txt|lxcat|bolsig|dat`` inputs, the loader first uses
+``lxcat_data_parser`` and then falls back to a small local block parser.
 """
 
 from __future__ import annotations
@@ -21,15 +20,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Iterable
-
 import numpy as np
 import pandas as pd
 from lxcat_data_parser import CrossSectionReadingError
 from lxcat_data_parser import CrossSectionSet as LxcatCrossSectionSet
 from lxcat_data_parser import CrossSectionTypes as CST
-
-from swarm_mc.cross_section import InterpolatedCrossSectionSet
 
 from .config import ConditionsConfig, CrossSectionsConfig
 
@@ -126,7 +121,7 @@ class CrossSectionProcess:
         keep = np.isfinite(energy) & np.isfinite(sigma) & (energy >= 0.0)
         energy = energy[keep]
         sigma = np.clip(sigma[keep], 0.0, None)
-        uniq, idx = np.unique(energy, return_index=True)
+        uniq = np.unique(energy)
         if len(uniq) != len(energy):
             sigma2 = np.zeros_like(uniq)
             for j, value in enumerate(uniq):
@@ -304,18 +299,12 @@ def _default_species(
     return None
 
 
-def _read_swarm_mc_text(
-    path: Path, default_species: str | None
-) -> list[CrossSectionProcess]:
+def _read_lxcat_text(path: Path, default_species: str | None) -> list[CrossSectionProcess]:
     if default_species is None:
         raise ValueError(
             f"{path}: species must be set for txt/lxcat/bolsig inputs when the gas mixture has multiple species"
         )
-    raw_set = LxcatCrossSectionSet(str(path), default_species, None)
-    raw_max_energy = max(
-        float(section.data["energy"].iat[-1]) for section in raw_set.cross_sections
-    )
-    parsed = InterpolatedCrossSectionSet(raw_max_energy, str(path), default_species)
+    parsed = LxcatCrossSectionSet(str(path), default_species, None)
     processes: list[CrossSectionProcess] = []
     for section in parsed.cross_sections:
         processes.append(
@@ -418,7 +407,7 @@ def load_cross_sections(
                 processes.extend(_read_csv_wide(path, default_species, default_mass))
         elif fmt in {"bolsig", "lxcat", "txt", "dat"}:
             try:
-                processes.extend(_read_swarm_mc_text(path, default_species))
+                processes.extend(_read_lxcat_text(path, default_species))
             except (CrossSectionReadingError, ValueError, OSError):
                 processes.extend(_read_bolsig_like(path, default_species))
         else:

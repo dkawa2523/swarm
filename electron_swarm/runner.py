@@ -11,6 +11,7 @@ from electron_swarm.core.cross_sections import load_cross_sections
 from electron_swarm.core.results import SwarmRunResult
 from electron_swarm.diagnostics import enrich_run_diagnostics, enrich_tail_metrics
 from electron_swarm.io.writers import write_outputs
+from electron_swarm.orchestration.comparison import build_comparison_summary
 from electron_swarm.orchestration.executor import execute_solve_plan
 from electron_swarm.orchestration.plan import (
     build_solve_plan,
@@ -35,6 +36,7 @@ def run(config: SwarmConfig, *, write: bool = True) -> SwarmRunResult:
         },
     )
     enrich_run_diagnostics(result)
+    build_comparison_summary(result, config.comparison)
     if write:
         paths = write_outputs(result, config.output, comparison=config.comparison)
         result.metadata["output_paths"] = {key: str(value) for key, value in paths.items()}

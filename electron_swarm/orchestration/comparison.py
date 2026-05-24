@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from electron_swarm.core.config import ComparisonConfig
 from electron_swarm.core.results import SwarmCaseResult, SwarmRunResult
 from electron_swarm.diagnostics.common import widths_from_centers
 
@@ -15,6 +16,12 @@ SCALAR_METRICS = {
     "diffusion_L_m2_s": "diffusion_L_relative_difference",
     "net_ionization_frequency_s": "net_ionization_frequency_relative_difference",
 }
+ANGULAR_COMPARE_KEYS = (
+    "angular_model",
+    "angular_moment_source",
+    "exact_dcs_based",
+    "ordinary_integral_xs_closure",
+)
 
 
 def _relative_difference(candidate: float, reference: float) -> float:
@@ -34,6 +41,34 @@ def _eedf_l1_error(candidate: SwarmCaseResult, reference: SwarmCaseResult) -> fl
     )
     widths = widths_from_centers(ref_energy)
     return float(np.sum(np.abs(candidate_eedf - ref_eedf) * widths))
+
+
+def _angular_value(case: SwarmCaseResult, key: str) -> object | None:
+    value = case.metadata.get(key)
+    if value in {"", None, "unknown"}:
+        return None
+    return value
+
+
+def _angular_model_status(
+    candidate: SwarmCaseResult,
+    reference: SwarmCaseResult,
+) -> str:
+    candidate_values = [_angular_value(candidate, key) for key in ANGULAR_COMPARE_KEYS]
+    reference_values = [_angular_value(reference, key) for key in ANGULAR_COMPARE_KEYS]
+    if any(value is None for value in candidate_values + reference_values):
+        return "unknown"
+    if candidate_values == reference_values:
+        return "match"
+    return "mismatch"
+
+
+def _angular_model_warning(status: str) -> str:
+    if status == "match":
+        return ""
+    if status == "unknown":
+        return "angular_model_unknown"
+    return "angular_model_mismatch"
 
 
 def comparison_summary_rows(
@@ -62,7 +97,26 @@ def comparison_summary_rows(
                 "E_over_N_Td": eover,
                 "reference_solver": reference_solver,
                 "candidate_solver": solver,
+                "angular_model_status": _angular_model_status(candidate, reference),
+                "reference_angular_model": reference.metadata.get("angular_model", ""),
+                "candidate_angular_model": candidate.metadata.get("angular_model", ""),
+                "reference_angular_moment_source": reference.metadata.get(
+                    "angular_moment_source", ""
+                ),
+                "candidate_angular_moment_source": candidate.metadata.get(
+                    "angular_moment_source", ""
+                ),
             }
+            row["same_angular_model"] = row["angular_model_status"] == "match"
+            row["angular_model_warning"] = _angular_model_warning(
+                str(row["angular_model_status"])
+            )
+            if row["same_angular_model"]:
+                row["angular_model"] = row["reference_angular_model"]
+            else:
+                row["angular_model"] = (
+                    f"{row['reference_angular_model']}->{row['candidate_angular_model']}"
+                )
             for attr, column in SCALAR_METRICS.items():
                 row[column] = _relative_difference(
                     getattr(candidate, attr),
@@ -72,3 +126,58 @@ def comparison_summary_rows(
                 row["eedf_l1_error"] = _eedf_l1_error(candidate, reference)
             rows.append(row)
     return rows
+
+
+def comparison_reference(
+    result: SwarmRunResult, comparison: ComparisonConfig
+) -> str | None:
+    requested = {case.solver for case in result.cases}
+    reference = comparison.reference_solver
+    if reference is None and "monte_carlo" in requested:
+        reference = "monte_carlo"
+    if reference not in requested:
+        msg = (
+            "comparison reference solver is not present in runnable results: "
+            f"{reference!r}"
+        )
+        result.metadata.setdefault("comparison_warnings", []).append(msg)
+        if comparison.required:
+            raise ValueError(msg)
+        return None
+    return reference
+
+
+def build_comparison_summary(
+    result: SwarmRunResult,
+    comparison: ComparisonConfig,
+) -> list[dict[str, object]]:
+    if not comparison.enabled:
+        return []
+    reference = comparison_reference(result, comparison)
+    candidates = comparison.candidate_solvers or [
+        solver for solver in sorted(result.by_solver()) if solver != reference
+    ]
+    summary_rows: list[dict[str, object]] = []
+    if reference is not None:
+        summary_rows = comparison_summary_rows(
+            result,
+            reference_solver=reference,
+            candidate_solvers=candidates,
+            compare_eedf=comparison.compare_eedf,
+        )
+    if comparison.required:
+        bad_angular = [
+            row
+            for row in summary_rows
+            if "monte_carlo"
+            in {row.get("reference_solver"), row.get("candidate_solver")}
+            and row.get("angular_model_status") != "match"
+        ]
+        if bad_angular:
+            status = bad_angular[0].get("angular_model_status")
+            raise ValueError(
+                "comparison required same-angular PN vs MC rows, "
+                f"but angular_model_status={status!r}"
+            )
+    result.metadata["comparison_summary_rows"] = summary_rows
+    return summary_rows

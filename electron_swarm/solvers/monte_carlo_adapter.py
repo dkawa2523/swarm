@@ -19,7 +19,19 @@ import pandas as pd
 
 from electron_swarm.core.constants import BOLTZMANN_J_K
 from electron_swarm.core.results import SwarmCaseResult
+from electron_swarm.physics.angular_scattering import (
+    ANGULAR_METADATA_KEYS,
+    expected_angular_metadata,
+)
 from .base import SwarmSolver
+from .internal_monte_carlo import run_internal_monte_carlo
+
+MAGNETIC_METADATA_KEYS = (
+    "magnetic_field_treatment",
+    "magnetic_field_B_T",
+    "magnetic_field_angle_EB_deg",
+    "field_integrator",
+)
 
 
 def _first_present(row: pd.Series, *names: str) -> float:
@@ -27,6 +39,38 @@ def _first_present(row: pd.Series, *names: str) -> float:
         if name in row and pd.notna(row[name]):
             return float(row[name])
     return float("nan")
+
+
+def _first_metadata_value(row: pd.Series, key: str) -> Any:
+    for name in (key, f"meta_{key}"):
+        if name in row and pd.notna(row[name]) and row[name] != "":
+            return row[name]
+    return None
+
+
+def _coerce_metadata_value(key: str, value: Any) -> object:
+    if key in {"exact_dcs_based", "ordinary_integral_xs_closure"}:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)) and np.isfinite(float(value)):
+            return bool(value)
+        normalized = str(value).strip().lower()
+        if normalized in {"true", "1", "yes"}:
+            return True
+        if normalized in {"false", "0", "no"}:
+            return False
+    return str(value)
+
+
+def _metadata_float(metadata: dict[str, Any], key: str) -> float:
+    value = metadata[key]
+    try:
+        out = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"monte_carlo magnetic_field metadata {key} must be numeric") from exc
+    if not np.isfinite(out):
+        raise ValueError(f"monte_carlo magnetic_field metadata {key} must be finite")
+    return out
 
 
 def _infer_gas_number_density(config, row: pd.Series) -> float:
@@ -85,6 +129,9 @@ class MonteCarloAdapter(SwarmSolver):
 
     def solve_all(self) -> list[SwarmCaseResult]:
         cfg = self.config.internal.monte_carlo
+        if cfg.backend == "internal":
+            cases = run_internal_monte_carlo(self.config, self.cross_sections)
+            return self._apply_magnetic_contract(self._apply_angular_contract(cases))
         if not cfg.command and not cfg.python_api:
             raise RuntimeError(
                 "run.solvers includes monte_carlo but solvers.monte_carlo.command or "
@@ -92,8 +139,10 @@ class MonteCarloAdapter(SwarmSolver):
                 "delegate to the repository's existing MC solver."
             )
         if cfg.python_api:
-            return self._run_python_api()
-        return self._run_command()
+            cases = self._run_python_api()
+        else:
+            cases = self._run_command()
+        return self._apply_magnetic_contract(self._apply_angular_contract(cases))
 
     def solve_case(self, e_over_n_Td: float, case_id: str) -> SwarmCaseResult:
         raise NotImplementedError("MonteCarloAdapter executes through solve_all()")
@@ -260,6 +309,19 @@ class MonteCarloAdapter(SwarmSolver):
             effective_townsend = _infer_effective_townsend(
                 row, net_ionization_frequency, drift, gas_number_density
             )
+            metadata: dict[str, Any] = {"adapter": "command_or_python_api"}
+            for key in ANGULAR_METADATA_KEYS:
+                value = _first_metadata_value(row, key)
+                if value is not None:
+                    metadata[key] = _coerce_metadata_value(key, value)
+            for key in MAGNETIC_METADATA_KEYS:
+                value = _first_metadata_value(row, key)
+                if value is not None:
+                    metadata[key] = (
+                        float(value)
+                        if key in {"magnetic_field_B_T", "magnetic_field_angle_EB_deg"}
+                        else str(value)
+                    )
             out.append(
                 SwarmCaseResult(
                     solver=self.name,
@@ -281,7 +343,101 @@ class MonteCarloAdapter(SwarmSolver):
                     eedf=dist,
                     eepf=dist / np.sqrt(np.maximum(energy, 1.0e-30)),
                     rates=[],
-                    metadata={"adapter": "command_or_python_api"},
+                    metadata=metadata,
                 )
             )
         return out
+
+    def _apply_angular_contract(
+        self, cases: list[SwarmCaseResult]
+    ) -> list[SwarmCaseResult]:
+        mode = self.config.solvers.monte_carlo.angular_scattering
+        expected = expected_angular_metadata(self.config)
+        for case in cases:
+            reported = {
+                key: _coerce_metadata_value(key, case.metadata[key])
+                for key in ANGULAR_METADATA_KEYS
+                if key in case.metadata and case.metadata[key] not in {"", None}
+            }
+            if mode == "same_as_physics":
+                missing = [key for key in ANGULAR_METADATA_KEYS if key not in reported]
+                if missing:
+                    raise ValueError(
+                        "monte_carlo same_as_physics requires angular metadata "
+                        f"{missing} in MC output"
+                    )
+                mismatched = [
+                    key
+                    for key in ANGULAR_METADATA_KEYS
+                    if reported[key] != expected[key]
+                ]
+                if mismatched:
+                    raise ValueError(
+                        "monte_carlo angular metadata mismatch for "
+                        f"{mismatched}; same_as_physics requires MC output to "
+                        "match physics.angular_scattering"
+                    )
+                case.metadata.update(expected)
+                case.metadata["monte_carlo_angular_scattering"] = "same_as_physics"
+            else:
+                if not reported:
+                    case.metadata.update(
+                        {
+                            "angular_model": "unknown",
+                            "angular_moment_source": "external_adapter",
+                            "exact_dcs_based": False,
+                            "ordinary_integral_xs_closure": False,
+                        }
+                    )
+                else:
+                    case.metadata.update(reported)
+                case.metadata["monte_carlo_angular_scattering"] = "external"
+        return cases
+
+    def _apply_magnetic_contract(
+        self, cases: list[SwarmCaseResult]
+    ) -> list[SwarmCaseResult]:
+        magnetic = self.config.physics.field.magnetic_field
+        if not magnetic.enabled:
+            return cases
+        required = {
+            "magnetic_field_treatment",
+            "magnetic_field_B_T",
+            "magnetic_field_angle_EB_deg",
+        }
+        for case in cases:
+            missing = [
+                key
+                for key in required
+                if key not in case.metadata or case.metadata[key] in {"", None}
+            ]
+            if missing:
+                raise ValueError(
+                    "monte_carlo magnetic_field requires MC output metadata "
+                    f"{missing}"
+                )
+            treatment = str(case.metadata["magnetic_field_treatment"])
+            if treatment in {"none", "unsupported"}:
+                raise ValueError(
+                    "monte_carlo magnetic_field output must report an active "
+                    "magnetic_field_treatment"
+                )
+            reported_B_T = _metadata_float(case.metadata, "magnetic_field_B_T")
+            reported_angle = _metadata_float(
+                case.metadata, "magnetic_field_angle_EB_deg"
+            )
+            if not np.isclose(reported_B_T, float(magnetic.B_T), rtol=1.0e-9, atol=1.0e-12):
+                raise ValueError(
+                    "monte_carlo magnetic_field metadata mismatch for magnetic_field_B_T"
+                )
+            if not np.isclose(
+                reported_angle,
+                float(magnetic.angle_EB_deg),
+                rtol=1.0e-9,
+                atol=1.0e-9,
+            ):
+                raise ValueError(
+                    "monte_carlo magnetic_field metadata mismatch for "
+                    "magnetic_field_angle_EB_deg"
+                )
+        return cases

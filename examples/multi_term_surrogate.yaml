@@ -1,0 +1,63 @@
+schema_version: 2
+
+run:
+  solvers:
+    - id: multi_term
+  e_over_n_Td: [50]
+  case_prefix: ex_multi_term
+
+conditions:
+  gas_temperature_K: 300.0
+  pressure_Pa: 13.3
+  gas_mixture:
+    - species: Ar
+      fraction: 1.0
+      mass_amu: 39.948
+
+cross_sections:
+  format: csv
+  files:
+    - path: cross_sections/argon_minimal.csv
+      species: Ar
+      format: csv
+  high_energy_extrapolation: zero
+
+physics:
+  field:
+    type: dc
+    magnetic_field:
+      enabled: false
+      B_T: 0.0
+      angle_EB_deg: 0.0
+  angular_scattering:
+    model: momentum_power
+    higher_moment_closure: power
+  electron_electron:
+    enabled: false
+    model: none
+  ionization:
+    energy_sharing: equal
+  energy_grid_policy:
+    adaptive: true
+    threshold_refinement: true
+    tail_metrics: true
+  finite_k:
+    enabled: false
+    k_m_inv: null
+
+solvers:
+  multi_term:
+    formulation: PN
+    method: pn_closure_surrogate
+    lmax: 4
+
+comparison:
+  enabled: false
+
+feature_policy:
+  unsupported: fail
+  degraded: warn
+
+output:
+  directory: ../outputs/examples
+  base_name: multi_term_surrogate

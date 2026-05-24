@@ -1,0 +1,23 @@
+{
+  "case": "argon_minimal_50Td",
+  "tolerances": {
+    "transport_relative": 0.2,
+    "rate_relative": 0.3
+  },
+  "solvers": {
+    "two_term": {
+      "mean_energy_eV": 5.606058963101201,
+      "drift_velocity_m_s": 122056.87785336468,
+      "mobility_m2_V_s": 101.11062381082208,
+      "net_ionization_frequency_s": 244949.37073238438,
+      "effective_townsend_m2": 8.312250232025078e-23
+    },
+    "multi_term": {
+      "mean_energy_eV": 4.1907954824472755,
+      "drift_velocity_m_s": 199831.79410137646,
+      "mobility_m2_V_s": 165.5385400165628,
+      "net_ionization_frequency_s": 3648806.2588166967,
+      "effective_townsend_m2": 7.562941725689555e-22
+    }
+  }
+}

@@ -7,8 +7,11 @@ from pathlib import Path
 import pandas as pd
 
 from electron_swarm.core.config import ComparisonConfig, OutputConfig
-from electron_swarm.core.results import SwarmCaseResult, SwarmRunResult
-from electron_swarm.orchestration.comparison import comparison_summary_rows
+from electron_swarm.core.results import (
+    SUMMARY_METADATA_KEYS,
+    SwarmCaseResult,
+    SwarmRunResult,
+)
 
 
 SUMMARY_COLUMNS = [
@@ -25,19 +28,7 @@ SUMMARY_COLUMNS = [
     "effective_townsend_m2",
 ]
 
-SUMMARY_METADATA_COLUMNS = [
-    "physics_level",
-    "angular_model",
-    "exact_dcs_based",
-    "ordinary_integral_xs_closure",
-    "electron_electron_treatment",
-    "electron_electron_transport_stale",
-    "magnetic_field_treatment",
-    "tail_probability",
-    "tail_rate_fraction_max",
-    "dominant_tail_process",
-    "energy_grid_tail_status",
-]
+SUMMARY_METADATA_COLUMNS = list(SUMMARY_METADATA_KEYS)
 
 RATES_COLUMNS = [
     "solver",
@@ -72,12 +63,15 @@ SOLVER_PLAN_COLUMNS = [
     "skip_reason",
     "warnings",
     "effective_angular_scattering",
+    "effective_ionization_source",
     "effective_electron_electron",
     "effective_magnetic_field",
     "effective_tail_refinement",
     "effective_bulk_transport",
+    "effective_finite_k",
     "capability_electron_neutral",
     "capability_angular_scattering",
+    "capability_ionization_source",
     "capability_electron_electron",
     "capability_magnetic_field",
     "capability_tail_refinement",
@@ -89,6 +83,14 @@ COMPARISON_SUMMARY_COLUMNS = [
     "E_over_N_Td",
     "reference_solver",
     "candidate_solver",
+    "angular_model",
+    "same_angular_model",
+    "angular_model_warning",
+    "angular_model_status",
+    "reference_angular_model",
+    "candidate_angular_model",
+    "reference_angular_moment_source",
+    "candidate_angular_moment_source",
     "mean_energy_eV_relative_difference",
     "drift_velocity_relative_difference",
     "mobility_relative_difference",
@@ -128,8 +130,7 @@ def _summary_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
     ordered.extend(
         f"meta_{col}" for col in SUMMARY_METADATA_COLUMNS if f"meta_{col}" in frame.columns
     )
-    rest = [col for col in frame.columns if col not in ordered]
-    return frame[ordered + rest]
+    return frame[ordered]
 
 
 def _eedf_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
@@ -186,26 +187,6 @@ def _solver_plan_frame(result: SwarmRunResult) -> pd.DataFrame:
 def _write_csv(frame: pd.DataFrame, path: Path, float_format: str) -> None:
     frame.to_csv(path, index=False, float_format=float_format)
 
-
-def _comparison_reference(
-    result: SwarmRunResult, comparison: ComparisonConfig
-) -> str | None:
-    requested = {case.solver for case in result.cases}
-    reference = comparison.reference_solver
-    if reference is None and "monte_carlo" in requested:
-        reference = "monte_carlo"
-    if reference not in requested:
-        msg = (
-            "comparison reference solver is not present in runnable results: "
-            f"{reference!r}"
-        )
-        result.metadata.setdefault("comparison_warnings", []).append(msg)
-        if comparison.required:
-            raise ValueError(msg)
-        return None
-    return reference
-
-
 def _write_comparison_outputs(
     result: SwarmRunResult,
     output: OutputConfig,
@@ -214,18 +195,7 @@ def _write_comparison_outputs(
 ) -> None:
     if not comparison.enabled:
         return
-    reference = _comparison_reference(result, comparison)
-    candidates = comparison.candidate_solvers or [
-        solver for solver in sorted(result.by_solver()) if solver != reference
-    ]
-    summary_rows = []
-    if reference is not None:
-        summary_rows = comparison_summary_rows(
-            result,
-            reference_solver=reference,
-            candidate_solvers=candidates,
-            compare_eedf=comparison.compare_eedf,
-        )
+    summary_rows = result.metadata.get("comparison_summary_rows", [])
     summary_path = output.directory / f"{output.base_name}_comparison_summary.csv"
     _write_csv(
         pd.DataFrame(summary_rows, columns=COMPARISON_SUMMARY_COLUMNS),

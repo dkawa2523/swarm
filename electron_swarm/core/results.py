@@ -9,6 +9,34 @@ import numpy as np
 
 from electron_swarm.core.transport import TransportSet
 
+SUMMARY_METADATA_KEYS = (
+    "physics_level",
+    "solver_method",
+    "angular_model",
+    "angular_moment_source",
+    "exact_dcs_based",
+    "ordinary_integral_xs_closure",
+    "direct_pn_operator",
+    "lmax",
+    "pn_residual",
+    "negative_mass_fraction",
+    "lmax1_regression_target",
+    "effective_angular_scattering",
+    "ionization_source_model",
+    "ionization_source_treatment",
+    "electron_electron_treatment",
+    "electron_electron_transport_stale",
+    "transport_definition",
+    "magnetic_field_treatment",
+    "magnetic_field_B_T",
+    "magnetic_field_angle_EB_deg",
+    "field_integrator",
+    "tail_probability",
+    "tail_rate_fraction_max",
+    "dominant_tail_process",
+    "energy_grid_tail_status",
+)
+
 
 @dataclass(slots=True)
 class RateResult:
@@ -69,7 +97,10 @@ class SwarmCaseResult:
             "reduced_diffusion_T_m2_s_m3": self.reduced_diffusion_T_m2_s_m3,
             "net_ionization_frequency_s": self.net_ionization_frequency_s,
             "effective_townsend_m2": self.effective_townsend_m2,
-            **{f"meta_{k}": v for k, v in self.metadata.items() if isinstance(v, (str, int, float, bool))},
+            **{
+                f"meta_{key}": self.metadata.get(key, "")
+                for key in SUMMARY_METADATA_KEYS
+            },
         }
 
 

@@ -192,6 +192,9 @@ def apply_electron_electron_relaxation_from_config(
     ee_config = _ee_config(config)
     if not bool(ee_config.enabled):
         return list(cases)
-    if str(ee_config.model).lower() != "relaxation_postprocess":
+    model = str(ee_config.model).lower()
+    if model == "fp_energy":
+        return list(cases)
+    if model != "relaxation_postprocess":
         raise ValueError("Unsupported electron_electron model for postprocess")
     return [_apply_to_case(case, ee_config, config, cross_sections) for case in cases]
