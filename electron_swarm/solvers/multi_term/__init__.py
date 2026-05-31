@@ -6,33 +6,25 @@ from time import perf_counter
 
 import numpy as np
 
+from electron_swarm.collisions.ee_fp_energy import apply_fp_energy_operator
 from electron_swarm.core.config import SwarmConfig
 from electron_swarm.core.constants import BOLTZMANN_J_K, TOWNSEND
 from electron_swarm.core.cross_sections import CrossSectionSet
 from electron_swarm.core.results import SwarmCaseResult
 from electron_swarm.solvers.base import SwarmSolver
+from electron_swarm.solvers.kinetic import (
+    compute_rates_from_eedf,
+    eepf_from_eedf,
+    mean_energy_from_eedf,
+    weighted_integral,
+)
 
 from .angular import LegendreBasis
-from .closure import (
-    MomentClosureEngine,
-    druyvesteyn_energy_pdf,
-    maxwellian_energy_pdf,
-)
+from .direct import solve_direct_lmax1, solve_pn_dcs
 from .grid import EnergyGrid, electron_speed_m_s, make_energy_grid
-from .models import MultiTermCase, MultiTermSolution
-from .projection import (
-    ProjectedCollisionData,
-    compute_rate_set,
-    elastic_power_loss_eV_s,
-    energy_loss_eV,
-    project_collision_data,
-    threshold_masked_sigma,
-)
+from .models import MultiTermCase, MultiTermSolution, RateSet
 
 MULTITERM_SOLVER_NAME = "multi_term"
-DIRECT_PN_ROADMAP = "docs/dev/direct_pn_closure_operator.md"
-
-
 def _gas_number_density(config: SwarmConfig) -> float:
     cond = config.conditions
     if cond.gas_number_density_m3 is not None:
@@ -57,38 +49,6 @@ def build_multiterm_case(
     )
 
 
-def _project_collision_data(case: MultiTermCase) -> ProjectedCollisionData:
-    return project_collision_data(case)
-
-
-def _compute_rate_set(
-    case: MultiTermCase,
-    collisions: ProjectedCollisionData,
-    energy_pdf_eV_inv: np.ndarray,
-    case_id: str,
-):
-    return compute_rate_set(
-        case,
-        collisions,
-        energy_pdf_eV_inv,
-        case_id,
-        MULTITERM_SOLVER_NAME,
-    )
-
-
-def _elastic_power_loss_eV_s(
-    case: MultiTermCase,
-    collisions: ProjectedCollisionData,
-    F: np.ndarray,
-    thermal_mean_eV: float,
-) -> float:
-    return elastic_power_loss_eV_s(case, collisions, F, thermal_mean_eV)
-
-
-_threshold_masked_sigma = threshold_masked_sigma
-_energy_loss_eV = energy_loss_eV
-
-
 class MultiTermSolver(SwarmSolver):
     """Product multi-term entry point for ordinary-XS PN closure runs."""
 
@@ -96,22 +56,15 @@ class MultiTermSolver(SwarmSolver):
 
     def _require_supported_product_method(self) -> None:
         method = self.config.solvers.multi_term.method
-        if method == "pn_closure_surrogate":
-            return
         if method == "pn_closure_direct":
-            raise NotImplementedError(
-                "multi_term method 'pn_closure_direct' is not implemented: "
-                "the current shared-SG reduction is not an independent PN block "
-                "solve; coupled f0/f1 operator is not implemented; "
-                f"see {DIRECT_PN_ROADMAP}"
-            )
+            return
         if method == "pn_dcs":
-            if self.config.physics.angular_scattering.model == "moment_table":
-                return
-            raise NotImplementedError(
-                "multi_term method 'pn_dcs' requires "
-                "physics.angular_scattering.model=moment_table"
-            )
+            if self.config.physics.angular_scattering.model != "moment_table":
+                raise NotImplementedError(
+                    "multi_term method 'pn_dcs' requires "
+                    "physics.angular_scattering.model=moment_table"
+                )
+            return
         raise NotImplementedError(f"Unsupported multi_term product method {method!r}")
 
     def solve_case(self, e_over_n_Td: float, case_id: str) -> SwarmCaseResult:
@@ -123,7 +76,15 @@ class MultiTermSolver(SwarmSolver):
             raise NotImplementedError(
                 f"Unsupported multi_term internal method {cfg.method!r}"
             )
-        solution = MomentClosureEngine(self.name).solve(case, case_id)
+        if self.config.solvers.multi_term.method == "pn_closure_direct":
+            solution = solve_direct_lmax1(case, case_id, self.name)
+        elif self.config.solvers.multi_term.method == "pn_dcs":
+            solution = solve_pn_dcs(case, case_id, self.name)
+        else:
+            raise NotImplementedError(
+                f"Unsupported multi_term product method "
+                f"{self.config.solvers.multi_term.method!r}"
+            )
         run_time_s = perf_counter() - started
         return self._to_case_result(case, solution, case_id, run_time_s)
 
@@ -147,12 +108,58 @@ class MultiTermSolver(SwarmSolver):
             if flux.diffusion_transverse_m2_s is not None
             else diffusion_l
         )
-        net_freq = solution.rates.effective_growth_frequency_s_inv
+        eedf = np.asarray(solution.eedf_eV_inv, dtype=float)
+        rates = solution.rates
+        mean_energy = float(solution.diagnostics.mean_energy_eV)
+        ee_metadata: dict[str, object] = {}
+        ee = case.config.physics.electron_electron
+        if bool(ee.enabled) and ee.model == "fp_energy":
+            if ee.strength_model == "density_based":
+                raise NotImplementedError(
+                    "electron_electron fp_energy strength_model='density_based' "
+                    "is not implemented"
+                )
+            eedf, ee_operator_metadata = apply_fp_energy_operator(
+                solution.energy_eV,
+                solution.widths_eV,
+                eedf,
+                relaxation_fraction=ee.relaxation_fraction,
+                conserve_mean_energy=ee.conserve_mean_energy,
+                fallback_temperature_eV=ee.fallback_temperature_eV,
+            )
+            rate_data = compute_rates_from_eedf(
+                case.config,
+                case.cross_sections,
+                solution.energy_eV,
+                solution.widths_eV,
+                eedf,
+                case_id=case_id,
+                e_over_n_Td=case.e_over_n_Td,
+                solver_name=self.name,
+            )
+            rates = RateSet(
+                tuple(rate_data.rates),
+                number_density * rate_data.ionization_rate_m3_s,
+                number_density * rate_data.attachment_rate_m3_s,
+            )
+            mean_energy = mean_energy_from_eedf(
+                solution.energy_eV,
+                solution.widths_eV,
+                eedf,
+            )
+            ee_metadata = {
+                "electron_electron_treatment": "fp_energy",
+                "electron_electron_affects_eedf": True,
+                "electron_electron_affects_rates": True,
+                "electron_electron_affects_transport": False,
+                "electron_electron_transport_stale": True,
+                **ee_operator_metadata,
+            }
+        net_freq = rates.effective_growth_frequency_s_inv
         effective_townsend = net_freq / max(
             abs(flux.drift_velocity_m_s) * number_density, 1.0e-300
         )
-        eedf = solution.eedf_eV_inv
-        eepf = eedf / np.sqrt(np.maximum(solution.energy_eV, 1.0e-30))
+        eepf = eepf_from_eedf(solution.energy_eV, eedf)
         energy_grid = case.config.internal.multi_term.energy_grid
         metadata = {
             "backend": case.config.solvers.multi_term.method,
@@ -180,18 +187,18 @@ class MultiTermSolver(SwarmSolver):
                 solution.diagnostics.power_balance_relative_residual
             ),
             "warnings": "; ".join(solution.diagnostics.warnings),
-            "normalization_integral": float(np.sum(eedf * solution.widths_eV)),
+            "normalization_integral": weighted_integral(eedf, solution.widths_eV),
             "convolution_ionization_rate_coefficient_m3_s": float(
                 sum(
                     r.mixture_weighted_rate_m3_s
-                    for r in solution.rates.rates
+                    for r in rates.rates
                     if r.process_type == "ionization"
                 )
             ),
             "convolution_attachment_rate_coefficient_m3_s": float(
                 sum(
                     r.mixture_weighted_rate_m3_s
-                    for r in solution.rates.rates
+                    for r in rates.rates
                     if r.process_type == "attachment"
                 )
             ),
@@ -205,11 +212,12 @@ class MultiTermSolver(SwarmSolver):
             ),
         }
         metadata.update(solution.metadata)
+        metadata.update(ee_metadata)
         return SwarmCaseResult(
             solver=self.name,
             case_id=case_id,
             e_over_n_Td=case.e_over_n_Td,
-            mean_energy_eV=solution.diagnostics.mean_energy_eV,
+            mean_energy_eV=mean_energy,
             drift_velocity_m_s=flux.drift_velocity_m_s,
             mobility_m2_V_s=flux.mobility_m2_V_s,
             reduced_mobility_m2_V_s_m3=flux.mobility_m2_V_s * number_density,
@@ -222,7 +230,8 @@ class MultiTermSolver(SwarmSolver):
             energy_eV=solution.energy_eV,
             eedf=eedf,
             eepf=eepf,
-            rates=list(solution.rates.rates),
+            energy_widths_eV=solution.widths_eV,
+            rates=list(rates.rates),
             metadata=metadata,
             transport=transport,
         )
@@ -235,7 +244,5 @@ __all__ = [
     "MultiTermCase",
     "MultiTermSolution",
     "build_multiterm_case",
-    "druyvesteyn_energy_pdf",
     "electron_speed_m_s",
-    "maxwellian_energy_pdf",
 ]

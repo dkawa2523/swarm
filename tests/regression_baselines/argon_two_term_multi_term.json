@@ -13,11 +13,11 @@
       "effective_townsend_m2": 8.312250232025078e-23
     },
     "multi_term": {
-      "mean_energy_eV": 4.1907954824472755,
-      "drift_velocity_m_s": 199831.79410137646,
-      "mobility_m2_V_s": 165.5385400165628,
-      "net_ionization_frequency_s": 3648806.2588166967,
-      "effective_townsend_m2": 7.562941725689555e-22
+      "mean_energy_eV": 5.606058963186546,
+      "drift_velocity_m_s": 122056.87785455976,
+      "mobility_m2_V_s": 101.11062381181206,
+      "net_ionization_frequency_s": 244949.37541699116,
+      "effective_townsend_m2": 8.312250390913784e-23
     }
   }
 }

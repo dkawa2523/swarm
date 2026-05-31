@@ -14,6 +14,7 @@ from electron_swarm.physics.angular_scattering import (
     MomentTableAngularModel,
     MomentumPowerAngularModel,
     build_angular_model,
+    expected_angular_metadata,
 )
 from electron_swarm.solvers.internal_monte_carlo import (
     boris_push,
@@ -237,8 +238,8 @@ def test_build_angular_model_from_config_and_rejects_invalid_schema(
         "model": "moment_table",
         "moment_table": {
             "path": table_path.as_posix(),
-            "format": "csv",
-            "provenance": "precomputed_moments",
+            "format": "normalized_legendre_moments",
+            "provenance": "model_derived",
             "extrapolation": "error",
         },
     }
@@ -278,6 +279,9 @@ def test_moment_table_model_interpolation_and_validation(tmp_path: Path) -> None
     assert np.all(moments <= 1.0)
     assert np.all(moments >= -1.0)
     assert model.metadata()["angular_moment_source"] == "moment_table"
+    assert model.metadata()["moment_table_provenance"] == "unknown"
+    assert model.metadata()["exact_dcs_based"] is False
+    assert model.metadata()["ordinary_integral_xs_closure"] is False
 
     with pytest.raises(ValueError, match="does not contain enough"):
         model.moments(np.array([5.0]), 4)
@@ -311,6 +315,8 @@ def test_moment_table_schema_validation(tmp_path: Path) -> None:
     }
     cfg = load_config(write_config(tmp_path, data))
     assert cfg.physics.angular_scattering.moment_table is not None
+    assert cfg.physics.angular_scattering.moment_table.format == "normalized_legendre_moments"
+    assert cfg.physics.angular_scattering.moment_table.provenance == "unknown"
 
     data["physics"]["angular_scattering"]["moment_table"] = {}
     with pytest.raises(ValueError, match="moment_table.path"):
@@ -325,7 +331,7 @@ def test_moment_table_schema_validation(tmp_path: Path) -> None:
 
     data["physics"]["angular_scattering"]["moment_table"] = {
         "path": table_path.as_posix(),
-        "provenance": "unknown",
+        "provenance": "precomputed_moments",
     }
     with pytest.raises(ValueError, match="moment_table.provenance"):
         load_config(write_config(tmp_path, data))
@@ -357,6 +363,38 @@ def test_moment_table_schema_validation(tmp_path: Path) -> None:
     }
     with pytest.raises(ValueError, match="dcs_table input is not implemented"):
         load_config(write_config(tmp_path, data))
+
+
+@pytest.mark.parametrize(
+    ("provenance", "exact"),
+    [
+        ("dcs_derived", True),
+        ("model_derived", False),
+        ("unknown", False),
+    ],
+)
+def test_moment_table_expected_metadata(
+    tmp_path: Path,
+    provenance: str,
+    exact: bool,
+) -> None:
+    table_path = write_moment_table(tmp_path / "moments.csv")
+    data = base_product_config(tmp_path)
+    data["physics"]["angular_scattering"] = {
+        "model": "moment_table",
+        "higher_moment_closure": "table",
+        "moment_table": {
+            "path": table_path.as_posix(),
+            "format": "normalized_legendre_moments",
+            "provenance": provenance,
+        },
+    }
+    metadata = expected_angular_metadata(load_config(write_config(tmp_path, data)))
+    assert metadata["angular_model"] == "moment_table"
+    assert metadata["angular_moment_source"] == "moment_table"
+    assert metadata["moment_table_provenance"] == provenance
+    assert metadata["exact_dcs_based"] is exact
+    assert metadata["ordinary_integral_xs_closure"] is False
 
 
 def test_monte_carlo_uses_shared_angular_model_config(tmp_path: Path) -> None:

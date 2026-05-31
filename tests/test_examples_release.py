@@ -13,7 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = sorted((ROOT / "examples").glob("*.yaml"))
 LIGHT_EXAMPLES = [
     ROOT / "examples" / "two_term.yaml",
-    ROOT / "examples" / "multi_term_surrogate.yaml",
+    ROOT / "examples" / "multi_term_direct_lmax1.yaml",
+    ROOT / "examples" / "multi_term_direct_lmax4.yaml",
     ROOT / "examples" / "pn_dcs_moment_table.yaml",
 ]
 MC_EXAMPLES = [
@@ -25,7 +26,8 @@ MC_EXAMPLES = [
 def test_examples_are_schema_v2_configs() -> None:
     assert {path.name for path in EXAMPLES} == {
         "two_term.yaml",
-        "multi_term_surrogate.yaml",
+        "multi_term_direct_lmax1.yaml",
+        "multi_term_direct_lmax4.yaml",
         "compare_three_solvers.yaml",
         "magnetic_mc.yaml",
         "pn_dcs_moment_table.yaml",
@@ -43,10 +45,40 @@ def test_light_examples_run_without_writing(path: Path) -> None:
     assert all(case.schema_version == "2" for case in result.cases)
 
 
+def test_pn_dcs_example_runs_with_moment_table() -> None:
+    result = run(load_config(ROOT / "examples" / "pn_dcs_moment_table.yaml"), write=False)
+    [case] = result.cases
+    assert case.metadata["solver_method"] == "pn_dcs"
+    assert case.metadata["angular_model"] == "moment_table"
+    assert case.metadata["angular_moment_source"] == "moment_table"
+    assert case.metadata["ordinary_integral_xs_closure"] is False
+
+
 def test_readme_quickstart_target_runs() -> None:
     result = run(load_config(ROOT / "examples" / "two_term.yaml"), write=False)
     assert len(result.cases) == 1
     assert result.cases[0].solver == "two_term"
+
+
+def test_direct_lmax1_example_runs_as_gated_product_path() -> None:
+    result = run(load_config(ROOT / "examples" / "multi_term_direct_lmax1.yaml"), write=False)
+    [case] = result.cases
+    assert case.solver == "multi_term"
+    assert case.metadata["solver_method"] == "pn_closure_direct"
+    assert case.metadata["direct_pn_operator"] is True
+    assert case.metadata["ordinary_integral_xs_closure"] is True
+    assert case.metadata["exact_dcs_based"] is False
+
+
+def test_direct_lmax4_example_runs_in_limited_product_scope() -> None:
+    result = run(load_config(ROOT / "examples" / "multi_term_direct_lmax4.yaml"), write=False)
+    [case] = result.cases
+    assert case.solver == "multi_term"
+    assert case.metadata["solver_method"] == "pn_closure_direct"
+    assert case.metadata["lmax"] == 4
+    assert case.metadata["higher_l_collision_model"] == "angular_closure_damping"
+    assert case.metadata["higher_l_inelastic_model"] == "sink_only"
+    assert case.metadata["exact_dcs_based"] is False
 
 
 @pytest.mark.mc

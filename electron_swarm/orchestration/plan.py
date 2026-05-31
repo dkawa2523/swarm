@@ -10,7 +10,6 @@ from electron_swarm.core.capabilities import SupportLevel, get_solver_capabiliti
 DEGRADED_SUPPORT = {
     SupportLevel.APPROXIMATE,
     SupportLevel.POSTPROCESS,
-    SupportLevel.SURROGATE,
     SupportLevel.DIAGNOSTIC,
 }
 
@@ -67,8 +66,17 @@ def _requested_ionization_source(config: object) -> bool:
 def _default_ionization_treatment(solver: str, config: object) -> str:
     model = str(config.physics.ionization.energy_sharing)
     if solver == "multi_term":
-        return "surrogate_rate_only" if model == "equal" else "unsupported"
+        if model != "equal":
+            return "unsupported"
+        method = str(config.solvers.multi_term.method)
+        return (
+            "rate_convolution"
+            if method in {"pn_closure_direct", "pn_dcs"}
+            else "unsupported"
+        )
     if solver == "monte_carlo":
+        if config.solvers.monte_carlo.backend == "internal":
+            return model
         return "external_adapter" if model == "equal" else "unsupported"
     return model
 
@@ -82,6 +90,8 @@ def _angular_treatment(solver: str, config: object, level: SupportLevel) -> str:
                 return f"same_as_physics:{angular.model}:sampler_supported"
             return f"same_as_physics:{angular.model}:unsupported_sampler"
         return f"external_adapter:{level.value}"
+    if solver == "multi_term" and config.solvers.multi_term.method == "pn_dcs":
+        return f"{angular.model}:pn_dcs_moment_table"
     return f"{angular.model}:{angular.higher_moment_closure}:{level.value}"
 
 
@@ -239,11 +249,19 @@ def build_solve_plan(config: object) -> list[SolverPlanItem]:
         if ee_requested and ee_treatment == "unsupported":
             ee_level = SupportLevel.UNSUPPORTED
         if runnable:
+            ionization_level = caps.ionization_source
+            if (
+                solver == "monte_carlo"
+                and config.solvers.monte_carlo.backend == "internal"
+                and str(config.physics.ionization.energy_sharing)
+                in {"equal", "primary_secondary", "loss_only"}
+            ):
+                ionization_level = SupportLevel.APPROXIMATE
             for requested, feature, level, effective_value in (
                 (
                     ionization_requested,
                     "ionization_source",
-                    caps.ionization_source,
+                    ionization_level,
                     config.physics.ionization.energy_sharing,
                 ),
                 (

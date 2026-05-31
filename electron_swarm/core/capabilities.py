@@ -10,7 +10,6 @@ class SupportLevel(str, Enum):
     EXACT = "exact"
     APPROXIMATE = "approximate"
     POSTPROCESS = "postprocess"
-    SURROGATE = "surrogate"
     DIAGNOSTIC = "diagnostic"
     UNSUPPORTED = "unsupported"
 
@@ -40,8 +39,8 @@ CAPABILITIES_BY_SOLVER: dict[str, SolverCapabilities] = {
     ),
     "multi_term": SolverCapabilities(
         solver="multi_term",
-        electron_neutral=SupportLevel.SURROGATE,
-        angular_scattering=SupportLevel.SURROGATE,
+        electron_neutral=SupportLevel.APPROXIMATE,
+        angular_scattering=SupportLevel.APPROXIMATE,
         ionization_source=SupportLevel.UNSUPPORTED,
         electron_electron=SupportLevel.APPROXIMATE,
         magnetic_field=SupportLevel.UNSUPPORTED,

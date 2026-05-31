@@ -3,8 +3,8 @@ schema_version: 2
 run:
   solvers:
     - id: multi_term
-  e_over_n_Td: [50, 150]
-  case_prefix: bench_mt_surrogate
+  e_over_n_Td: [50]
+  case_prefix: ex_multi_term_direct_l4
 
 conditions:
   gas_temperature_K: 300.0
@@ -17,7 +17,7 @@ conditions:
 cross_sections:
   format: csv
   files:
-    - path: ../../examples/cross_sections/argon_minimal.csv
+    - path: cross_sections/argon_minimal.csv
       species: Ar
       format: csv
   high_energy_extrapolation: zero
@@ -30,20 +30,17 @@ physics:
       B_T: 0.0
       angle_EB_deg: 0.0
   angular_scattering:
-    model: momentum_power
-    higher_moment_closure: power
+    model: isotropic
+    higher_moment_closure: zero
   electron_electron:
     enabled: false
     model: none
   ionization:
     energy_sharing: equal
-    secondary_electron_energy_eV: 0.0
   energy_grid_policy:
     adaptive: true
     threshold_refinement: true
     tail_metrics: true
-    tail_threshold_eV: null
-    tail_rate_warning_fraction: 0.05
   finite_k:
     enabled: false
     k_m_inv: null
@@ -51,8 +48,8 @@ physics:
 solvers:
   multi_term:
     formulation: PN
-    method: pn_closure_surrogate
-    lmax: 6
+    method: pn_closure_direct
+    lmax: 4
 
 comparison:
   enabled: false
@@ -62,5 +59,5 @@ feature_policy:
   degraded: warn
 
 output:
-  directory: ../../outputs/benchmarks
-  base_name: multi_term_surrogate
+  directory: ../outputs/examples
+  base_name: multi_term_direct_lmax4

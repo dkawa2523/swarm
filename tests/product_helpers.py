@@ -60,7 +60,7 @@ def base_product_config(tmp_path: Path, solvers: list[str] | None = None) -> dic
             "two_term": {"backend": "native_sg"},
             "multi_term": {
                 "formulation": "PN",
-                "method": "pn_closure_surrogate",
+                "method": "pn_closure_direct",
                 "lmax": 3,
             },
         },

@@ -12,7 +12,6 @@ from electron_swarm.core.results import SwarmCaseResult
 
 FAILURE_CATEGORIES = (
     "lmax1_reduction_failure",
-    "non_independent_or_surrogate_solver_mode",
     "normalization_or_convention_mismatch",
     "energy_grid_or_boundary_mismatch",
     "cross_section_projection_mismatch",
@@ -20,6 +19,14 @@ FAILURE_CATEGORIES = (
     "collision_moment_or_angular_closure_error",
     "source_sink_model_mismatch",
     "nonphysical_solver_mode",
+    "higher_l_field_coupling_error",
+    "higher_l_collision_damping_error",
+    "higher_l_inelastic_sink_error",
+    "angular_closure_instability",
+    "matrix_conditioning_failure",
+    "boundary_condition_failure",
+    "nonphysical_negative_mass",
+    "expected_physics_difference",
     "MC_statistical_uncertainty",
 )
 
@@ -41,15 +48,36 @@ def cell_widths_from_centers(energy_eV: np.ndarray) -> np.ndarray:
     return np.diff(edges)
 
 
-def normalize_eedf(energy_eV: np.ndarray, eedf: np.ndarray) -> tuple[np.ndarray, float]:
-    widths = cell_widths_from_centers(energy_eV)
+def normalize_eedf(
+    energy_eV: np.ndarray,
+    eedf: np.ndarray,
+    widths_eV: np.ndarray | None = None,
+) -> tuple[np.ndarray, float]:
+    widths = (
+        cell_widths_from_centers(energy_eV)
+        if widths_eV is None
+        else np.asarray(widths_eV, dtype=float)
+    )
     values = np.asarray(eedf, dtype=float)
-    if values.shape != widths.shape or not np.all(np.isfinite(values)):
+    if (
+        values.shape != widths.shape
+        or not np.all(np.isfinite(values))
+        or not np.all(np.isfinite(widths))
+        or np.any(widths <= 0.0)
+    ):
         raise ValueError("EEDF must be finite and match the energy grid")
     norm = float(np.sum(values * widths))
     if not np.isfinite(norm) or norm <= 0.0:
         raise ValueError("EEDF normalization must be positive and finite")
     return values / norm, norm
+
+
+def _case_widths(case: SwarmCaseResult) -> np.ndarray:
+    if case.energy_widths_eV is not None:
+        widths = np.asarray(case.energy_widths_eV, dtype=float)
+        if widths.shape == np.asarray(case.energy_eV).shape:
+            return widths
+    return cell_widths_from_centers(case.energy_eV)
 
 
 def _energy_quantile(energy: np.ndarray, eedf: np.ndarray, widths: np.ndarray, q: float) -> float:
@@ -85,11 +113,13 @@ def _major_rate_difference(reference: SwarmCaseResult, candidate: SwarmCaseResul
 def eedf_metrics(reference: SwarmCaseResult, candidate: SwarmCaseResult) -> dict[str, float]:
     ref_energy = np.asarray(reference.energy_eV, dtype=float)
     cand_energy = np.asarray(candidate.energy_eV, dtype=float)
-    ref_f, ref_norm = normalize_eedf(ref_energy, reference.eedf)
-    cand_f, cand_norm = normalize_eedf(cand_energy, candidate.eedf)
-    widths = cell_widths_from_centers(ref_energy)
+    ref_widths = _case_widths(reference)
+    cand_widths = _case_widths(candidate)
+    ref_f, ref_norm = normalize_eedf(ref_energy, reference.eedf, ref_widths)
+    cand_f, cand_norm = normalize_eedf(cand_energy, candidate.eedf, cand_widths)
+    widths = ref_widths
     cand_on_ref = np.interp(ref_energy, cand_energy, cand_f, left=0.0, right=0.0)
-    cand_on_ref, _ = normalize_eedf(ref_energy, cand_on_ref)
+    cand_on_ref, _ = normalize_eedf(ref_energy, cand_on_ref, widths)
 
     diff = cand_on_ref - ref_f
     l1 = float(np.sum(np.abs(diff) * widths))
@@ -99,14 +129,24 @@ def eedf_metrics(reference: SwarmCaseResult, candidate: SwarmCaseResult) -> dict
     if np.any(tail):
         ref_tail = float(np.sum(ref_f[tail] * widths[tail]))
         cand_tail = float(np.sum(cand_on_ref[tail] * widths[tail]))
-        log_tail_error = float(
-            np.mean(
-                np.abs(
-                    np.log(np.maximum(cand_on_ref[tail], 1.0e-300))
-                    - np.log(np.maximum(ref_f[tail], 1.0e-300))
-                )
+        if ref_tail + cand_tail < 1.0e-12:
+            log_tail_error = 0.0
+        else:
+            density_floor = max(float(np.max(ref_f)) * 1.0e-14, 1.0e-300)
+            active_tail = tail & (
+                (ref_f > density_floor) | (cand_on_ref > density_floor)
             )
-        )
+            if np.any(active_tail):
+                log_tail_error = float(
+                    np.mean(
+                        np.abs(
+                            np.log(np.maximum(cand_on_ref[active_tail], density_floor))
+                            - np.log(np.maximum(ref_f[active_tail], density_floor))
+                        )
+                    )
+                )
+            else:
+                log_tail_error = 0.0
     else:
         ref_tail = cand_tail = log_tail_error = 0.0
     q50_ref = _energy_quantile(ref_energy, ref_f, widths, 0.50)
@@ -174,9 +214,16 @@ def classify_eedf_failure(
             "normalize all outputs as F(E) in 1/eV before comparison",
             "high",
         )
-    solver_method = str((candidate_metadata or {}).get("solver_method", ""))
+    metadata = candidate_metadata or {}
+    solver_method = str(metadata.get("solver_method", ""))
+    try:
+        lmax = int(metadata.get("lmax", 0) or 0)
+    except (TypeError, ValueError):
+        lmax = 0
     eedf_l1 = metrics.get("eedf_relative_l1", 0.0)
+    mc_uncertain = False
     if affected_solver == "monte_carlo" and eedf_l1 > 0.05:
+        mc_uncertain = True
         add(
             "MC_statistical_uncertainty",
             f"eedf_relative_l1={eedf_l1:.3e}",
@@ -184,15 +231,7 @@ def classify_eedf_failure(
             "increase particles, collisions, and seed ensemble before declaring solver mismatch",
             "medium",
         )
-    elif affected_solver == "multi_term" and solver_method == "pn_closure_surrogate" and eedf_l1 > 0.01:
-        add(
-            "non_independent_or_surrogate_solver_mode",
-            f"eedf_relative_l1={eedf_l1:.3e}; solver_method={solver_method}",
-            "multi_term surrogate closure",
-            "do not treat pn_closure_surrogate as an independent direct PN validation path",
-            "medium",
-        )
-    elif solver_method == "pn_closure_direct" and eedf_l1 > 0.01:
+    elif solver_method == "pn_closure_direct" and lmax <= 1 and eedf_l1 > 0.01:
         add(
             "lmax1_reduction_failure",
             f"eedf_relative_l1={eedf_l1:.3e}",
@@ -200,17 +239,57 @@ def classify_eedf_failure(
             "inspect l=0/l=1 field coupling, source/sink, and boundary rows",
             "high",
         )
-    if metrics.get("drift_velocity_relative_difference", 0.0) > 0.01:
+    elif solver_method == "pn_closure_direct" and lmax > 1 and eedf_l1 > 0.03:
         add(
-            "field_coupling_error",
+            "expected_physics_difference",
+            f"eedf_relative_l1={eedf_l1:.3e}; lmax={lmax}",
+            "higher-l angular-closure PN block",
+            "inspect lmax-to-lmax convergence before treating this as a product regression failure",
+            "medium",
+        )
+        residual = metadata.get("pn_residual")
+        negative_mass = metadata.get("negative_mass_fraction")
+        if isinstance(residual, (int, float)) and (
+            not np.isfinite(float(residual)) or float(residual) > 1.0e-5
+        ):
+            add(
+                "matrix_conditioning_failure",
+                f"pn_residual={float(residual):.3e}",
+                "higher-l sparse solve / residual",
+                "check block conditioning, normalization row, and boundary closure",
+                "high",
+            )
+        if isinstance(negative_mass, (int, float)) and float(negative_mass) > 1.0e-7:
+            add(
+                "nonphysical_negative_mass",
+                f"negative_mass_fraction={float(negative_mass):.3e}",
+                "higher-l sparse solve positivity",
+                "tighten damping/source-sink model or fail the unsupported condition",
+                "high",
+            )
+    if mc_uncertain:
+        return rows
+    if metrics.get("drift_velocity_relative_difference", 0.0) > 0.01:
+        category = (
+            "higher_l_field_coupling_error"
+            if solver_method == "pn_closure_direct" and lmax > 1
+            else "field_coupling_error"
+        )
+        add(
+            category,
             f"drift_velocity_relative_difference={metrics['drift_velocity_relative_difference']:.3e}",
             "field coupling / momentum damping",
             "compare momentum relaxation and E-field scaling against two_term",
             "high",
         )
     if metrics.get("major_rate_relative_difference", 0.0) > 0.02:
+        category = (
+            "higher_l_inelastic_sink_error"
+            if solver_method == "pn_closure_direct" and lmax > 1
+            else "source_sink_model_mismatch"
+        )
         add(
-            "source_sink_model_mismatch",
+            category,
             f"major_rate_relative_difference={metrics['major_rate_relative_difference']:.3e}",
             "rate convolution or inelastic source/sink",
             "recompute rates from solved f0 and compare threshold interpolation",

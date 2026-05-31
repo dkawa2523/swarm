@@ -115,7 +115,11 @@ def _transport_metadata(case: SwarmCaseResult) -> dict[str, str | bool | float]:
 def enrich_case_diagnostics(case: SwarmCaseResult) -> SwarmCaseResult:
     """Attach compact scalar diagnostics to a case in-place and return it."""
 
-    widths = widths_from_centers(case.energy_eV)
+    widths = (
+        np.asarray(case.energy_widths_eV, dtype=float)
+        if case.energy_widths_eV is not None
+        else widths_from_centers(case.energy_eV)
+    )
     quality = eedf_quality_metrics(case.energy_eV, case.eedf, widths)
     for key, value in quality.as_metadata().items():
         case.metadata.setdefault(key, value)

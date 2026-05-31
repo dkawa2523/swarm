@@ -1,0 +1,90 @@
+schema_version: 2
+
+run:
+  solvers:
+    - id: two_term
+    - id: multi_term
+    - id: monte_carlo
+  e_over_n_Td: [1, 3, 10, 30, 50, 100, 300, 500]
+  case_prefix: ar_triage
+
+conditions:
+  gas_temperature_K: 300.0
+  pressure_Pa: 100.0
+  gas_mixture:
+    - species: Ar
+      fraction: 1.0
+      mass_amu: 39.948
+
+cross_sections:
+  format: csv
+  files:
+    - path: ../../examples/cross_sections/argon_minimal.csv
+      species: Ar
+      format: csv
+  high_energy_extrapolation: error
+
+physics:
+  field:
+    type: dc
+    magnetic_field:
+      enabled: false
+      B_T: 0.0
+      angle_EB_deg: 0.0
+  angular_scattering:
+    model: isotropic
+    higher_moment_closure: zero
+  electron_electron:
+    enabled: false
+    model: none
+  ionization:
+    energy_sharing: equal
+    secondary_electron_energy_eV: 0.0
+  energy_grid_policy:
+    adaptive: true
+    threshold_refinement: true
+    tail_metrics: true
+    tail_threshold_eV: null
+    tail_rate_warning_fraction: 0.05
+    max_eV_limit: 100.0
+  finite_k:
+    enabled: false
+    k_m_inv: null
+
+solvers:
+  two_term:
+    backend: native_sg
+  multi_term:
+    formulation: PN
+    method: pn_closure_direct
+    lmax: 4
+  monte_carlo:
+    backend: internal
+    angular_scattering: same_as_physics
+    particles: 256
+    max_collisions: 512
+    seed: 41
+
+references:
+  external:
+    - id: bolsig_plus
+      path: ../../data/references/ar_bolsig_plus_equivalence.csv
+      format: electron_swarm_reference_csv
+      eedf_convention: eedf
+    - id: mcig
+      path: ../../data/references/ar_mcig_reference.csv
+      format: electron_swarm_reference_csv
+      eedf_convention: eedf
+      uncertainty: unavailable
+      angular_model: unknown
+
+comparison:
+  enabled: false
+
+feature_policy:
+  unsupported: fail
+  degraded: warn
+
+output:
+  directory: ../../outputs/benchmarks
+  base_name: ar_triage

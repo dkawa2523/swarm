@@ -1,0 +1,4 @@
+case_id,E_over_N_Td,energy_eV,eedf_eV_inv,mean_energy_eV,mean_energy_eV_ci95,drift_velocity_m_s,drift_velocity_m_s_ci95,mobility_m2_V_s,diffusion_L_m2_s,diffusion_T_m2_s
+ar_eedf_0000,50,0.5,0.50,1.25,0.1,950,100,1.9,0.12,0.21
+ar_eedf_0000,50,1.5,0.25,1.25,0.1,950,100,1.9,0.12,0.21
+ar_eedf_0000,50,2.5,0.25,1.25,0.1,950,100,1.9,0.12,0.21

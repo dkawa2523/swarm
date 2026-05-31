@@ -52,6 +52,9 @@ EEDF_COLUMNS = [
     "energy_eV",
     "eedf",
     "eepf",
+    "sample_count",
+    "effective_sample_count",
+    "relative_standard_error",
 ]
 
 SOLVER_PLAN_COLUMNS = [
@@ -86,7 +89,11 @@ COMPARISON_SUMMARY_COLUMNS = [
     "angular_model",
     "same_angular_model",
     "angular_model_warning",
+    "angular_model_mismatch_reason",
+    "angular_sampler_treatment",
     "angular_model_status",
+    "angular_model_reference",
+    "angular_model_candidate",
     "reference_angular_model",
     "candidate_angular_model",
     "reference_angular_moment_source",
@@ -136,9 +143,26 @@ def _summary_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
 def _eedf_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
     rows = []
     for case in cases:
-        for energy, eedf, eepf in zip(
+        counts = case.eedf_counts
+        effective_counts = case.eedf_effective_counts
+        for index, (energy, eedf, eepf) in enumerate(zip(
             case.energy_eV, case.eedf, case.eepf, strict=False
-        ):
+        )):
+            count = (
+                int(counts[index])
+                if counts is not None and index < len(counts)
+                else None
+            )
+            effective_count = (
+                float(effective_counts[index])
+                if effective_counts is not None and index < len(effective_counts)
+                else (float(count) if count is not None else None)
+            )
+            relative_error = (
+                float(1.0 / (effective_count ** 0.5))
+                if effective_count is not None and effective_count > 0.0
+                else None
+            )
             rows.append(
                 {
                     "solver": case.solver,
@@ -147,6 +171,9 @@ def _eedf_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
                     "energy_eV": energy,
                     "eedf": eedf,
                     "eepf": eepf,
+                    "sample_count": count,
+                    "effective_sample_count": effective_count,
+                    "relative_standard_error": relative_error,
                 }
             )
     return pd.DataFrame(rows, columns=EEDF_COLUMNS)

@@ -1,0 +1,7 @@
+# case_id: ar_eedf_0000
+# E_over_N_Td: 50
+# mean_energy_eV: 1.1666666667
+energy_eV eepf_eV_m32
+0.5 0.8485281374
+1.5 0.2449489743
+2.5 0.0632455532

@@ -15,7 +15,7 @@ from electron_swarm.core.config import CANONICAL_SOLVER_IDS
 from electron_swarm.orchestration.plan import build_solve_plan
 import electron_swarm.orchestration.plan as plan_module
 
-from product_helpers import ROOT, base_product_config, write_config
+from product_helpers import ROOT, base_product_config, write_config, write_moment_table
 
 
 def test_schema_v2_valid_config_and_canonical_solver_ids(tmp_path: Path) -> None:
@@ -32,7 +32,7 @@ def test_schema_v2_valid_config_and_canonical_solver_ids(tmp_path: Path) -> None
     assert not hasattr(cfg, "multiterm_boltzmann")
     assert not hasattr(cfg, "monte_carlo")
     assert cfg.internal.two_term.backend
-    assert cfg.internal.multi_term.product_method == "pn_closure_surrogate"
+    assert cfg.internal.multi_term.product_method == "pn_closure_direct"
     assert cfg.solvers.monte_carlo.angular_scattering == "external"
     assert cfg.feature_policy.allow_unsupported_fallback is True
 
@@ -56,6 +56,7 @@ def test_monte_carlo_internal_backend_schema(tmp_path: Path) -> None:
         "backend": "internal",
         "angular_scattering": "same_as_physics",
         "particles": 8,
+        "warmup_collisions": 2,
         "max_collisions": 4,
         "seed": 123,
     }
@@ -63,9 +64,50 @@ def test_monte_carlo_internal_backend_schema(tmp_path: Path) -> None:
     assert cfg.solvers.monte_carlo.backend == "internal"
     assert cfg.internal.monte_carlo.backend == "internal"
     assert cfg.solvers.monte_carlo.seed == 123
+    assert cfg.solvers.monte_carlo.warmup_collisions == 2
+    assert cfg.internal.monte_carlo.warmup_collisions == 2
+    assert cfg.solvers.monte_carlo.population_model == "fixed_particle_single_daughter"
 
+    data["solvers"]["monte_carlo"] = {
+        "backend": "internal",
+        "angular_scattering": "same_as_physics",
+        "population_model": "branching_weighted",
+        "particles": 8,
+    }
+    with pytest.raises(ValueError, match="population_model"):
+        load_config(write_config(tmp_path, data))
+
+    data["solvers"]["monte_carlo"] = {
+        "backend": "internal",
+        "angular_scattering": "same_as_physics",
+        "population_control": "systematic_resampling",
+    }
+    with pytest.raises(ValueError, match="Unsupported solvers.monte_carlo fields"):
+        load_config(write_config(tmp_path, data))
+
+    data["solvers"]["monte_carlo"] = {
+        "backend": "internal",
+        "angular_scattering": "same_as_physics",
+        "target_particles": 10,
+        "max_particles": 20,
+    }
+    with pytest.raises(ValueError, match="Unsupported solvers.monte_carlo fields"):
+        load_config(write_config(tmp_path, data))
+
+    data["solvers"]["monte_carlo"] = {
+        "backend": "internal",
+        "angular_scattering": "same_as_physics",
+    }
     data["solvers"]["monte_carlo"]["command"] = "echo nope"
     with pytest.raises(ValueError, match="backend=internal"):
+        load_config(write_config(tmp_path, data))
+
+    data["solvers"]["monte_carlo"] = {
+        "backend": "internal",
+        "angular_scattering": "same_as_physics",
+        "warmup_collisions": -1,
+    }
+    with pytest.raises(ValueError, match="warmup_collisions"):
         load_config(write_config(tmp_path, data))
 
     data["solvers"]["monte_carlo"] = {"backend": "internal"}
@@ -113,6 +155,21 @@ def test_monte_carlo_same_as_physics_sampler_policy(tmp_path: Path) -> None:
     data["solvers"]["monte_carlo"]["backend"] = "internal"
     with pytest.raises(ValueError, match="internal monte_carlo"):
         build_solve_plan(load_config(write_config(tmp_path, data)))
+
+    table = write_moment_table(tmp_path)
+    data = base_product_config(tmp_path, ["monte_carlo"])
+    data["solvers"]["monte_carlo"] = {"angular_scattering": "same_as_physics"}
+    data["physics"]["angular_scattering"] = {
+        "model": "moment_table",
+        "moment_table": {
+            "path": table.as_posix(),
+            "format": "normalized_legendre_moments",
+            "provenance": "model_derived",
+            "extrapolation": "error",
+        },
+    }
+    with pytest.raises(ValueError, match="no product MC sampler"):
+        build_solve_plan(load_config(write_config(tmp_path, data, "mc_table.yaml")))
 
 
 def test_electron_electron_schema_is_typed(tmp_path: Path) -> None:
@@ -254,7 +311,7 @@ def test_schema_v2_rejects_old_public_fields(tmp_path: Path) -> None:
 
 
 def test_multi_term_product_method_validation(tmp_path: Path) -> None:
-    for old_method in ["moment_closure", "operator", "hybrid"]:
+    for old_method in ["moment_closure", "operator", "hybrid", "pn_closure_surrogate"]:
         data = base_product_config(tmp_path, ["multi_term"])
         data["solvers"]["multi_term"]["method"] = old_method
         with pytest.raises(ValueError, match="solvers.multi_term.method"):
@@ -270,8 +327,18 @@ def test_multi_term_product_method_validation(tmp_path: Path) -> None:
     data["solvers"]["multi_term"]["lmax"] = 1
     cfg = load_config(write_config(tmp_path, data))
     assert cfg.solvers.multi_term.method == "pn_closure_direct"
-    with pytest.raises(NotImplementedError, match="not an independent PN block solve"):
-        run(cfg, write=False)
+    result = run(cfg, write=False)
+    [case] = result.cases
+    assert case.metadata["solver_method"] == "pn_closure_direct"
+    assert case.metadata["direct_pn_operator"] is True
+
+    data["solvers"]["multi_term"]["lmax"] = 2
+    cfg = load_config(write_config(tmp_path, data, name="direct_l2.yaml"))
+    result = run(cfg, write=False)
+    [case] = result.cases
+    assert case.metadata["solver_method"] == "pn_closure_direct"
+    assert case.metadata["lmax"] == 2
+    assert case.metadata["higher_l_inelastic_model"] == "sink_only"
 
     data = base_product_config(tmp_path, ["multi_term"])
     data["solvers"]["multi_term"]["method"] = "pn_dcs"
@@ -284,46 +351,31 @@ def test_multi_term_product_method_validation(tmp_path: Path) -> None:
 def test_direct_pn_roadmap_records_implementation_gate() -> None:
     roadmap = ROOT / "docs" / "dev" / "direct_pn_closure_operator.md"
     text = roadmap.read_text(encoding="utf-8")
+    higher_l_gate = (
+        ROOT / "docs" / "dev" / "direct_pn_lmax_gt1_gate.md"
+    ).read_text(encoding="utf-8")
     required = [
-        "Candidate Operator Equation",
         "Unknown Vector Layout",
-        "Field Coupling Block",
-        "Collision Damping Block",
-        "Source And Sink Treatment",
-        "Boundary Conditions",
-        "Normalization Constraint",
+        "Current lmax=1 Equation",
+        "lmax>1 Coefficient-Space Scope",
         "lmax=1 Regression Condition",
-        "planned independent coupled block PN solver",
         "Required Tests",
-        "Physically Uncertain Parts",
-        "two-term native Scharfetter-Gummel",
-        "direct_pn_operator=true is not emitted",
-        "current shared-SG reduction is not an independent PN block solve",
-        "coupled f0/f1 sparse block solve",
-        "no two-term scalar operator reuse",
-        "no post-hoc f1",
-        "PN-equation-derived energy-space field coupling",
-        "`ell >= 1` collision damping",
-        "`l>0` source/sink treatment",
-        "`l>0` boundary conditions",
-        "lmax=1 two-term Scharfetter-Gummel regression harness",
+        "SG energy-flux auxiliary",
+        "physical Legendre coefficient",
+        "no post-hoc `G1` construction",
+        "`ell>=2` damping",
+        "sink-only",
+        "Ar/BOLSIG lmax=1 two-term SG regression harness",
     ]
     for phrase in required:
         assert phrase in text
-
-
-def test_direct_pn_gate_has_no_tracked_placeholder_modules() -> None:
-    multiterm_dir = ROOT / "electron_swarm" / "solvers" / "multi_term"
-    forbidden = {
-        "direct.py",
-        "direct_pn.py",
-        "direct_pn_operator.py",
-        "operator.py",
-        "operator_core.py",
-        "pn_direct.py",
-    }
-    present = {path.name for path in multiterm_dir.glob("*.py")}
-    assert not (present & forbidden)
+    for phrase in [
+        "Implemented Model",
+        "energy-flux auxiliary",
+        "`ell>=2` damping",
+        "Fail-Fast Conditions",
+    ]:
+        assert phrase in higher_l_gate
 
 
 def test_capability_matrix_is_canonical_and_minimal() -> None:

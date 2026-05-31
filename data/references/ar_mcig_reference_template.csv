@@ -1,0 +1,3 @@
+case_id,E_over_N_Td,energy_eV,eedf_eV_inv,mean_energy_eV,drift_velocity_m_s,mobility_m2_V_s,diffusion_L_m2_s,diffusion_T_m2_s,net_ionization_frequency_s
+# Replace this template with MCIG-exported values. Keep one row per energy bin.
+# Use eepf_eV_m32 instead of eedf_eV_inv if MCIG exports EEPF; remove this comment row before running.

@@ -17,6 +17,15 @@ import yaml
 SolverId = Literal["two_term", "multi_term", "monte_carlo"]
 UnsupportedPolicy = Literal["fail", "skip_solver", "approximate"]
 DegradedPolicy = Literal["fail", "warn", "record_only"]
+ReferenceId = Literal["bolsig_plus", "mcig"]
+ReferenceFormat = Literal[
+    "electron_swarm_reference_csv",
+    "bolsig_text",
+    "mcig_csv",
+]
+ReferenceEedfConvention = Literal["eedf", "eepf"]
+ReferenceUncertainty = Literal["unavailable", "reported"]
+ReferenceAngularModel = Literal["isotropic", "mcig_default", "unknown"]
 
 CANONICAL_SOLVER_IDS: tuple[str, ...] = ("two_term", "multi_term", "monte_carlo")
 OBSOLETE_PUBLIC_NAMES = {
@@ -47,8 +56,10 @@ MULTI_TERM_SOLVER_FIELDS = {
 MONTE_CARLO_SOLVER_FIELDS = {
     "backend",
     "angular_scattering",
+    "population_model",
     "seed",
     "particles",
+    "warmup_collisions",
     "max_collisions",
     "timeout_s",
     "command",
@@ -185,9 +196,7 @@ class MultiTermInternalConfig:
     eedf_shape: Literal["maxwellian", "druyvesteyn"] = "maxwellian"
     lmax_convergence_tolerance: float = 0.03
     field_coupling_scale: float = 1.0
-    product_method: Literal[
-        "pn_closure_surrogate", "pn_closure_direct", "pn_dcs"
-    ] = "pn_closure_surrogate"
+    product_method: Literal["pn_closure_direct", "pn_dcs"] = "pn_closure_direct"
     formulation: Literal["PN"] = "PN"
     energy_grid: MultiTermEnergyGridConfig = dc_field(
         default_factory=MultiTermEnergyGridConfig
@@ -199,6 +208,7 @@ class MonteCarloAdapterConfig:
     enabled: bool = True
     backend: Literal["external", "internal"] = "external"
     angular_scattering: Literal["external", "same_as_physics"] = "external"
+    population_model: Literal["fixed_particle_single_daughter"] = "fixed_particle_single_daughter"
     seed: int | None = None
     command: str | None = None
     python_api: str | None = None
@@ -209,6 +219,7 @@ class MonteCarloAdapterConfig:
     output_eedf_csv: Path | None = None
     passthrough: dict[str, Any] = dc_field(default_factory=dict)
     particles: int | None = None
+    warmup_collisions: int | None = None
     max_collisions: int | None = None
 
 
@@ -233,9 +244,7 @@ class TwoTermProductConfig:
 @dataclass(slots=True)
 class MultiTermProductConfig:
     formulation: Literal["PN"] = "PN"
-    method: Literal[
-        "pn_closure_surrogate", "pn_closure_direct", "pn_dcs"
-    ] = "pn_closure_surrogate"
+    method: Literal["pn_closure_direct", "pn_dcs"] = "pn_closure_direct"
     lmax: int = 4
     lmax_convergence_tolerance: float = 0.03
     field_coupling_scale: float = 1.0
@@ -246,8 +255,10 @@ class MultiTermProductConfig:
 class MonteCarloProductConfig:
     backend: Literal["external", "internal"] = "external"
     angular_scattering: Literal["external", "same_as_physics"] = "external"
+    population_model: Literal["fixed_particle_single_daughter"] = "fixed_particle_single_daughter"
     seed: int | None = None
     particles: int | None = None
+    warmup_collisions: int | None = None
     max_collisions: int | None = None
     timeout_s: float | None = None
     command: str | None = None
@@ -298,8 +309,8 @@ class FieldConfig:
 @dataclass(slots=True)
 class MomentTableConfig:
     path: Path
-    format: Literal["csv"] = "csv"
-    provenance: Literal["precomputed_moments", "dcs_derived"] = "precomputed_moments"
+    format: Literal["normalized_legendre_moments"] = "normalized_legendre_moments"
+    provenance: Literal["dcs_derived", "model_derived", "unknown"] = "unknown"
     extrapolation: Literal["error"] = "error"
 
 
@@ -370,6 +381,21 @@ class ComparisonConfig:
 
 
 @dataclass(slots=True)
+class ExternalReferenceConfig:
+    id: ReferenceId
+    path: Path
+    format: ReferenceFormat = "electron_swarm_reference_csv"
+    eedf_convention: ReferenceEedfConvention = "eedf"
+    uncertainty: ReferenceUncertainty = "unavailable"
+    angular_model: ReferenceAngularModel = "unknown"
+
+
+@dataclass(slots=True)
+class ReferencesConfig:
+    external: list[ExternalReferenceConfig] = dc_field(default_factory=list)
+
+
+@dataclass(slots=True)
 class FeaturePolicyConfig:
     unsupported: UnsupportedPolicy = "fail"
     degraded: DegradedPolicy = "warn"
@@ -392,6 +418,7 @@ class SwarmConfig:
     physics: PhysicsConfig = dc_field(default_factory=PhysicsConfig)
     solvers: SolversConfig = dc_field(default_factory=SolversConfig)
     comparison: ComparisonConfig = dc_field(default_factory=ComparisonConfig)
+    references: ReferencesConfig = dc_field(default_factory=ReferencesConfig)
     feature_policy: FeaturePolicyConfig = dc_field(default_factory=FeaturePolicyConfig)
     output: OutputConfig = dc_field(default_factory=OutputConfig)
     source_path: Path | None = None
@@ -779,18 +806,22 @@ def _parse_physics(raw: dict[str, Any], base: Path) -> PhysicsConfig:
             path=_as_path(moment_table_raw["path"], base)
             or Path(moment_table_raw["path"]),
             format=cast(
-                Literal["csv"],
+                Literal["normalized_legendre_moments"],
                 _validate_literal(
-                    str(moment_table_raw.get("format", "csv")),
-                    {"csv"},
+                    str(
+                        moment_table_raw.get(
+                            "format", "normalized_legendre_moments"
+                        )
+                    ),
+                    {"normalized_legendre_moments"},
                     "physics.angular_scattering.moment_table.format",
                 ),
             ),
             provenance=cast(
-                Literal["precomputed_moments", "dcs_derived"],
+                Literal["dcs_derived", "model_derived", "unknown"],
                 _validate_literal(
-                    str(moment_table_raw.get("provenance", "precomputed_moments")),
-                    {"precomputed_moments", "dcs_derived"},
+                    str(moment_table_raw.get("provenance", "unknown")),
+                    {"dcs_derived", "model_derived", "unknown"},
                     "physics.angular_scattering.moment_table.provenance",
                 ),
             ),
@@ -998,10 +1029,10 @@ def _parse_solvers(
     )
 
     method = cast(
-        Literal["pn_closure_surrogate", "pn_closure_direct", "pn_dcs"],
+        Literal["pn_closure_direct", "pn_dcs"],
         _validate_literal(
-            str(mt_raw.get("method", "pn_closure_surrogate")),
-            {"pn_closure_surrogate", "pn_closure_direct", "pn_dcs"},
+            str(mt_raw.get("method", "pn_closure_direct")),
+            {"pn_closure_direct", "pn_dcs"},
             "solvers.multi_term.method",
         ),
     )
@@ -1051,6 +1082,18 @@ def _parse_solvers(
             raise ValueError(
                 "solvers.monte_carlo backend=internal requires angular_scattering=same_as_physics"
             )
+    mc_population_model = cast(
+        Literal["fixed_particle_single_daughter"],
+        _validate_literal(
+            str(mc_raw.get("population_model", "fixed_particle_single_daughter")),
+            {"fixed_particle_single_daughter"},
+            "solvers.monte_carlo.population_model",
+        ),
+    )
+    if mc_backend != "internal" and mc_population_model != "fixed_particle_single_daughter":
+        raise ValueError(
+            "solvers.monte_carlo.population_model is only supported for backend=internal"
+        )
     mc_particles = (
         int(mc_raw["particles"]) if mc_raw.get("particles") is not None else None
     )
@@ -1059,17 +1102,26 @@ def _parse_solvers(
         if mc_raw.get("max_collisions") is not None
         else None
     )
+    mc_warmup_collisions = (
+        int(mc_raw["warmup_collisions"])
+        if mc_raw.get("warmup_collisions") is not None
+        else None
+    )
     if mc_particles is not None and mc_particles <= 0:
         raise ValueError("solvers.monte_carlo.particles must be positive")
     if mc_max_collisions is not None and mc_max_collisions <= 0:
         raise ValueError("solvers.monte_carlo.max_collisions must be positive")
+    if mc_warmup_collisions is not None and mc_warmup_collisions < 0:
+        raise ValueError("solvers.monte_carlo.warmup_collisions must be nonnegative")
     mc_seed = int(mc_raw["seed"]) if mc_raw.get("seed") is not None else None
 
     monte_carlo = MonteCarloProductConfig(
         backend=mc_backend,
         angular_scattering=mc_angular_scattering,
+        population_model=mc_population_model,
         seed=mc_seed,
         particles=mc_particles,
+        warmup_collisions=mc_warmup_collisions,
         max_collisions=mc_max_collisions,
         timeout_s=(
             float(mc_raw["timeout_s"]) if mc_raw.get("timeout_s") is not None else None
@@ -1116,6 +1168,7 @@ def _parse_solvers(
     mc_internal = MonteCarloAdapterConfig(
         backend=monte_carlo.backend,
         angular_scattering=monte_carlo.angular_scattering,
+        population_model=monte_carlo.population_model,
         seed=monte_carlo.seed,
         command=monte_carlo.command,
         python_api=monte_carlo.python_api,
@@ -1126,6 +1179,7 @@ def _parse_solvers(
         output_eedf_csv=monte_carlo.output_eedf_csv,
         passthrough=monte_carlo.passthrough,
         particles=monte_carlo.particles,
+        warmup_collisions=monte_carlo.warmup_collisions,
         max_collisions=monte_carlo.max_collisions,
     )
     return (
@@ -1161,6 +1215,75 @@ def _parse_comparison(raw: dict[str, Any]) -> ComparisonConfig:
         compare_eedf=_bool_field(cmp_raw, "compare_eedf", True, "comparison.compare_eedf"),
         required=_bool_field(cmp_raw, "required", False, "comparison.required"),
     )
+
+
+def _parse_references(raw: dict[str, Any], base: Path) -> ReferencesConfig:
+    refs_raw = raw.get("references", {}) or {}
+    if not isinstance(refs_raw, dict):
+        raise ValueError("references must be a mapping")
+    _reject_unknown_fields(refs_raw, {"external"}, "references")
+    external_raw = refs_raw.get("external", []) or []
+    if not isinstance(external_raw, list):
+        raise ValueError("references.external must be a list")
+    external: list[ExternalReferenceConfig] = []
+    for index, item in enumerate(external_raw):
+        if not isinstance(item, dict):
+            raise ValueError(f"references.external[{index}] must be a mapping")
+        _reject_unknown_fields(
+            item,
+            {"id", "path", "format", "eedf_convention", "uncertainty", "angular_model"},
+            f"references.external[{index}]",
+        )
+        if "id" not in item:
+            raise ValueError(f"references.external[{index}].id is required")
+        if "path" not in item:
+            raise ValueError(f"references.external[{index}].path is required")
+        external.append(
+            ExternalReferenceConfig(
+                id=cast(
+                    ReferenceId,
+                    _validate_literal(
+                        str(item["id"]),
+                        {"bolsig_plus", "mcig"},
+                        f"references.external[{index}].id",
+                    ),
+                ),
+                path=_as_path(item["path"], base) or Path(str(item["path"])),
+                format=cast(
+                    ReferenceFormat,
+                    _validate_literal(
+                        str(item.get("format", "electron_swarm_reference_csv")),
+                        {"electron_swarm_reference_csv", "bolsig_text", "mcig_csv"},
+                        f"references.external[{index}].format",
+                    ),
+                ),
+                eedf_convention=cast(
+                    ReferenceEedfConvention,
+                    _validate_literal(
+                        str(item.get("eedf_convention", "eedf")),
+                        {"eedf", "eepf"},
+                        f"references.external[{index}].eedf_convention",
+                    ),
+                ),
+                uncertainty=cast(
+                    ReferenceUncertainty,
+                    _validate_literal(
+                        str(item.get("uncertainty", "unavailable")),
+                        {"unavailable", "reported"},
+                        f"references.external[{index}].uncertainty",
+                    ),
+                ),
+                angular_model=cast(
+                    ReferenceAngularModel,
+                    _validate_literal(
+                        str(item.get("angular_model", "unknown")),
+                        {"isotropic", "mcig_default", "unknown"},
+                        f"references.external[{index}].angular_model",
+                    ),
+                ),
+            )
+        )
+    return ReferencesConfig(external=external)
 
 
 def _parse_feature_policy(raw: dict[str, Any]) -> FeaturePolicyConfig:
@@ -1219,6 +1342,7 @@ def load_config(path: str | Path) -> SwarmConfig:
     physics = _parse_physics(raw, base)
     solvers, internal = _parse_solvers(raw, base, physics)
     comparison = _parse_comparison(raw)
+    references = _parse_references(raw, base)
     feature_policy = _parse_feature_policy(raw)
     output = _parse_output(raw, base)
     return SwarmConfig(
@@ -1229,6 +1353,7 @@ def load_config(path: str | Path) -> SwarmConfig:
         physics=physics,
         solvers=solvers,
         comparison=comparison,
+        references=references,
         feature_policy=feature_policy,
         output=output,
         source_path=cfg_path,

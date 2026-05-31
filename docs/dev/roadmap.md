@@ -2,8 +2,8 @@
 
 Deferred product work:
 
-- direct PN block operator after source-of-truth equations and lmax=1
-  regression are fixed
+- direct PN beyond the current B=0/DC/axisymmetric scope, including magnetic
+  PN, RF/time-dependent fields, and validated anisotropic inelastic sources
 - raw DCS angle-table parsing
 - PN arbitrary crossed-field dynamics
 - RF and time-dependent fields

@@ -342,6 +342,7 @@ class MonteCarloAdapter(SwarmSolver):
                     energy_eV=energy,
                     eedf=dist,
                     eepf=dist / np.sqrt(np.maximum(energy, 1.0e-30)),
+                    energy_widths_eV=None,
                     rates=[],
                     metadata=metadata,
                 )

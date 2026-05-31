@@ -147,7 +147,11 @@ def attach_tail_metrics(
         return case
 
     threshold = resolve_tail_threshold_eV(config, cross_sections)
-    widths = widths_from_centers(case.energy_eV)
+    widths = (
+        np.asarray(case.energy_widths_eV, dtype=float)
+        if case.energy_widths_eV is not None
+        else widths_from_centers(case.energy_eV)
+    )
     probability = tail_probability(case.energy_eV, case.eedf, threshold, widths)
     cutoff_threshold = (
         0.9 * float(np.max(case.energy_eV)) if len(case.energy_eV) else threshold

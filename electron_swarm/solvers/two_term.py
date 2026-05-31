@@ -29,21 +29,38 @@ from electron_swarm.core.config import SwarmConfig, TwoTermInternalConfig
 from electron_swarm.core.constants import (
     AMU_KG,
     BOLTZMANN_J_K,
-    E_CHARGE_C,
     ELECTRON_MASS_KG,
     EV_TO_J,
     TOWNSEND,
 )
 from electron_swarm.core.cross_sections import (
-    CrossSectionProcess,
     CrossSectionSet,
     ProcessType,
     gas_mass_amu,
-    mixture_fraction,
 )
-from electron_swarm.core.results import RateResult, SwarmCaseResult
+from electron_swarm.core.results import SwarmCaseResult
 from electron_swarm.core.transport import FluxTransport, TransportMetadata, TransportSet
-from electron_swarm.grids.energy import build_energy_grid
+from electron_swarm.solvers.kinetic import (
+    EffectiveCollisionData,
+    KineticGrid,
+    KineticOperatorBlock,
+    TransportCoefficients,
+    assemble_collision_operator,
+    assemble_energy_flux_operator,
+    assemble_native_operator_blocks,
+    build_effective_collision_data,
+    cell_edges_from_centers,
+    compute_rates_from_eedf,
+    eepf_from_eedf,
+    electron_speed_m_s,
+    gas_number_density,
+    make_two_term_energy_grid,
+    mean_energy_from_eedf,
+    normalize_eedf,
+    transport_from_eedf,
+    transport_from_reduced,
+    weighted_integral,
+)
 from .base import SwarmSolver
 
 
@@ -53,26 +70,15 @@ _EPS = 1.0e-300
 def _electron_speed(energy_eV: np.ndarray) -> np.ndarray:
     """Electron speed [m/s] from kinetic energy [eV]."""
 
-    return np.sqrt(np.maximum(2.0 * EV_TO_J * energy_eV / ELECTRON_MASS_KG, 0.0))
+    return electron_speed_m_s(energy_eV)
 
 
 def _gas_number_density(config: SwarmConfig) -> float:
-    cond = config.conditions
-    if cond.gas_number_density_m3 is not None:
-        return cond.gas_number_density_m3
-    assert cond.pressure_Pa is not None
-    return cond.pressure_Pa / (BOLTZMANN_J_K * cond.gas_temperature_K)
+    return gas_number_density(config)
 
 
 def _cell_edges_from_centers(centers: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    edges = np.empty(len(centers) + 1)
-    edges[1:-1] = 0.5 * (centers[:-1] + centers[1:])
-    edges[0] = max(0.0, centers[0] - 0.5 * (centers[1] - centers[0]))
-    edges[-1] = centers[-1] + 0.5 * (centers[-1] - centers[-2])
-    widths = np.diff(edges)
-    if np.any(widths <= 0.0):
-        raise ValueError("Energy grid must be strictly increasing")
-    return edges, widths
+    return cell_edges_from_centers(centers)
 
 
 def _make_energy_grid(
@@ -82,42 +88,13 @@ def _make_energy_grid(
     n_override: int | None = None,
     cross_sections: CrossSectionSet | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    grid = cfg.energy_grid
-    n = int(n_override or grid.n)
-    emin = max(float(grid.min_eV), 0.0)
-    emax = float(max_eV_override if max_eV_override is not None else grid.max_eV)
-    if n < 8:
-        raise ValueError("Boltzmann energy grid requires at least 8 cells")
-    if emax <= emin:
-        raise ValueError("Boltzmann energy grid max_eV must be larger than min_eV")
-
-    if grid.refine.enabled:
-        refined = build_energy_grid(
-            min_eV=emin,
-            max_eV=emax,
-            n=n,
-            spacing=grid.spacing,
-            cross_sections=cross_sections,
-            refine=True,
-            threshold_padding_eV=grid.refine.threshold_padding_eV,
-            points_per_threshold=grid.refine.points_per_threshold,
-            max_extra_points=grid.refine.max_extra_points,
-        )
-        return refined.centers_eV, refined.edges_eV, refined.widths_eV
-
-    if grid.spacing == "linear":
-        centers = np.linspace(emin, emax, n)
-    elif grid.spacing == "quadratic":
-        # Dense low-energy resolution without the severe timestep/conditioning
-        # penalty of a logarithmic grid at epsilon -> 0.
-        x = np.linspace(0.0, 1.0, n)
-        centers = emin + (emax - emin) * x * x
-    elif grid.spacing == "log":
-        centers = np.geomspace(max(emin, 1.0e-8), emax, n)
-    else:
-        raise ValueError(f"Unsupported energy spacing: {grid.spacing}")
-    edges, widths = _cell_edges_from_centers(centers)
-    return centers, edges, widths
+    grid = make_two_term_energy_grid(
+        cfg,
+        max_eV_override=max_eV_override,
+        n_override=n_override,
+        cross_sections=cross_sections,
+    )
+    return grid.energy_eV, grid.edges_eV, grid.widths_eV
 
 
 def _grid_metadata(
@@ -133,46 +110,12 @@ def _grid_metadata(
     }
 
 
-def _bernoulli(x: np.ndarray | float) -> np.ndarray | float:
-    """Stable Bernoulli function B(x)=x/(exp(x)-1)."""
-
-    x_arr = np.asarray(x, dtype=float)
-    out = np.empty_like(x_arr, dtype=float)
-    small = np.abs(x_arr) < 1.0e-7
-    pos_large = x_arr > 80.0
-    neg_large = x_arr < -80.0
-    mid = ~(small | pos_large | neg_large)
-    out[small] = 1.0 - x_arr[small] / 2.0 + x_arr[small] ** 2 / 12.0 - x_arr[small] ** 4 / 720.0
-    out[pos_large] = 0.0
-    out[neg_large] = -x_arr[neg_large]
-    out[mid] = x_arr[mid] / np.expm1(x_arr[mid])
-    if np.isscalar(x):
-        return float(out)
-    return out
-
-
 def _maxwell_eedf(energy: np.ndarray, kT_eV: float) -> np.ndarray:
     """Normalized Maxwell-Boltzmann EEDF F(eps), integral F d eps = 1."""
 
     kT = max(float(kT_eV), 1.0e-8)
     f = np.sqrt(np.maximum(energy, 0.0)) * np.exp(-np.maximum(energy, 0.0) / kT)
     return np.clip(f, 0.0, None)
-
-
-def _weighted_integral(values: np.ndarray, widths: np.ndarray) -> float:
-    return float(np.sum(values * widths))
-
-
-@dataclass(slots=True)
-class EffectiveCollisionData:
-    """Collision data projected onto the active energy grid."""
-
-    nu_m: np.ndarray  # effective transport frequency [s^-1]
-    nu_m_over_N: np.ndarray  # effective transport frequency / gas density [m^3 s^-1]
-    sigma_m: np.ndarray  # BOLSIG-style effective total momentum-transfer cross section [m^2]
-    elastic_A_eV_s: np.ndarray  # elastic energy drift coefficient [eV s^-1]
-    elastic_D_eV2_s: np.ndarray  # elastic energy diffusion coefficient [eV^2 s^-1]
-    processes: list[CrossSectionProcess]
 
 
 @dataclass(slots=True)
@@ -188,18 +131,6 @@ class NativeSolveDiagnostics:
 
 
 @dataclass(slots=True)
-class TransportCoefficients:
-    drift_velocity_m_s: float
-    mobility_m2_V_s: float
-    reduced_mobility_m2_V_s_m3: float
-    diffusion_L_m2_s: float
-    diffusion_T_m2_s: float
-    reduced_diffusion_L_m2_s_m3: float
-    reduced_diffusion_T_m2_s_m3: float
-    characteristic_energy_eV: float
-
-
-@dataclass(slots=True)
 class NativeDistributionResult:
     """Reusable native two-term distribution block for future direct-PN work."""
 
@@ -211,18 +142,7 @@ class NativeDistributionResult:
     metadata: dict[str, object]
 
 
-@dataclass(slots=True)
-class NativeOperatorBlock:
-    """Reusable native Scharfetter-Gummel energy-space operator block."""
-
-    energy_eV: np.ndarray
-    edges_eV: np.ndarray
-    widths_eV: np.ndarray
-    electric_field_V_m: float
-    gas_number_density_m3: float
-    collisions: EffectiveCollisionData
-    matrix: sparse.csr_matrix
-    discretization: str = "finite_volume_scharfetter_gummel"
+NativeOperatorBlock = KineticOperatorBlock
 
 
 class TwoTermSolver(SwarmSolver):
@@ -526,18 +446,11 @@ class TwoTermSolver(SwarmSolver):
         if np.any(np.diff(energy) <= 0.0) or np.any(widths <= 0.0):
             raise ValueError("Energy grid must be strictly increasing")
 
-        N = _gas_number_density(self.config)
-        E = e_over_n_Td * TOWNSEND * N
-        collisions = self._effective_collision_data(energy, N)
-        matrix = self._assemble_operator(energy, edges, widths, E, collisions)
-        return NativeOperatorBlock(
-            energy_eV=energy,
-            edges_eV=edges,
-            widths_eV=widths,
-            electric_field_V_m=float(E),
-            gas_number_density_m3=float(N),
-            collisions=collisions,
-            matrix=matrix,
+        return assemble_native_operator_blocks(
+            self.config,
+            self.cross_sections,
+            e_over_n_Td,
+            KineticGrid(energy, edges, widths, electron_speed_m_s(energy)),
         )
 
     def _solve_native_on_grid(
@@ -575,7 +488,7 @@ class TwoTermSolver(SwarmSolver):
                 p_new = np.clip(p_new, 0.0, None)
                 p_new = self._normalize_eedf(p_new, widths)
             lp = op @ p_new
-            new_growth = _weighted_integral(lp, widths)
+            new_growth = weighted_integral(lp, widths)
             eig_res = lp - new_growth * p_new
             residual = float(np.sum(np.abs(eig_res) * widths) / max(np.sum(np.abs(lp) * widths), abs(new_growth), 1.0))
             shape_change = float(np.sum(np.abs(p_new - p) * widths))
@@ -602,80 +515,42 @@ class TwoTermSolver(SwarmSolver):
         return p, diag
 
     def _effective_collision_data(self, energy: np.ndarray, N: float) -> EffectiveCollisionData:
-        cfg = self.config.internal.two_term
-        speed = _electron_speed(energy)
-        sigma_m = np.zeros_like(energy)
-        nu_m = np.zeros_like(energy)
-        nu_m_over_N = np.zeros_like(energy)
-        elastic_A = np.zeros_like(energy)
-        elastic_D = np.zeros_like(energy)
-        kT_eV = self.config.conditions.gas_temperature_K * BOLTZMANN_J_K / EV_TO_J
-        species_has_effective = {
-            species: any(
-                proc.process_type == ProcessType.EFFECTIVE
-                for proc in self.cross_sections.by_species(species)
-            )
-            for species in self.cross_sections.species
-        }
-        momentum_like = self.cross_sections.by_type(ProcessType.MOMENTUM, ProcessType.EFFECTIVE, ProcessType.ELASTIC)
-        if not momentum_like:
-            raise ValueError("At least one momentum/effective/elastic cross section is required")
-        transport_inelastic = {
-            ProcessType.EXCITATION,
-            ProcessType.IONIZATION,
-            ProcessType.ATTACHMENT,
-            ProcessType.SUPERELASTIC,
-        }
-        for proc in self.cross_sections.processes:
-            frac = mixture_fraction(self.config.conditions, proc.species)
-            if frac <= 0.0:
-                continue
-            sigma = np.maximum(proc.sigma(energy), cfg.min_momentum_cross_section_m2)
-            use_effective_only = species_has_effective.get(proc.species, False)
-            include_transport = False
-            if proc.process_type == ProcessType.EFFECTIVE:
-                include_transport = True
-            elif proc.process_type in {ProcessType.MOMENTUM, ProcessType.ELASTIC}:
-                include_transport = not use_effective_only
-            elif proc.process_type in transport_inelastic:
-                include_transport = not use_effective_only
-            if include_transport:
-                nuN = frac * sigma * speed
-                nu = N * nuN
-                sigma_m += frac * sigma
-                nu_m_over_N += nuN
-                nu_m += nu
-            if proc.process_type not in {ProcessType.MOMENTUM, ProcessType.EFFECTIVE, ProcessType.ELASTIC}:
-                continue
-            mass_amu = proc.mass_amu or gas_mass_amu(self.config.conditions, proc.species)
-            mass_kg = mass_amu * AMU_KG
-            nuN = frac * sigma * speed
-            nu = N * nuN
-            ratio = ELECTRON_MASS_KG / mass_kg
-            eps = np.maximum(energy, 1.0e-12)
-            # Conservative elastic energy-exchange Fokker-Planck coefficients
-            # for the EEDF F(eps).  With E=0, zero flux gives
-            # F ~ sqrt(eps) exp(-eps/kT_g), i.e. the Maxwell energy PDF.
-            elastic_D += 2.0 * ratio * nu * eps * kT_eV
-            elastic_A += 2.0 * ratio * nu * (0.5 * kT_eV - eps)
-        nu_m = np.maximum(nu_m, 1.0e-60)
-        nu_m_over_N = np.maximum(nu_m_over_N, 1.0e-80)
-        sigma_m = np.maximum(sigma_m, cfg.min_momentum_cross_section_m2)
-        return EffectiveCollisionData(
-            nu_m=nu_m,
-            nu_m_over_N=nu_m_over_N,
-            sigma_m=sigma_m,
-            elastic_A_eV_s=elastic_A,
-            elastic_D_eV2_s=np.maximum(elastic_D, 0.0),
-            processes=self.cross_sections.processes,
+        return build_effective_collision_data(
+            self.config,
+            self.cross_sections,
+            energy,
+            N,
         )
 
     def _field_diffusion(self, energy: np.ndarray, E: float, nu_m: np.ndarray) -> np.ndarray:
         """Electric-field heating energy diffusion coefficient [eV^2/s]."""
 
-        eps_J = np.maximum(energy * EV_TO_J, 0.0)
-        D_J2_s = (2.0 / 3.0) * (E_CHARGE_C * E) ** 2 / ELECTRON_MASS_KG * eps_J / np.maximum(nu_m, 1.0e-60)
-        return D_J2_s / (EV_TO_J * EV_TO_J)
+        from electron_swarm.solvers.kinetic import field_diffusion_eV2_s
+
+        return field_diffusion_eV2_s(energy, E, nu_m)
+
+    def _assemble_energy_flux_operator(
+        self,
+        energy: np.ndarray,
+        edges: np.ndarray,
+        widths: np.ndarray,
+        E: float,
+        coll: EffectiveCollisionData,
+    ) -> sparse.csr_matrix:
+        return assemble_energy_flux_operator(energy, widths, E, coll)
+
+    def _assemble_collision_operator(
+        self,
+        energy: np.ndarray,
+        widths: np.ndarray,
+    ) -> sparse.csr_matrix:
+        return assemble_collision_operator(
+            self.config,
+            self.cross_sections,
+            energy,
+            widths,
+            _gas_number_density(self.config),
+        )
 
     def _assemble_operator(
         self,
@@ -685,142 +560,10 @@ class TwoTermSolver(SwarmSolver):
         E: float,
         coll: EffectiveCollisionData,
     ) -> sparse.csr_matrix:
-        n = len(energy)
-        mat = sparse.lil_matrix((n, n), dtype=float)
-        D_field = self._field_diffusion(energy, E, coll.nu_m)
-        eps_safe = np.maximum(energy, max(energy[1] - energy[0], 1.0e-12) * 0.5)
-        A_field = D_field / (2.0 * eps_safe)
-        D_center = np.maximum(coll.elastic_D_eV2_s + D_field, 1.0e-80)
-        A_center = coll.elastic_A_eV_s + A_field
-
-        # Neighbour fluxes J = A F - D dF/dε with exponential fitting.
-        # Boundary fluxes are zero, matching BOLSIG-like closed energy-domain
-        # truncation when the upper tail is numerically negligible.
-        for i in range(n - 1):
-            h = energy[i + 1] - energy[i]
-            if h <= 0.0:
-                continue
-            D = max(0.5 * (D_center[i] + D_center[i + 1]), 1.0e-80)
-            A = 0.5 * (A_center[i] + A_center[i + 1])
-            peclet = A * h / D
-            cL = D / h * _bernoulli(-peclet)
-            cR = -D / h * _bernoulli(peclet)
-            mat[i, i] += -cL / widths[i]
-            mat[i, i + 1] += -cR / widths[i]
-            mat[i + 1, i] += cL / widths[i + 1]
-            mat[i + 1, i + 1] += cR / widths[i + 1]
-
-        # Inelastic/nonconservative collision operators.
-        speed = _electron_speed(energy)
-        N = _gas_number_density(self.config)
-        for proc in self.cross_sections.processes:
-            frac = mixture_fraction(self.config.conditions, proc.species)
-            if frac <= 0.0:
-                continue
-            if proc.process_type not in {ProcessType.EXCITATION, ProcessType.SUPERELASTIC, ProcessType.IONIZATION, ProcessType.ATTACHMENT}:
-                continue
-            nu = N * frac * proc.sigma(energy) * speed
-            if proc.process_type == ProcessType.ATTACHMENT:
-                if self.config.internal.two_term.nonconservative_model == "ignore":
-                    continue
-                for i, val in enumerate(nu):
-                    mat[i, i] += -float(val)
-                continue
-            threshold = float(proc.threshold_eV or 0.0)
-            if proc.process_type == ProcessType.SUPERELASTIC and threshold > 0.0:
-                threshold = -threshold
-            if proc.process_type in {ProcessType.EXCITATION, ProcessType.SUPERELASTIC}:
-                self._add_energy_shift_transition(mat, energy, widths, nu, threshold, multiplicity=1.0)
-            elif proc.process_type == ProcessType.IONIZATION:
-                if (
-                    self.config.internal.two_term.nonconservative_model == "ignore"
-                    or self.config.internal.two_term.ionization_energy_sharing == "loss_only"
-                ):
-                    self._add_energy_shift_transition(mat, energy, widths, nu, threshold, multiplicity=1.0)
-                elif self.config.internal.two_term.ionization_energy_sharing == "primary_secondary":
-                    self._add_primary_secondary_ionization(mat, energy, widths, nu, threshold)
-                else:
-                    self._add_equal_sharing_ionization(mat, energy, widths, nu, threshold)
-        return mat.tocsr()
-
-    def _add_energy_shift_transition(
-        self,
-        mat: sparse.lil_matrix,
-        energy: np.ndarray,
-        widths: np.ndarray,
-        nu: np.ndarray,
-        threshold: float,
-        *,
-        multiplicity: float,
-    ) -> None:
-        for i, rate in enumerate(np.asarray(nu, dtype=float)):
-            if rate <= 0.0:
-                continue
-            mat[i, i] += -rate
-            target_e = energy[i] - threshold
-            self._deposit_energy(mat, energy, widths, i, target_e, multiplicity * rate)
-
-    def _add_equal_sharing_ionization(
-        self,
-        mat: sparse.lil_matrix,
-        energy: np.ndarray,
-        widths: np.ndarray,
-        nu: np.ndarray,
-        threshold: float,
-    ) -> None:
-        for i, rate in enumerate(np.asarray(nu, dtype=float)):
-            if rate <= 0.0:
-                continue
-            mat[i, i] += -rate
-            target_e = max(0.0, 0.5 * (energy[i] - threshold))
-            self._deposit_energy(mat, energy, widths, i, target_e, 2.0 * rate)
-
-    def _add_primary_secondary_ionization(
-        self,
-        mat: sparse.lil_matrix,
-        energy: np.ndarray,
-        widths: np.ndarray,
-        nu: np.ndarray,
-        threshold: float,
-    ) -> None:
-        """Ionization model with one cold secondary and one fast primary.
-
-        This option is useful for sensitivity studies.  Equal sharing is usually
-        smoother and is the default for BOLSIG-like fluid tables when no
-        differential ionization data are supplied.
-        """
-
-        secondary_eV = max(float(self.config.internal.two_term.secondary_electron_energy_eV), 0.0)
-        for i, rate in enumerate(np.asarray(nu, dtype=float)):
-            if rate <= 0.0:
-                continue
-            mat[i, i] += -rate
-            primary_e = max(0.0, energy[i] - threshold - secondary_eV)
-            self._deposit_energy(mat, energy, widths, i, primary_e, rate)
-            self._deposit_energy(mat, energy, widths, i, secondary_eV, rate)
-
-    def _deposit_energy(
-        self,
-        mat: sparse.lil_matrix,
-        energy: np.ndarray,
-        widths: np.ndarray,
-        source_i: int,
-        target_e: float,
-        rate: float,
-    ) -> None:
-        n = len(energy)
-        if target_e <= energy[0]:
-            mat[0, source_i] += rate * widths[source_i] / widths[0]
-        elif target_e >= energy[-1]:
-            mat[-1, source_i] += rate * widths[source_i] / widths[-1]
-        else:
-            j = int(np.searchsorted(energy, target_e) - 1)
-            j = max(0, min(j, n - 2))
-            denom = energy[j + 1] - energy[j]
-            wR = (target_e - energy[j]) / denom
-            wL = 1.0 - wR
-            mat[j, source_i] += rate * widths[source_i] * wL / widths[j]
-            mat[j + 1, source_i] += rate * widths[source_i] * wR / widths[j + 1]
+        return (
+            self._assemble_energy_flux_operator(energy, edges, widths, E, coll)
+            + self._assemble_collision_operator(energy, widths)
+        ).tocsr()
 
     def _solve_normalized(self, op: sparse.csr_matrix, widths: np.ndarray) -> np.ndarray:
         n = op.shape[0]
@@ -842,14 +585,7 @@ class TwoTermSolver(SwarmSolver):
         return self._normalize_eedf(sol, widths)
 
     def _normalize_eedf(self, eedf: np.ndarray, widths: np.ndarray) -> np.ndarray:
-        eedf = np.asarray(eedf, dtype=float)
-        total = _weighted_integral(eedf, widths)
-        if not np.isfinite(total) or abs(total) < 1.0e-300:
-            raise FloatingPointError("Cannot normalize EEDF with zero/non-finite integral")
-        if total < 0.0:
-            eedf = -eedf
-            total = -total
-        return eedf / total
+        return normalize_eedf(eedf, widths)
 
     def _tail_probability(self, eedf: np.ndarray, widths: np.ndarray) -> float:
         cfg = self.config.internal.two_term.adaptive_grid
@@ -859,42 +595,43 @@ class TwoTermSolver(SwarmSolver):
     def _mean_energy(self, energy: np.ndarray, eedf: np.ndarray, widths: np.ndarray | None = None) -> float:
         if widths is None:
             widths = _cell_edges_from_centers(energy)[1]
-        return float(np.sum(energy * eedf * widths))
+        return mean_energy_from_eedf(energy, widths, eedf)
 
     def _transport_from_reduced(self, e_over_n_Td: float, N: float, muN: float, diffN: float) -> TransportCoefficients:
-        EN = e_over_n_Td * TOWNSEND
-        mobility = muN / N
-        diffusion = diffN / N
-        drift = muN * EN
-        char_e = diffN / max(abs(muN), 1.0e-300)
-        return TransportCoefficients(
-            drift_velocity_m_s=drift,
-            mobility_m2_V_s=mobility,
-            reduced_mobility_m2_V_s_m3=muN,
-            diffusion_L_m2_s=diffusion,
-            diffusion_T_m2_s=diffusion,
-            reduced_diffusion_L_m2_s_m3=diffN,
-            reduced_diffusion_T_m2_s_m3=diffN,
-            characteristic_energy_eV=char_e,
-        )
+        return transport_from_reduced(e_over_n_Td, N, muN, diffN)
 
     def _transport_from_eedf(self, energy: np.ndarray, widths: np.ndarray, eedf: np.ndarray, N: float, e_over_n_Td: float) -> TransportCoefficients:
-        coll = self._effective_collision_data(energy, N)
-        nuN = np.maximum(coll.nu_m_over_N, 1.0e-80)
-        speed = _electron_speed(energy)
-        if len(energy) >= 3:
-            dF = np.gradient(eedf, energy, edge_order=2)
-        else:
-            dF = np.gradient(eedf, energy)
-        mobility_integrand = (2.0 * energy / nuN) * dF - eedf / nuN
-        muN = -E_CHARGE_C / (3.0 * ELECTRON_MASS_KG) * _weighted_integral(mobility_integrand, widths)
-        if not np.isfinite(muN) or muN <= 0.0:
-            # Conservative fallback: relaxation-time estimate.  This should be
-            # rare and is marked in output by metadata residual/tail diagnostics.
-            nu_eff_over_N = _weighted_integral(nuN * eedf, widths)
-            muN = E_CHARGE_C / (ELECTRON_MASS_KG * max(nu_eff_over_N, 1.0e-80))
-        diffN = (1.0 / 3.0) * _weighted_integral((speed * speed / nuN) * eedf, widths)
-        return self._transport_from_reduced(e_over_n_Td, N, float(muN), float(diffN))
+        return transport_from_eedf(
+            self.config,
+            self.cross_sections,
+            energy,
+            widths,
+            eedf,
+            N,
+            e_over_n_Td,
+        )
+
+    def transport_from_eedf(
+        self,
+        energy: np.ndarray,
+        widths: np.ndarray,
+        eedf: np.ndarray,
+        gas_number_density_m3: float,
+        e_over_n_Td: float,
+    ) -> TransportCoefficients:
+        """Compute native flux transport from a normalized EEDF.
+
+        This is the product-facing helper used by direct-PN reduction tests so
+        multi-term code does not need to reach into private two-term methods.
+        """
+
+        return self._transport_from_eedf(
+            energy,
+            widths,
+            eedf,
+            gas_number_density_m3,
+            e_over_n_Td,
+        )
 
     def _postprocess(
         self,
@@ -910,42 +647,25 @@ class TwoTermSolver(SwarmSolver):
         N = _gas_number_density(self.config)
         transport = transport_override or self._transport_from_eedf(energy, widths, eedf, N, e_over_n_Td)
         mean_energy = self._mean_energy(energy, eedf, widths)
-        speed = _electron_speed(energy)
-
-        rates: list[RateResult] = []
-        ion_rate = 0.0
-        attach_rate = 0.0
-        net_ion_freq = 0.0
-        for proc in self.cross_sections.processes:
-            frac = mixture_fraction(self.config.conditions, proc.species)
-            if frac <= 0.0:
-                continue
-            k = float(np.sum(proc.sigma(energy) * speed * eedf * widths))
-            kmix = frac * k
-            if proc.process_type == ProcessType.IONIZATION:
-                ion_rate += kmix
-                net_ion_freq += N * kmix
-            elif proc.process_type == ProcessType.ATTACHMENT:
-                attach_rate += kmix
-                net_ion_freq -= N * kmix
-            rates.append(
-                RateResult(
-                    solver=self.name,
-                    case_id=case_id,
-                    e_over_n_Td=e_over_n_Td,
-                    species=proc.species,
-                    process=proc.process,
-                    process_type=proc.process_type.value,
-                    threshold_eV=proc.threshold_eV,
-                    rate_coefficient_m3_s=k,
-                    mixture_weighted_rate_m3_s=kmix,
-                )
-            )
+        rate_data = compute_rates_from_eedf(
+            self.config,
+            self.cross_sections,
+            energy,
+            widths,
+            eedf,
+            case_id=case_id,
+            e_over_n_Td=e_over_n_Td,
+            solver_name=self.name,
+        )
+        rates = rate_data.rates
+        ion_rate = rate_data.ionization_rate_m3_s
+        attach_rate = rate_data.attachment_rate_m3_s
+        net_ion_freq = rate_data.net_ionization_frequency_s
         effective_townsend = net_ion_freq / max(abs(transport.drift_velocity_m_s) * N, 1.0e-300)
-        eepf = eedf / np.sqrt(np.maximum(energy, 1.0e-30))
+        eepf = eepf_from_eedf(energy, eedf)
         metadata = dict(metadata)
         metadata["characteristic_energy_eV"] = transport.characteristic_energy_eV
-        metadata["normalization_integral"] = _weighted_integral(eedf, widths)
+        metadata["normalization_integral"] = weighted_integral(eedf, widths)
         metadata["convolution_ionization_rate_coefficient_m3_s"] = ion_rate
         metadata["convolution_attachment_rate_coefficient_m3_s"] = attach_rate
         metadata["convolution_effective_rate_coefficient_m3_s"] = ion_rate - attach_rate
@@ -987,6 +707,7 @@ class TwoTermSolver(SwarmSolver):
             energy_eV=energy,
             eedf=eedf,
             eepf=eepf,
+            energy_widths_eV=widths,
             rates=rates,
             metadata=metadata,
             transport=transport_set,

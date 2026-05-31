@@ -14,16 +14,15 @@ SUMMARY_METADATA_KEYS = (
     "solver_method",
     "angular_model",
     "angular_moment_source",
+    "moment_table_provenance",
     "exact_dcs_based",
     "ordinary_integral_xs_closure",
     "direct_pn_operator",
     "lmax",
-    "pn_residual",
-    "negative_mass_fraction",
-    "lmax1_regression_target",
-    "effective_angular_scattering",
     "ionization_source_model",
     "ionization_source_treatment",
+    "ionization_branching_model",
+    "secondary_electron_tracking",
     "electron_electron_treatment",
     "electron_electron_transport_stale",
     "transport_definition",
@@ -35,6 +34,18 @@ SUMMARY_METADATA_KEYS = (
     "tail_rate_fraction_max",
     "dominant_tail_process",
     "energy_grid_tail_status",
+    "mc_population_model",
+    "mc_warmup_collisions",
+    "mc_production_collisions",
+    "mc_energy_balance_status",
+    "mc_tracked_energy_balance_residual_fraction",
+    "mc_physical_branching_gap_eV",
+    "mc_tail_uncertainty_status",
+    "mc_min_tail_bin_count",
+    "mc_tail_effective_sample_count_min",
+    "mc_tail_weak_probability_fraction",
+    "mc_max_resolved_energy_eV",
+    "mc_tail_comparison_status",
 )
 
 
@@ -76,6 +87,9 @@ class SwarmCaseResult:
     energy_eV: np.ndarray = field(repr=False)
     eedf: np.ndarray = field(repr=False)  # normalized energy distribution, 1/eV
     eepf: np.ndarray = field(repr=False)  # EEPF-like eedf/sqrt(eV), eV^-3/2
+    energy_widths_eV: np.ndarray | None = field(default=None, repr=False)
+    eedf_counts: np.ndarray | None = field(default=None, repr=False)
+    eedf_effective_counts: np.ndarray | None = field(default=None, repr=False)
     rates: list[RateResult] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
     transport: TransportSet | None = None

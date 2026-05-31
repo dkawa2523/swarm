@@ -34,8 +34,8 @@ physics:
     higher_moment_closure: table
     moment_table:
       path: moment_tables/argon_demo_moments.csv
-      format: csv
-      provenance: precomputed_moments
+      format: normalized_legendre_moments
+      provenance: model_derived
       extrapolation: error
   electron_electron:
     enabled: false

@@ -56,7 +56,7 @@ solvers:
     backend: native_sg
   multi_term:
     formulation: PN
-    method: pn_closure_surrogate
+    method: pn_closure_direct
     lmax: 4
   monte_carlo:
     backend: internal

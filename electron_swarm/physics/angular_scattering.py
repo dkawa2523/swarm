@@ -22,7 +22,7 @@ ANGULAR_METADATA_KEYS = (
 class AngularMomentProvider(Protocol):
     name: str
 
-    def metadata(self) -> dict[str, str]:
+    def metadata(self) -> dict[str, object]:
         ...
 
     def moments(
@@ -172,7 +172,7 @@ def _sample_maxent_mu(
 class IsotropicAngularModel:
     name: str = "isotropic"
 
-    def metadata(self) -> dict[str, str]:
+    def metadata(self) -> dict[str, object]:
         return {
             "angular_model": self.name,
             "angular_moment_source": "isotropic_closure",
@@ -205,7 +205,7 @@ class IsotropicAngularModel:
 class MomentumPowerAngularModel:
     name: str = "momentum_power"
 
-    def metadata(self) -> dict[str, str]:
+    def metadata(self) -> dict[str, object]:
         return {
             "angular_model": self.name,
             "angular_moment_source": "ordinary_integral_xs_closure",
@@ -246,7 +246,7 @@ class MaxEntP1AngularModel:
     quadrature_order: int = 64
     name: str = "maxent_p1"
 
-    def metadata(self) -> dict[str, str]:
+    def metadata(self) -> dict[str, object]:
         return {
             "angular_model": self.name,
             "angular_moment_source": "ordinary_integral_xs_closure",
@@ -361,14 +361,17 @@ def _load_moment_table(path: Path) -> tuple[np.ndarray, np.ndarray]:
 @dataclass(frozen=True, slots=True)
 class MomentTableAngularModel:
     path: Path
-    provenance: Literal["precomputed_moments", "dcs_derived"] = "precomputed_moments"
+    provenance: Literal["dcs_derived", "model_derived", "unknown"] = "unknown"
     extrapolation: Literal["error"] = "error"
     name: str = "moment_table"
 
-    def metadata(self) -> dict[str, str]:
+    def metadata(self) -> dict[str, object]:
         return {
             "angular_model": self.name,
             "angular_moment_source": "moment_table",
+            "moment_table_provenance": self.provenance,
+            "exact_dcs_based": self.provenance == "dcs_derived",
+            "ordinary_integral_xs_closure": False,
         }
 
     def moments(
@@ -456,6 +459,11 @@ def expected_angular_metadata(config: object) -> dict[str, object]:
     table = getattr(angular, "moment_table", None)
     metadata.update(
         {
+            "moment_table_provenance": (
+                str(table.provenance)
+                if is_moment_table and table is not None
+                else ""
+            ),
             "exact_dcs_based": bool(
                 is_moment_table
                 and table is not None

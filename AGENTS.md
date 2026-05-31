@@ -39,7 +39,7 @@ This repository implements electron swarm simulation tools for low-pressure plas
 ## Physics honesty rules
 
 - Ordinary integral cross sections do not determine full differential scattering.
-- `multi_term` with ordinary integral cross sections is an angular-closure or surrogate PN solver unless DCS moments are actually provided.
+- `multi_term` with ordinary integral cross sections is an angular-closure direct PN solver unless DCS moments are actually provided.
 - Never label integral-cross-section `multi_term` as an exact DCS-based multi-term solver.
 - Monte Carlo and multi-term comparisons are meaningful only when angular model assumptions are explicit.
 - Existing e-e relaxation postprocess can be reused initially, but it updates EEDF/rates and does not recompute transport. Mark transport stale.

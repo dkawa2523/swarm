@@ -71,6 +71,21 @@ def _angular_model_warning(status: str) -> str:
     return "angular_model_mismatch"
 
 
+def _angular_sampler_treatment(
+    candidate: SwarmCaseResult,
+    reference: SwarmCaseResult,
+) -> str:
+    for case in (candidate, reference):
+        if case.solver == "monte_carlo":
+            treatment = case.metadata.get("effective_angular_scattering")
+            if treatment not in {"", None}:
+                return str(treatment)
+            treatment = case.metadata.get("monte_carlo_angular_scattering")
+            if treatment not in {"", None}:
+                return str(treatment)
+    return "not_applicable"
+
+
 def comparison_summary_rows(
     result: SwarmRunResult,
     *,
@@ -111,6 +126,13 @@ def comparison_summary_rows(
             row["angular_model_warning"] = _angular_model_warning(
                 str(row["angular_model_status"])
             )
+            row["angular_model_reference"] = row["reference_angular_model"]
+            row["angular_model_candidate"] = row["candidate_angular_model"]
+            row["angular_sampler_treatment"] = _angular_sampler_treatment(
+                candidate,
+                reference,
+            )
+            row["angular_model_mismatch_reason"] = row["angular_model_warning"]
             if row["same_angular_model"]:
                 row["angular_model"] = row["reference_angular_model"]
             else:

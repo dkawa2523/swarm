@@ -58,6 +58,10 @@ def test_canonical_outputs_and_comparison_summary(tmp_path: Path) -> None:
         "meta_energy_grid_tail_status",
     ]:
         assert column in summary.columns
+    eedf = pd.read_csv(tmp_path / "prod_eedf.csv")
+    assert "sample_count" in eedf.columns
+    assert "effective_sample_count" in eedf.columns
+    assert "relative_standard_error" in eedf.columns
     assert not any(col.startswith("meta_capability_") for col in summary.columns)
     mt = summary[summary["solver"] == "multi_term"].iloc[0]
     assert mt["meta_angular_model"] == "isotropic"
@@ -68,6 +72,10 @@ def test_canonical_outputs_and_comparison_summary(tmp_path: Path) -> None:
     assert not any(col.startswith("meta_multiterm_") for col in summary.columns)
     assert not any(col.startswith("meta_bulk_") for col in summary.columns)
     assert not any(col.startswith("meta_estimated_bulk_") for col in summary.columns)
+    assert "meta_pn_residual" not in summary.columns
+    assert "meta_negative_mass_fraction" not in summary.columns
+    assert "meta_lmax1_regression_target" not in summary.columns
+    assert "meta_effective_angular_scattering" not in summary.columns
     assert "meta_hydrodynamic" not in summary.columns
     assert "schema_version" not in summary.columns
     assert "reduced_mobility_m2_V_s_m3" not in summary.columns
@@ -91,7 +99,9 @@ def test_canonical_outputs_and_comparison_summary(tmp_path: Path) -> None:
     assert "effective_rf_field" not in plan.columns
 
 
-def test_pn_dcs_moment_table_summary_output(tmp_path: Path) -> None:
+def test_pn_dcs_moment_table_summary_records_table_moment_path(
+    tmp_path: Path,
+) -> None:
     table = write_moment_table(tmp_path)
     data = base_product_config(tmp_path, ["multi_term"])
     data["solvers"]["multi_term"]["method"] = "pn_dcs"
@@ -99,8 +109,8 @@ def test_pn_dcs_moment_table_summary_output(tmp_path: Path) -> None:
         "model": "moment_table",
         "moment_table": {
             "path": table.as_posix(),
-            "format": "csv",
-            "provenance": "precomputed_moments",
+            "format": "normalized_legendre_moments",
+            "provenance": "model_derived",
             "extrapolation": "error",
         },
     }
@@ -109,13 +119,15 @@ def test_pn_dcs_moment_table_summary_output(tmp_path: Path) -> None:
 
     summary = pd.read_csv(tmp_path / "prod_summary.csv")
     [row] = summary.to_dict("records")
-    assert row["solver"] == "multi_term"
     assert row["solver_method"] == "pn_dcs"
-    assert row["meta_physics_level"] == "table_moments"
+    assert row["meta_solver_method"] == "pn_dcs"
+    assert row["meta_physics_level"] == "table_moment_based"
     assert row["meta_angular_model"] == "moment_table"
     assert row["meta_angular_moment_source"] == "moment_table"
+    assert row["meta_moment_table_provenance"] == "model_derived"
     assert bool(row["meta_exact_dcs_based"]) is False
     assert bool(row["meta_ordinary_integral_xs_closure"]) is False
+    assert bool(row["meta_direct_pn_operator"]) is True
 
 
 def test_fp_energy_summary_output_records_product_treatment(tmp_path: Path) -> None:
@@ -161,6 +173,22 @@ def test_internal_mc_magnetic_summary_output(tmp_path: Path) -> None:
     assert row["meta_field_integrator"] == "boris"
     assert row["meta_magnetic_field_B_T"] == pytest.approx(0.02)
     assert row["meta_transport_definition"] == "mc_particle_tracking"
+    assert row["meta_mc_population_model"] == "fixed_particle_single_daughter"
+    assert row["meta_ionization_branching_model"] == "single_daughter_sampling"
+    assert bool(row["meta_secondary_electron_tracking"]) is False
+    assert row["meta_mc_energy_balance_status"] in {"ok", "warning"}
+    assert row["meta_mc_tail_uncertainty_status"] in {"ok", "insufficient"}
+    assert row["meta_mc_tail_comparison_status"] in {
+        "ok",
+        "weak_tail_statistics",
+        "energy_balance_warning",
+    }
+
+    eedf = pd.read_csv(tmp_path / "prod_eedf.csv")
+    assert eedf["sample_count"].notna().any()
+    assert eedf["effective_sample_count"].notna().any()
+    positive = eedf["sample_count"] > 0
+    assert (eedf.loc[positive, "relative_standard_error"] > 0.0).all()
 
 
 def test_same_angular_pn_mc_comparison_summary(tmp_path: Path) -> None:
@@ -185,6 +213,12 @@ def test_same_angular_pn_mc_comparison_summary(tmp_path: Path) -> None:
     assert bool(row["same_angular_model"]) is True
     assert row["angular_model"] == "isotropic"
     assert pd.isna(row["angular_model_warning"]) or row["angular_model_warning"] == ""
+    assert pd.isna(row["angular_model_mismatch_reason"]) or row[
+        "angular_model_mismatch_reason"
+    ] == ""
+    assert row["angular_model_reference"] == "isotropic"
+    assert row["angular_model_candidate"] == "isotropic"
+    assert row["angular_sampler_treatment"] == "same_as_physics:isotropic:sampler_supported"
     assert row["reference_angular_model"] == "isotropic"
     assert row["candidate_angular_model"] == "isotropic"
     assert row["reference_angular_moment_source"] == "isotropic_closure"
@@ -223,6 +257,8 @@ def test_required_pn_mc_comparison_rejects_unknown_angular_model(
     assert row["angular_model_status"] == "unknown"
     assert bool(row["same_angular_model"]) is False
     assert row["angular_model_warning"] == "angular_model_unknown"
+    assert row["angular_model_mismatch_reason"] == "angular_model_unknown"
+    assert row["angular_sampler_treatment"] == "external_adapter:approximate"
 
 
 def test_monte_carlo_sampler_fallback_is_visible_in_summary(tmp_path: Path) -> None:
@@ -243,9 +279,9 @@ def test_monte_carlo_sampler_fallback_is_visible_in_summary(tmp_path: Path) -> N
     cfg = load_config(write_config(tmp_path, data))
     run(cfg, write=True)
 
-    summary = pd.read_csv(tmp_path / "prod_summary.csv")
-    [row] = summary.to_dict("records")
-    assert row["meta_effective_angular_scattering"].endswith(
+    plan = pd.read_csv(tmp_path / "prod_solver_plan.csv")
+    [row] = plan.to_dict("records")
+    assert row["effective_angular_scattering"].endswith(
         "external_metadata_validation_fallback"
     )
 
@@ -270,4 +306,7 @@ def test_pn_mc_comparison_records_angular_mismatch_warning(tmp_path: Path) -> No
     assert row["angular_model_status"] == "mismatch"
     assert bool(row["same_angular_model"]) is False
     assert row["angular_model_warning"] == "angular_model_mismatch"
+    assert row["angular_model_mismatch_reason"] == "angular_model_mismatch"
     assert row["angular_model"] == "isotropic->mismatch"
+    assert row["angular_model_reference"] == "isotropic"
+    assert row["angular_model_candidate"] == "mismatch"

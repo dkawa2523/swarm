@@ -28,6 +28,8 @@ def _solver_method(config: SwarmConfig, solver: str) -> str:
     if solver == "multi_term":
         return str(config.solvers.multi_term.method)
     if solver == "monte_carlo":
+        if config.solvers.monte_carlo.backend == "internal":
+            return "internal"
         if config.solvers.monte_carlo.python_api:
             return "python_api"
         if config.solvers.monte_carlo.command:
@@ -78,7 +80,7 @@ def _attach_product_metadata(
             angular_metadata = expected_angular
     else:
         angular_metadata = expected_angular
-    physics_level = "surrogate" if item.solver == "multi_term" else "approximate"
+    physics_level = "angular_closure" if item.solver == "multi_term" else "approximate"
     metadata = {
         "schema_version": config.schema_version,
         "solver_id": item.solver,
@@ -114,6 +116,7 @@ def _attach_product_metadata(
     if item.solver == "multi_term":
         method = config.solvers.multi_term.method
         is_pn_dcs = method == "pn_dcs"
+        is_pn_direct = method == "pn_closure_direct"
         table = config.physics.angular_scattering.moment_table
         exact_dcs_based = bool(
             is_pn_dcs and table is not None and table.provenance == "dcs_derived"
@@ -121,11 +124,25 @@ def _attach_product_metadata(
         metadata.update(
             {
                 "lmax": config.solvers.multi_term.lmax,
-                "direct_pn_operator": False,
+                "direct_pn_operator": bool(
+                    (is_pn_direct or is_pn_dcs)
+                    and case.metadata.get("direct_pn_operator") is True
+                ),
                 "angular_moment_source": str(angular_metadata["angular_moment_source"]),
+                "moment_table_provenance": (
+                    str(table.provenance) if is_pn_dcs and table is not None else ""
+                ),
                 "exact_dcs_based": exact_dcs_based,
                 "ordinary_integral_xs_closure": not is_pn_dcs,
-                "physics_level": "table_moments" if is_pn_dcs else "surrogate",
+                "physics_level": (
+                    "dcs_moment_based"
+                    if exact_dcs_based
+                    else "table_moment_based"
+                    if is_pn_dcs
+                    else "angular_closure"
+                    if is_pn_direct
+                    else "unsupported"
+                ),
             }
         )
     magnetic = config.physics.field.magnetic_field
