@@ -7,11 +7,25 @@ from typing import Any
 
 from electron_swarm.core.capabilities import SupportLevel, get_solver_capabilities
 
-DEGRADED_SUPPORT = {
-    SupportLevel.APPROXIMATE,
-    SupportLevel.POSTPROCESS,
-    SupportLevel.DIAGNOSTIC,
-}
+DEGRADED_SUPPORT = {SupportLevel.APPROXIMATE}
+FEATURE_ORDER = (
+    "angular_scattering",
+    "ionization_source",
+    "electron_electron",
+    "magnetic_field",
+    "rf_field",
+    "tail_refinement",
+    "finite_k",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class FeatureTreatment:
+    feature: str
+    requested: bool
+    support: str
+    treatment: str
+    reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,9 +38,24 @@ class SolverPlanItem:
     skip_reason: str | None = None
     warnings: tuple[str, ...] = ()
     effective_physics: dict[str, str] = field(default_factory=dict)
+    feature_treatments: dict[str, FeatureTreatment] = field(default_factory=dict)
+
+    def treatment(self, feature: str, default: str = "none") -> str:
+        treatment = self.feature_treatments.get(feature)
+        if treatment is not None:
+            return treatment.treatment
+        return self.effective_physics.get(feature, default)
 
     def to_metadata(self) -> dict[str, Any]:
-        caps = get_solver_capabilities(self.solver)
+        treatments = self.feature_treatments or {
+            key: FeatureTreatment(
+                feature=key,
+                requested=True,
+                support="unknown",
+                treatment=value,
+            )
+            for key, value in self.effective_physics.items()
+        }
         return {
             "solver": self.solver,
             "requested": self.requested,
@@ -35,14 +64,10 @@ class SolverPlanItem:
             "degraded": self.degraded,
             "skip_reason": self.skip_reason,
             "warnings": "; ".join(self.warnings),
-            **{f"effective_{key}": value for key, value in self.effective_physics.items()},
-            "capability_electron_neutral": caps.electron_neutral.value,
-            "capability_angular_scattering": caps.angular_scattering.value,
-            "capability_ionization_source": caps.ionization_source.value,
-            "capability_electron_electron": caps.electron_electron.value,
-            "capability_magnetic_field": caps.magnetic_field.value,
-            "capability_tail_refinement": caps.tail_refinement.value,
-            "capability_bulk_transport": caps.bulk_transport.value,
+            **{
+                f"effective_{key}": treatment.treatment
+                for key, treatment in treatments.items()
+            },
         }
 
 
@@ -75,31 +100,31 @@ def _default_ionization_treatment(solver: str, config: object) -> str:
             else "unsupported"
         )
     if solver == "monte_carlo":
-        if config.solvers.monte_carlo.backend == "internal":
-            return model
-        return "external_adapter" if model == "equal" else "unsupported"
+        return model
     return model
 
 
 def _angular_treatment(solver: str, config: object, level: SupportLevel) -> str:
     angular = config.physics.angular_scattering
     if solver == "monte_carlo":
-        mode = config.solvers.monte_carlo.angular_scattering
-        if mode == "same_as_physics":
-            if angular.model in {"isotropic", "maxent_p1"}:
-                return f"same_as_physics:{angular.model}:sampler_supported"
-            return f"same_as_physics:{angular.model}:unsupported_sampler"
-        return f"external_adapter:{level.value}"
+        if angular.model == "isotropic":
+            return "same_as_physics:isotropic:sampler_supported"
+        if angular.model == "maxent_p1":
+            return "same_as_physics:maxent_p1:requires_total_and_momentum_xs"
+        return f"same_as_physics:{angular.model}:unsupported_sampler"
     if solver == "multi_term" and config.solvers.multi_term.method == "pn_dcs":
         return f"{angular.model}:pn_dcs_moment_table"
     return f"{angular.model}:{angular.higher_moment_closure}:{level.value}"
 
 
 def _mc_same_as_physics_sampler_unsupported(config: object) -> bool:
-    return (
-        config.solvers.monte_carlo.angular_scattering == "same_as_physics"
-        and config.physics.angular_scattering.model not in {"isotropic", "maxent_p1"}
-    )
+    return config.physics.angular_scattering.model not in {"isotropic", "maxent_p1"}
+
+
+def _magnetic_treatment(solver: str, config: object) -> str | None:
+    if solver != "monte_carlo":
+        return None
+    return "boris_lorentz_push"
 
 
 def _requested_finite_k(config: object) -> bool:
@@ -129,7 +154,6 @@ def _handle_requested_feature(
     level: SupportLevel,
     unsupported_policy: str,
     degraded_policy: str,
-    allow_unsupported_fallback: bool,
     effective: dict[str, str],
     warnings: list[str],
     effective_value: str | None = None,
@@ -142,16 +166,8 @@ def _handle_requested_feature(
         if unsupported_policy == "skip_solver":
             effective[feature] = "skipped" if feature == "magnetic_field" else "unsupported"
             return False, False, msg
-        if feature == "magnetic_field" and allow_unsupported_fallback:
-            effective[feature] = "ignored_fallback"
-            warnings.append(
-                f"{solver} ignores requested magnetic_field as explicit fallback"
-            )
-            return True, True, None
         effective[feature] = "unsupported"
-        raise ValueError(
-            f"{msg}; unsupported features cannot be silently approximated"
-        )
+        raise ValueError(f"{msg}; unsupported policy {unsupported_policy!r} is invalid")
     treatment = effective_value or level.value
     effective[feature] = treatment
     if level in DEGRADED_SUPPORT:
@@ -163,11 +179,35 @@ def _handle_requested_feature(
     return True, False, None
 
 
+def _feature_treatments(
+    *,
+    effective: dict[str, str],
+    requested: dict[str, bool],
+    support: dict[str, str],
+    skip_reason: str | None,
+) -> dict[str, FeatureTreatment]:
+    treatments: dict[str, FeatureTreatment] = {}
+    for feature in FEATURE_ORDER:
+        value = effective.get(feature, "none")
+        reason = None
+        if requested.get(feature, False) and (
+            value in {"unsupported", "skipped"} or "unsupported" in value
+        ):
+            reason = skip_reason
+        treatments[feature] = FeatureTreatment(
+            feature=feature,
+            requested=bool(requested.get(feature, False)),
+            support=support.get(feature, "unknown"),
+            treatment=value,
+            reason=reason,
+        )
+    return treatments
+
+
 def build_solve_plan(config: object) -> list[SolverPlanItem]:
     plan: list[SolverPlanItem] = []
     unsupported_policy = config.feature_policy.unsupported
     degraded_policy = config.feature_policy.degraded
-    allow_unsupported_fallback = config.feature_policy.allow_unsupported_fallback
     b_requested = _requested_magnetic_field(config)
     rf_requested = _requested_rf_field(config)
     ee_requested = _requested_electron_electron(config)
@@ -192,6 +232,31 @@ def build_solve_plan(config: object) -> list[SolverPlanItem]:
             continue
         caps = get_solver_capabilities(solver)
         warnings: list[str] = []
+        ionization_level = caps.ionization_source
+        if (
+            solver == "monte_carlo"
+            and str(config.physics.ionization.energy_sharing)
+            in {"equal", "primary_secondary", "loss_only"}
+        ):
+            ionization_level = SupportLevel.APPROXIMATE
+        requested_features = {
+            "angular_scattering": True,
+            "ionization_source": ionization_requested,
+            "electron_electron": ee_requested,
+            "magnetic_field": b_requested,
+            "rf_field": rf_requested,
+            "tail_refinement": bool(config.physics.energy_grid_policy.adaptive),
+            "finite_k": finite_k_requested,
+        }
+        support_by_feature = {
+            "angular_scattering": caps.angular_scattering.value,
+            "ionization_source": ionization_level.value,
+            "electron_electron": caps.electron_electron.value,
+            "magnetic_field": caps.magnetic_field.value,
+            "rf_field": SupportLevel.UNSUPPORTED.value,
+            "tail_refinement": caps.tail_refinement.value,
+            "finite_k": SupportLevel.UNSUPPORTED.value,
+        }
         angular_effective = _angular_treatment(
             solver,
             config,
@@ -206,7 +271,6 @@ def build_solve_plan(config: object) -> list[SolverPlanItem]:
             if config.physics.energy_grid_policy.adaptive
                 else "none",
             "ionization_source": _default_ionization_treatment(solver, config),
-            "bulk_transport": "none",
             "finite_k": "none",
         }
         degraded = False
@@ -216,7 +280,7 @@ def build_solve_plan(config: object) -> list[SolverPlanItem]:
         if solver == "monte_carlo" and _mc_same_as_physics_sampler_unsupported(config):
             model = config.physics.angular_scattering.model
             msg = (
-                "monte_carlo same_as_physics has no product MC sampler for "
+                "monte_carlo has no product MC sampler for "
                 f"angular model {model!r}"
             )
             effective["angular_scattering"] = f"same_as_physics:{model}:unsupported_sampler"
@@ -225,38 +289,14 @@ def build_solve_plan(config: object) -> list[SolverPlanItem]:
             if unsupported_policy == "skip_solver":
                 runnable = False
                 skip_reason = msg
-            elif config.solvers.monte_carlo.backend == "internal":
-                raise ValueError(
-                    f"{msg}; internal monte_carlo cannot use an external "
-                    "metadata-validation fallback"
-                )
-            elif not allow_unsupported_fallback:
-                raise ValueError(
-                    f"{msg}; unsupported features cannot be silently approximated"
-                )
             else:
-                effective["angular_scattering"] = (
-                    f"same_as_physics:{model}:external_metadata_validation_fallback"
-                )
-                angular_effective = effective["angular_scattering"]
-                degraded = True
-                warnings.append(
-                    "monte_carlo same_as_physics uses external metadata-validation "
-                    "fallback; no product sampler is available"
-                )
+                raise ValueError(msg)
 
         ee_level = caps.electron_electron
         if ee_requested and ee_treatment == "unsupported":
             ee_level = SupportLevel.UNSUPPORTED
+            support_by_feature["electron_electron"] = SupportLevel.UNSUPPORTED.value
         if runnable:
-            ionization_level = caps.ionization_source
-            if (
-                solver == "monte_carlo"
-                and config.solvers.monte_carlo.backend == "internal"
-                and str(config.physics.ionization.energy_sharing)
-                in {"equal", "primary_secondary", "loss_only"}
-            ):
-                ionization_level = SupportLevel.APPROXIMATE
             for requested, feature, level, effective_value in (
                 (
                     ionization_requested,
@@ -270,7 +310,12 @@ def build_solve_plan(config: object) -> list[SolverPlanItem]:
                     ee_level,
                     ee_treatment if ee_treatment != "none" else None,
                 ),
-                (b_requested, "magnetic_field", caps.magnetic_field, None),
+                (
+                    b_requested,
+                    "magnetic_field",
+                    caps.magnetic_field,
+                    _magnetic_treatment(solver, config),
+                ),
                 (rf_requested, "rf_field", SupportLevel.UNSUPPORTED, None),
                 (finite_k_requested, "finite_k", SupportLevel.UNSUPPORTED, None),
             ):
@@ -282,7 +327,6 @@ def build_solve_plan(config: object) -> list[SolverPlanItem]:
                     level=level,
                     unsupported_policy=unsupported_policy,
                     degraded_policy=degraded_policy,
-                    allow_unsupported_fallback=allow_unsupported_fallback,
                     effective=effective,
                     warnings=warnings,
                     effective_value=effective_value,
@@ -315,7 +359,6 @@ def build_solve_plan(config: object) -> list[SolverPlanItem]:
                     level=level,
                     unsupported_policy=unsupported_policy,
                     degraded_policy=degraded_policy,
-                    allow_unsupported_fallback=allow_unsupported_fallback,
                     effective=effective,
                     warnings=warnings,
                     effective_value=effective_value,
@@ -334,6 +377,12 @@ def build_solve_plan(config: object) -> list[SolverPlanItem]:
                 skip_reason=skip_reason,
                 warnings=tuple(warnings),
                 effective_physics=effective,
+                feature_treatments=_feature_treatments(
+                    effective=effective,
+                    requested=requested_features,
+                    support=support_by_feature,
+                    skip_reason=skip_reason,
+                ),
             )
         )
     return plan

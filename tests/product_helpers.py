@@ -2,11 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
 import yaml
-
-from electron_swarm.core.results import SwarmCaseResult
-from electron_swarm.physics.angular_scattering import expected_angular_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
 XS_PATH = ROOT / "examples" / "cross_sections" / "argon_minimal.csv"
@@ -67,7 +63,7 @@ def base_product_config(tmp_path: Path, solvers: list[str] | None = None) -> dic
         "comparison": {"enabled": False},
         "feature_policy": {
             "unsupported": "fail",
-            "degraded": "warn",
+            "degraded": "record",
         },
         "output": {
             "directory": tmp_path.as_posix(),
@@ -111,74 +107,3 @@ def write_moment_table(
         encoding="utf-8",
     )
     return path
-
-
-def _fake_mc_case(config, metadata: dict | None = None) -> SwarmCaseResult:
-    e_over_n = float(config.run.e_over_n_Td[0])
-    case_id = f"{config.run.case_prefix}_0000"
-    energy = np.array([0.0, 1.0], dtype=float)
-    eedf = np.array([1.0, 0.0], dtype=float)
-    return SwarmCaseResult(
-        solver="monte_carlo",
-        case_id=case_id,
-        e_over_n_Td=e_over_n,
-        mean_energy_eV=2.0,
-        drift_velocity_m_s=1000.0,
-        mobility_m2_V_s=0.1,
-        reduced_mobility_m2_V_s_m3=1.0e19,
-        diffusion_L_m2_s=0.2,
-        diffusion_T_m2_s=0.2,
-        reduced_diffusion_L_m2_s_m3=2.0e19,
-        reduced_diffusion_T_m2_s_m3=2.0e19,
-        net_ionization_frequency_s=10.0,
-        effective_townsend_m2=1.0e-21,
-        energy_eV=energy,
-        eedf=eedf,
-        eepf=eedf / np.sqrt(np.maximum(energy, 1.0e-30)),
-        rates=[],
-        metadata=metadata or {},
-    )
-
-
-def fake_mc_matching(config, cross_sections, **passthrough):
-    return [_fake_mc_case(config, expected_angular_metadata(config))]
-
-
-def fake_mc_missing(config, cross_sections, **passthrough):
-    return [_fake_mc_case(config)]
-
-
-def fake_mc_mismatch(config, cross_sections, **passthrough):
-    metadata = dict(expected_angular_metadata(config))
-    metadata["angular_model"] = "mismatch"
-    return [_fake_mc_case(config, metadata)]
-
-
-def fake_mc_magnetic_matching(config, cross_sections, **passthrough):
-    magnetic = config.physics.field.magnetic_field
-    return [
-        _fake_mc_case(
-            config,
-            {
-                "magnetic_field_treatment": "external_lorentz_push",
-                "magnetic_field_B_T": magnetic.B_T,
-                "magnetic_field_angle_EB_deg": magnetic.angle_EB_deg,
-                "field_integrator": "external",
-            },
-        )
-    ]
-
-
-def fake_mc_magnetic_mismatch(config, cross_sections, **passthrough):
-    magnetic = config.physics.field.magnetic_field
-    return [
-        _fake_mc_case(
-            config,
-            {
-                "magnetic_field_treatment": "external_lorentz_push",
-                "magnetic_field_B_T": magnetic.B_T * 2.0 + 0.001,
-                "magnetic_field_angle_EB_deg": magnetic.angle_EB_deg,
-                "field_integrator": "external",
-            },
-        )
-    ]

@@ -17,50 +17,20 @@ conditions:
       mass_amu: 39.948
 
 cross_sections:
-  format: csv
   files:
     - path: ../../examples/cross_sections/argon_minimal.csv
       species: Ar
-      format: csv
-  high_energy_extrapolation: zero
 
 physics:
-  field:
-    type: dc
-    magnetic_field:
-      enabled: false
-      B_T: 0.0
-      angle_EB_deg: 0.0
-  angular_scattering:
-    model: isotropic
-    higher_moment_closure: zero
-  electron_electron:
-    enabled: false
-    model: none
-  ionization:
-    energy_sharing: equal
-    secondary_electron_energy_eV: 0.0
   energy_grid_policy:
-    adaptive: true
     threshold_refinement: false
-    tail_metrics: true
-    tail_threshold_eV: null
-    tail_rate_warning_fraction: 0.05
     max_eV_limit: 1000.0
-  finite_k:
-    enabled: false
-    k_m_inv: null
 
 solvers:
-  two_term:
-    backend: native_sg
   multi_term:
-    formulation: PN
     method: pn_closure_direct
     lmax: 4
   monte_carlo:
-    backend: internal
-    angular_scattering: same_as_physics
     particles: 2048
     max_collisions: 5000
     seed: 41
@@ -71,10 +41,6 @@ comparison:
   candidate_solvers: [multi_term, monte_carlo]
   compare_eedf: true
   required: false
-
-feature_policy:
-  unsupported: fail
-  degraded: warn
 
 output:
   directory: ../../outputs/benchmarks

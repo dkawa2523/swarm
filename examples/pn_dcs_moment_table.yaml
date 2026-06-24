@@ -15,53 +15,21 @@ conditions:
       mass_amu: 39.948
 
 cross_sections:
-  format: csv
   files:
     - path: cross_sections/argon_minimal.csv
       species: Ar
-      format: csv
-  high_energy_extrapolation: zero
 
 physics:
-  field:
-    type: dc
-    magnetic_field:
-      enabled: false
-      B_T: 0.0
-      angle_EB_deg: 0.0
   angular_scattering:
     model: moment_table
-    higher_moment_closure: table
     moment_table:
       path: moment_tables/argon_demo_moments.csv
-      format: normalized_legendre_moments
       provenance: model_derived
-      extrapolation: error
-  electron_electron:
-    enabled: false
-    model: none
-  ionization:
-    energy_sharing: equal
-  energy_grid_policy:
-    adaptive: true
-    threshold_refinement: true
-    tail_metrics: true
-  finite_k:
-    enabled: false
-    k_m_inv: null
 
 solvers:
   multi_term:
-    formulation: PN
     method: pn_dcs
     lmax: 3
-
-comparison:
-  enabled: false
-
-feature_policy:
-  unsupported: fail
-  degraded: warn
 
 output:
   directory: ../outputs/examples

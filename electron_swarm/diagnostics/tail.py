@@ -15,7 +15,7 @@ from electron_swarm.core.cross_sections import (
 )
 from electron_swarm.core.results import RateResult, SwarmCaseResult
 
-from .common import widths_from_centers
+from electron_swarm.core.numerics import widths_from_centers
 
 REACTION_TYPES = {
     ProcessType.EXCITATION.value,
@@ -36,7 +36,7 @@ class TailMetrics:
     high_energy_cutoff_rate_fraction: float
     energy_grid_tail_status: str
 
-    def as_metadata(self) -> dict[str, float | str | bool]:
+    def as_diagnostics(self) -> dict[str, float | str | bool]:
         return {
             "tail_metrics_enabled": True,
             "tail_threshold_eV": self.tail_threshold_eV,
@@ -131,17 +131,15 @@ def attach_tail_metrics(
 ) -> SwarmCaseResult:
     policy = config.physics.energy_grid_policy
     if not policy.tail_metrics:
-        case.metadata.update(
-            {
-                "tail_metrics_enabled": False,
-                "tail_threshold_eV": None,
-                "tail_probability": None,
-                "tail_rate_fraction_max": None,
-                "dominant_tail_process": "",
-                "high_energy_cutoff_rate_fraction": None,
-                "energy_grid_tail_status": "disabled",
-            }
-        )
+        case.diagnostics["tail_metrics"] = {
+            "tail_metrics_enabled": False,
+            "tail_threshold_eV": None,
+            "tail_probability": None,
+            "tail_rate_fraction_max": None,
+            "dominant_tail_process": "",
+            "high_energy_cutoff_rate_fraction": None,
+            "energy_grid_tail_status": "disabled",
+        }
         for rate in case.rates:
             rate.tail_fraction = None
         return case
@@ -189,7 +187,7 @@ def attach_tail_metrics(
             max_tail, max_cutoff, policy.tail_rate_warning_fraction
         ),
     )
-    case.metadata.update(metrics.as_metadata())
+    case.diagnostics["tail_metrics"] = metrics.as_diagnostics()
     return case
 
 

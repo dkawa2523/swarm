@@ -41,8 +41,8 @@ Optional uncertainty columns use a `_ci95` suffix, for example
 available, comparison confidence is marked `unknown`; differences are not
 automatically treated as implementation bugs.
 
-Angular scattering matters.  Set `angular_model` in `references.external`, or
-pass `--angular-model isotropic|mcig_default|unknown`.  Rows with unknown or
+Angular scattering matters.  Set `angular_model` in the benchmark-only
+reference block, or pass `--angular-model isotropic|mcig_default|unknown`. Rows with unknown or
 mismatched angular metadata are marked degraded.
 
 Outputs:

@@ -24,8 +24,7 @@ import numpy as np
 from scipy import sparse
 from scipy.sparse import linalg as spla
 
-from electron_swarm.collisions.ee_fp_energy import apply_fp_energy_operator
-from electron_swarm.core.config import SwarmConfig, TwoTermInternalConfig
+from electron_swarm.core.config import SwarmConfig
 from electron_swarm.core.constants import (
     AMU_KG,
     BOLTZMANN_J_K,
@@ -35,10 +34,10 @@ from electron_swarm.core.constants import (
 )
 from electron_swarm.core.cross_sections import (
     CrossSectionSet,
-    ProcessType,
     gas_mass_amu,
 )
 from electron_swarm.core.results import SwarmCaseResult
+from electron_swarm.core.solver_configs import TwoTermInternalConfig
 from electron_swarm.core.transport import FluxTransport, TransportMetadata, TransportSet
 from electron_swarm.solvers.kinetic import (
     EffectiveCollisionData,
@@ -150,9 +149,15 @@ class TwoTermSolver(SwarmSolver):
 
     name = "two_term"
 
-    def __init__(self, config: SwarmConfig, cross_sections: CrossSectionSet) -> None:
+    def __init__(
+        self,
+        config: SwarmConfig,
+        cross_sections: CrossSectionSet,
+        solver_config: TwoTermInternalConfig,
+    ) -> None:
         super().__init__(config, cross_sections)
-        backend = config.internal.two_term.backend
+        self.solver_config = solver_config
+        backend = solver_config.backend
         if backend == "auto":
             # BOLOS is a useful independent reference implementation.  Use it
             # when explicitly available; otherwise use the built-in production
@@ -174,41 +179,6 @@ class TwoTermSolver(SwarmSolver):
             return self._solve_case_native(e_over_n_Td, case_id)
         raise ValueError(f"Unsupported Boltzmann backend: {self.backend}")
 
-    def _apply_fp_energy_if_requested(
-        self,
-        energy: np.ndarray,
-        widths: np.ndarray,
-        eedf: np.ndarray,
-        metadata: dict[str, object],
-    ) -> tuple[np.ndarray, dict[str, object], bool]:
-        ee = self.config.physics.electron_electron
-        if not ee.enabled or ee.model != "fp_energy":
-            return eedf, metadata, False
-        if ee.strength_model == "density_based":
-            raise NotImplementedError(
-                "electron_electron fp_energy strength_model='density_based' is not implemented"
-            )
-        new_eedf, ee_metadata = apply_fp_energy_operator(
-            energy,
-            widths,
-            eedf,
-            relaxation_fraction=ee.relaxation_fraction,
-            conserve_mean_energy=ee.conserve_mean_energy,
-            fallback_temperature_eV=ee.fallback_temperature_eV,
-        )
-        metadata = dict(metadata)
-        metadata.update(ee_metadata)
-        metadata.update(
-            {
-                "electron_electron_treatment": "fp_energy",
-                "electron_electron_affects_eedf": True,
-                "electron_electron_affects_rates": True,
-                "electron_electron_affects_transport": True,
-                "electron_electron_transport_stale": False,
-            }
-        )
-        return new_eedf, metadata, True
-
     # ------------------------------------------------------------------
     # Optional BOLOS backend: independent BOLSIG-like reference path.
     # ------------------------------------------------------------------
@@ -219,7 +189,7 @@ class TwoTermSolver(SwarmSolver):
         except Exception as exc:  # pragma: no cover - optional dependency
             raise RuntimeError("backend=bolos requires the optional 'bolos' package") from exc
 
-        cfg = self.config.internal.two_term
+        cfg = self.solver_config
 
         def make_bolos_grid(max_eV: float):
             if cfg.energy_grid.spacing == "quadratic" and hasattr(bolos_grid, "QuadraticGrid"):
@@ -302,12 +272,9 @@ class TwoTermSolver(SwarmSolver):
             "adaptive_cycles": int(cycle + 1),
             "grid_n_cells": int(len(energy)),
             "grid_min_eV": float(np.min(energy)),
-            "grid_spacing": self.config.internal.two_term.energy_grid.spacing,
+            "grid_spacing": self.solver_config.energy_grid.spacing,
             "threshold_refined": False,
         }
-        eedf, metadata, ee_applied = self._apply_fp_energy_if_requested(
-            energy, widths, eedf, metadata
-        )
         return self._postprocess(
             e_over_n_Td,
             case_id,
@@ -315,7 +282,7 @@ class TwoTermSolver(SwarmSolver):
             widths,
             eedf,
             metadata=metadata,
-            transport_override=None if ee_applied else transport,
+            transport_override=transport,
         )
 
     # ------------------------------------------------------------------
@@ -323,19 +290,13 @@ class TwoTermSolver(SwarmSolver):
     # ------------------------------------------------------------------
     def _solve_case_native(self, e_over_n_Td: float, case_id: str) -> SwarmCaseResult:
         native = self.solve_native_distribution(e_over_n_Td)
-        eedf, metadata, _ = self._apply_fp_energy_if_requested(
-            native.energy_eV,
-            native.widths_eV,
-            native.eedf_eV_inv,
-            native.metadata,
-        )
         return self._postprocess(
             e_over_n_Td,
             case_id,
             native.energy_eV,
             native.widths_eV,
-            eedf,
-            metadata=metadata,
+            native.eedf_eV_inv,
+            metadata=native.metadata,
         )
 
     def solve_native_reference_case(
@@ -348,7 +309,7 @@ class TwoTermSolver(SwarmSolver):
     def solve_native_distribution(self, e_over_n_Td: float) -> NativeDistributionResult:
         """Solve only the native EEDF block and return reusable arrays/metadata."""
 
-        cfg = self.config.internal.two_term
+        cfg = self.solver_config
         max_eV = float(cfg.energy_grid.max_eV)
         previous: tuple[np.ndarray, np.ndarray] | None = None
         last_diag: NativeSolveDiagnostics | None = None
@@ -416,7 +377,7 @@ class TwoTermSolver(SwarmSolver):
         """Return the native two-term energy grid used by the SG operator."""
 
         return _make_energy_grid(
-            self.config.internal.two_term,
+            self.solver_config,
             max_eV_override=max_eV_override,
             n_override=n_override,
             cross_sections=self.cross_sections,
@@ -451,6 +412,7 @@ class TwoTermSolver(SwarmSolver):
             self.cross_sections,
             e_over_n_Td,
             KineticGrid(energy, edges, widths, electron_speed_m_s(energy)),
+            self.solver_config,
         )
 
     def _solve_native_on_grid(
@@ -463,7 +425,7 @@ class TwoTermSolver(SwarmSolver):
         initial: np.ndarray | None,
         cycle: int,
     ) -> tuple[np.ndarray, NativeSolveDiagnostics]:
-        cfg = self.config.internal.two_term
+        cfg = self.solver_config
         block = self.assemble_native_operator_block(e_over_n_Td, energy, edges, widths)
         op = block.matrix
 
@@ -520,6 +482,7 @@ class TwoTermSolver(SwarmSolver):
             self.cross_sections,
             energy,
             N,
+            self.solver_config,
         )
 
     def _field_diffusion(self, energy: np.ndarray, E: float, nu_m: np.ndarray) -> np.ndarray:
@@ -550,6 +513,7 @@ class TwoTermSolver(SwarmSolver):
             energy,
             widths,
             _gas_number_density(self.config),
+            self.solver_config,
         )
 
     def _assemble_operator(
@@ -588,7 +552,7 @@ class TwoTermSolver(SwarmSolver):
         return normalize_eedf(eedf, widths)
 
     def _tail_probability(self, eedf: np.ndarray, widths: np.ndarray) -> float:
-        cfg = self.config.internal.two_term.adaptive_grid
+        cfg = self.solver_config.adaptive_grid
         n_tail = max(1, int(len(eedf) * cfg.tail_cells_fraction))
         return float(np.sum(np.clip(eedf[-n_tail:], 0.0, None) * widths[-n_tail:]))
 
@@ -609,6 +573,7 @@ class TwoTermSolver(SwarmSolver):
             eedf,
             N,
             e_over_n_Td,
+            self.solver_config,
         )
 
     def transport_from_eedf(
@@ -674,6 +639,7 @@ class TwoTermSolver(SwarmSolver):
         metadata["effective_townsend_1_m"] = net_ion_freq / max(
             abs(transport.drift_velocity_m_s), 1.0e-300
         )
+        diagnostics = {"two_term": metadata}
         flux_transport = FluxTransport.with_characteristic_energies(
             transport.drift_velocity_m_s,
             transport.mobility_m2_V_s,
@@ -709,6 +675,7 @@ class TwoTermSolver(SwarmSolver):
             eepf=eepf,
             energy_widths_eV=widths,
             rates=rates,
-            metadata=metadata,
+            metadata={},
+            diagnostics=diagnostics,
             transport=transport_set,
         )

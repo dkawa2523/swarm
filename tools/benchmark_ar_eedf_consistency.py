@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import argparse
-import copy
-import csv
 from pathlib import Path
 
-from electron_swarm import load_config, run
-from electron_swarm.core.config import RequestedSolverConfig, SwarmConfig
+from electron_swarm import run
+from electron_swarm.core.config import SwarmConfig
 from electron_swarm.diagnostics.eedf_compare import compare_eedf_cases
 from electron_swarm.references import load_reference_cases
-from electron_swarm.references.common import reference_comparison_metrics
+from electron_swarm.references.common import (
+    ExternalReferenceConfig,
+    reference_comparison_metrics,
+)
+from tools.benchmark_ar_external_references import load_benchmark_config
+from tools.benchmark_common import variant_config, write_csv
 
 
 DIRECT_LMAX1_THRESHOLDS = {
@@ -69,40 +72,6 @@ REFERENCE_METRIC_FIELDS = [
 ]
 
 
-def _write_csv(
-    path: Path,
-    rows: list[dict[str, object]],
-    *,
-    fields: list[str] | None = None,
-) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if fields is None:
-        fields = list(rows[0]) if rows else ["status"]
-    with path.open("w", encoding="utf-8", newline="") as fp:
-        writer = csv.DictWriter(fp, fieldnames=fields)
-        writer.writeheader()
-        writer.writerows(rows)
-
-
-def _variant_config(
-    cfg: SwarmConfig,
-    solver: str,
-    *,
-    method: str | None = None,
-    lmax: int | None = None,
-) -> SwarmConfig:
-    variant = copy.deepcopy(cfg)
-    variant.run.solvers = [RequestedSolverConfig(id=solver)]  # type: ignore[arg-type]
-    if solver == "multi_term":
-        assert method is not None
-        variant.solvers.multi_term.method = method  # type: ignore[assignment]
-        variant.internal.multi_term.product_method = method  # type: ignore[assignment]
-        if lmax is not None:
-            variant.solvers.multi_term.lmax = int(lmax)
-            variant.internal.multi_term.lmax = int(lmax)
-    return variant
-
-
 def _run_single(cfg: SwarmConfig):
     result = run(cfg, write=False)
     return result.cases[0] if result.cases else None
@@ -110,14 +79,15 @@ def _run_single(cfg: SwarmConfig):
 
 def _reference_rows(
     cfg: SwarmConfig,
+    reference_configs: list[ExternalReferenceConfig],
     solver_cases,
 ) -> tuple[list[dict[str, object]], list[dict[str, object]], list[dict[str, object]]]:
     summary_rows: list[dict[str, object]] = []
     metric_rows: list[dict[str, object]] = []
     failure_rows: list[dict[str, object]] = []
-    if not cfg.references.external:
+    if not reference_configs:
         return summary_rows, metric_rows, failure_rows
-    for ref_config in cfg.references.external:
+    for ref_config in reference_configs:
         try:
             reference_cases = load_reference_cases(ref_config)
         except FileNotFoundError as exc:
@@ -212,9 +182,9 @@ def _reference_rows(
 
 
 def run_benchmark(config_path: Path) -> tuple[Path, ...]:
-    cfg = load_config(config_path)
+    cfg, reference_configs = load_benchmark_config(config_path)
     references = [
-        _run_single(_variant_config(cfg, "two_term"))
+        _run_single(variant_config(cfg, "two_term"))
         for _ in cfg.run.e_over_n_Td[:1]
     ]
     reference = references[0]
@@ -235,7 +205,7 @@ def run_benchmark(config_path: Path) -> tuple[Path, ...]:
     previous_direct_case = None
     for solver, method, lmax in candidates:
         try:
-            case = _run_single(_variant_config(cfg, solver, method=method, lmax=lmax))
+            case = _run_single(variant_config(cfg, solver, method=method, lmax=lmax))
         except NotImplementedError as exc:
             category = (
                 "higher_l_field_coupling_error"
@@ -281,9 +251,6 @@ def run_benchmark(config_path: Path) -> tuple[Path, ...]:
                 "eedf_relative_l1_vs_previous_lmax": previous_lmax_l1,
                 "pn_residual": case.metadata.get("pn_residual", ""),
                 "negative_mass_fraction": case.metadata.get("negative_mass_fraction", ""),
-                "lmax_convergence_status": case.metadata.get(
-                    "lmax_convergence_status", ""
-                ),
                 **comparison.metrics,
             }
         )
@@ -301,10 +268,11 @@ def run_benchmark(config_path: Path) -> tuple[Path, ...]:
     ref_report_path = out_dir / "ar_reference_report.md"
     ref_summary_rows, ref_metric_rows, ref_failure_rows = _reference_rows(
         cfg,
+        reference_configs,
         solver_cases,
     )
-    _write_csv(metrics_path, metric_rows)
-    _write_csv(
+    write_csv(metrics_path, metric_rows)
+    write_csv(
         failures_path,
         failure_rows,
         fields=[
@@ -317,9 +285,9 @@ def run_benchmark(config_path: Path) -> tuple[Path, ...]:
             "severity",
         ],
     )
-    _write_csv(ref_summary_path, ref_summary_rows, fields=REFERENCE_SUMMARY_FIELDS)
-    _write_csv(ref_metrics_path, ref_metric_rows, fields=REFERENCE_METRIC_FIELDS)
-    _write_csv(
+    write_csv(ref_summary_path, ref_summary_rows, REFERENCE_SUMMARY_FIELDS)
+    write_csv(ref_metrics_path, ref_metric_rows, REFERENCE_METRIC_FIELDS)
+    write_csv(
         ref_failures_path,
         ref_failure_rows,
         fields=[
@@ -372,7 +340,7 @@ def run_benchmark(config_path: Path) -> tuple[Path, ...]:
             [
                 "# Ar External Reference Comparison",
                 "",
-                f"Configured external references: {len(cfg.references.external)}",
+                f"Configured external references: {len(reference_configs)}",
                 f"Reference comparison rows: {len(ref_summary_rows)}",
                 f"Reference metric rows: {len(ref_metric_rows)}",
                 f"Reference failure rows: {len(ref_failure_rows)}",

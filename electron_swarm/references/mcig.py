@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from electron_swarm.core.config import ExternalReferenceConfig
-
 from .common import (
+    ExternalReferenceConfig,
     ReferenceCaseResult,
     load_canonical_reference_csv,
     reference_cases_from_frame,

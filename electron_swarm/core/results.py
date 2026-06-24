@@ -9,45 +9,6 @@ import numpy as np
 
 from electron_swarm.core.transport import TransportSet
 
-SUMMARY_METADATA_KEYS = (
-    "physics_level",
-    "solver_method",
-    "angular_model",
-    "angular_moment_source",
-    "moment_table_provenance",
-    "exact_dcs_based",
-    "ordinary_integral_xs_closure",
-    "direct_pn_operator",
-    "lmax",
-    "ionization_source_model",
-    "ionization_source_treatment",
-    "ionization_branching_model",
-    "secondary_electron_tracking",
-    "electron_electron_treatment",
-    "electron_electron_transport_stale",
-    "transport_definition",
-    "magnetic_field_treatment",
-    "magnetic_field_B_T",
-    "magnetic_field_angle_EB_deg",
-    "field_integrator",
-    "tail_probability",
-    "tail_rate_fraction_max",
-    "dominant_tail_process",
-    "energy_grid_tail_status",
-    "mc_population_model",
-    "mc_warmup_collisions",
-    "mc_production_collisions",
-    "mc_energy_balance_status",
-    "mc_tracked_energy_balance_residual_fraction",
-    "mc_physical_branching_gap_eV",
-    "mc_tail_uncertainty_status",
-    "mc_min_tail_bin_count",
-    "mc_tail_effective_sample_count_min",
-    "mc_tail_weak_probability_fraction",
-    "mc_max_resolved_energy_eV",
-    "mc_tail_comparison_status",
-)
-
 
 @dataclass(slots=True)
 class RateResult:
@@ -92,30 +53,9 @@ class SwarmCaseResult:
     eedf_effective_counts: np.ndarray | None = field(default=None, repr=False)
     rates: list[RateResult] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+    diagnostics: dict[str, Any] = field(default_factory=dict)
     transport: TransportSet | None = None
-    schema_version: str = "1.2"
-
-    def summary_dict(self) -> dict[str, Any]:
-        return {
-            "solver": self.solver,
-            "schema_version": self.schema_version,
-            "case_id": self.case_id,
-            "E_over_N_Td": self.e_over_n_Td,
-            "mean_energy_eV": self.mean_energy_eV,
-            "drift_velocity_m_s": self.drift_velocity_m_s,
-            "mobility_m2_V_s": self.mobility_m2_V_s,
-            "reduced_mobility_m2_V_s_m3": self.reduced_mobility_m2_V_s_m3,
-            "diffusion_L_m2_s": self.diffusion_L_m2_s,
-            "diffusion_T_m2_s": self.diffusion_T_m2_s,
-            "reduced_diffusion_L_m2_s_m3": self.reduced_diffusion_L_m2_s_m3,
-            "reduced_diffusion_T_m2_s_m3": self.reduced_diffusion_T_m2_s_m3,
-            "net_ionization_frequency_s": self.net_ionization_frequency_s,
-            "effective_townsend_m2": self.effective_townsend_m2,
-            **{
-                f"meta_{key}": self.metadata.get(key, "")
-                for key in SUMMARY_METADATA_KEYS
-            },
-        }
+    schema_version: str = "2"
 
 
 @dataclass(slots=True)

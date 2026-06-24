@@ -3,23 +3,25 @@
 from __future__ import annotations
 
 import argparse
-import copy
-import csv
 from pathlib import Path
 
-from electron_swarm import load_config, run
+import yaml
+
+from electron_swarm import run
 from electron_swarm.core.config import (
-    ExternalReferenceConfig,
-    RequestedSolverConfig,
     SwarmConfig,
+    _load_config_from_raw,
 )
 from electron_swarm.diagnostics.eedf_compare import compare_eedf_cases
 from electron_swarm.references import load_reference_cases
 from electron_swarm.references.common import (
+    ExternalReferenceConfig,
     ReferenceCaseResult,
+    parse_external_reference_configs,
     reference_comparison_metrics,
 )
 from electron_swarm.references.runner import run_external_reference_command
+from tools.benchmark_common import variant_config, write_csv
 
 
 BOLSIG_THRESHOLDS = {
@@ -50,10 +52,7 @@ SUMMARY_FIELDS = [
     "E_over_N_Td",
     "status",
     "confidence_status",
-    "same_angular_model",
-    "angular_model_reference",
-    "angular_model_candidate",
-    "angular_model_mismatch_reason",
+    "angular_model_status",
     "mean_energy_relative_difference",
     "drift_velocity_relative_difference",
     "mobility_relative_difference",
@@ -92,33 +91,21 @@ FAILURE_FIELDS = [
 ]
 
 
-def _write_csv(path: Path, rows: list[dict[str, object]], fields: list[str]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8", newline="") as fp:
-        writer = csv.DictWriter(fp, fieldnames=fields, extrasaction="ignore")
-        writer.writeheader()
-        writer.writerows(rows)
+def load_benchmark_config(
+    config_path: Path,
+) -> tuple[SwarmConfig, list[ExternalReferenceConfig]]:
+    """Load product config plus benchmark-only external references."""
 
-
-def _variant_config(
-    cfg: SwarmConfig,
-    solver: str,
-    *,
-    method: str | None = None,
-    lmax: int | None = None,
-    e_over_n_Td: float | None = None,
-) -> SwarmConfig:
-    variant = copy.deepcopy(cfg)
-    variant.run.solvers = [RequestedSolverConfig(id=solver)]  # type: ignore[arg-type]
-    if e_over_n_Td is not None:
-        variant.run.e_over_n_Td = [float(e_over_n_Td)]
-    if solver == "multi_term":
-        variant.solvers.multi_term.method = method or "pn_closure_direct"  # type: ignore[assignment]
-        variant.internal.multi_term.product_method = variant.solvers.multi_term.method
-        if lmax is not None:
-            variant.solvers.multi_term.lmax = int(lmax)
-            variant.internal.multi_term.lmax = int(lmax)
-    return variant
+    raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    if not isinstance(raw, dict):
+        raise ValueError("benchmark config root must be a mapping")
+    reference_configs = parse_external_reference_configs(
+        raw,
+        base=config_path.resolve().parent,
+    )
+    product_raw = dict(raw)
+    product_raw.pop("references", None)
+    return _load_config_from_raw(product_raw, config_path), reference_configs
 
 
 def _run_one(
@@ -130,7 +117,7 @@ def _run_one(
     e_over_n_Td: float | None = None,
 ):
     result = run(
-        _variant_config(
+        variant_config(
             cfg,
             solver,
             method=method,
@@ -155,6 +142,7 @@ def _reference_key(name: str) -> str:
 def _matching_references(
     cfg: SwarmConfig,
     *,
+    reference_configs: list[ExternalReferenceConfig] | None = None,
     reference: str,
     bolsig_output: Path | None,
     mcig_output: Path | None,
@@ -165,7 +153,7 @@ def _matching_references(
     desired = _reference_key(reference)
     configs = [
         ref
-        for ref in cfg.references.external
+        for ref in (reference_configs or [])
         if desired == "all" or ref.id == desired or (desired == "mcig" and ref.id == "bolsig_plus")
     ]
     if bolsig_output is not None:
@@ -201,7 +189,7 @@ def _matching_references(
                 "",
                 "reference:bolsig_plus",
                 "benchmark reference config",
-                "provide --bolsig-output or references.external entry",
+                "provide --bolsig-output or benchmark reference config entry",
                 "high" if require_bolsig else "medium",
             )
         )
@@ -215,7 +203,7 @@ def _matching_references(
                 "",
                 "reference:mcig",
                 "benchmark reference config",
-                "provide --mcig-output or references.external entry",
+                "provide --mcig-output or benchmark reference config entry",
                 "high" if require_mcig else "medium",
             )
         )
@@ -276,6 +264,7 @@ def _matching_references(
 def load_selected_references(
     cfg: SwarmConfig,
     *,
+    reference_configs: list[ExternalReferenceConfig] | None = None,
     bolsig_output: Path | None = None,
     mcig_output: Path | None = None,
     require_bolsig: bool = False,
@@ -284,6 +273,7 @@ def load_selected_references(
 ) -> tuple[list[ReferenceCaseResult], list[dict[str, object]]]:
     return _matching_references(
         cfg,
+        reference_configs=reference_configs,
         reference="all",
         bolsig_output=bolsig_output,
         mcig_output=mcig_output,
@@ -293,8 +283,11 @@ def load_selected_references(
     )
 
 
-def _configured_reference_path(cfg: SwarmConfig, reference_id: str) -> Path | None:
-    for ref in cfg.references.external:
+def _configured_reference_path(
+    reference_configs: list[ExternalReferenceConfig],
+    reference_id: str,
+) -> Path | None:
+    for ref in reference_configs:
         if ref.id == reference_id:
             return ref.path
     return None
@@ -303,6 +296,7 @@ def _configured_reference_path(cfg: SwarmConfig, reference_id: str) -> Path | No
 def run_requested_external_reference_commands(
     cfg: SwarmConfig,
     *,
+    reference_configs: list[ExternalReferenceConfig] | None = None,
     config_path: Path,
     bolsig_command: str | None = None,
     mcig_command: str | None = None,
@@ -313,12 +307,13 @@ def run_requested_external_reference_commands(
     working_directory: Path | None = None,
     timeout_s: float | None = None,
 ) -> None:
+    configs = reference_configs or []
     if bolsig_command is not None:
-        output = bolsig_output or _configured_reference_path(cfg, "bolsig_plus")
+        output = bolsig_output or _configured_reference_path(configs, "bolsig_plus")
         if output is None:
             raise ValueError(
                 "--run-bolsig requires --bolsig-output or a bolsig_plus "
-                "references.external path"
+                "benchmark reference path"
             )
         run_external_reference_command(
             reference_id="bolsig_plus",
@@ -330,10 +325,10 @@ def run_requested_external_reference_commands(
             timeout_s=timeout_s,
         )
     if mcig_command is not None:
-        output = mcig_output or _configured_reference_path(cfg, "mcig")
+        output = mcig_output or _configured_reference_path(configs, "mcig")
         if output is None:
             raise ValueError(
-                "--run-mcig requires --mcig-output or an mcig references.external path"
+                "--run-mcig requires --mcig-output or an mcig benchmark reference path"
             )
         run_external_reference_command(
             reference_id="mcig",
@@ -411,14 +406,15 @@ def _rate_metric(metrics: dict[str, float], rate_name: str) -> float | str:
     return value if rate_name else value
 
 
-def _angular_status(reference_case: ReferenceCaseResult, candidate) -> tuple[str, object, object, str]:
+def _angular_status(reference_case: ReferenceCaseResult, candidate) -> tuple[str, str]:
     ref_model = reference_case.metadata.get("angular_model", "unknown")
     cand_model = candidate.metadata.get("angular_model", "unknown")
+    evidence = f"reference={ref_model}; candidate={cand_model}"
     if ref_model in {"", None, "unknown"} or cand_model in {"", None, "unknown"}:
-        return "unknown", ref_model, cand_model, "angular_model_unknown"
+        return "unknown", evidence
     if ref_model == cand_model:
-        return "true", ref_model, cand_model, ""
-    return "false", ref_model, cand_model, f"{ref_model}!={cand_model}"
+        return "match", ""
+    return "mismatch", evidence
 
 
 def _mc_confidence_status(
@@ -526,7 +522,8 @@ def _classify_mcig_mismatch(
     candidate_method: object,
     reference_case: ReferenceCaseResult,
     eover: float,
-    same_angular_model: str,
+    angular_model_status: str,
+    angular_evidence: str,
     confidence_status: str,
 ) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
@@ -543,11 +540,11 @@ def _classify_mcig_mismatch(
             )
         )
         return rows
-    if same_angular_model != "true":
+    if angular_model_status != "match":
         rows.append(
             _failure(
                 "angular_model_mismatch",
-                f"same_angular_model={same_angular_model}",
+                angular_evidence or f"angular_model_status={angular_model_status}",
                 eover,
                 f"mcig->{candidate_solver}",
                 "angular scattering metadata",
@@ -706,7 +703,7 @@ def run_benchmark(
     fail_on_mismatch: bool = False,
     plot: bool = False,
 ) -> tuple[Path, ...]:
-    cfg = load_config(config_path)
+    cfg, reference_configs = load_benchmark_config(config_path)
     out_dir = cfg.output.directory
     base_name = cfg.output.base_name
     summary_path = out_dir / f"{base_name}_summary.csv"
@@ -717,6 +714,7 @@ def run_benchmark(
     failure_rows: list[dict[str, object]] = []
     run_requested_external_reference_commands(
         cfg,
+        reference_configs=reference_configs,
         config_path=config_path,
         bolsig_command=bolsig_command,
         mcig_command=mcig_command,
@@ -729,6 +727,7 @@ def run_benchmark(
     )
     reference_cases, reference_failures = _matching_references(
         cfg,
+        reference_configs=reference_configs,
         reference=reference,
         bolsig_output=bolsig_output,
         mcig_output=mcig_output,
@@ -752,7 +751,7 @@ def run_benchmark(
             if abs(case.e_over_n_Td - reference_case.e_over_n_Td) < 1.0e-9
         ]:
             metrics = reference_comparison_metrics(reference_case, candidate)
-            same_angular_model, ref_angular, cand_angular, angular_reason = _angular_status(
+            angular_model_status, angular_evidence = _angular_status(
                 reference_case,
                 candidate,
             )
@@ -768,7 +767,7 @@ def run_benchmark(
                     status = "FAIL"
             if reference_case.reference_id == "mcig" and confidence_status == "pass_within_mc_uncertainty":
                 status = "PASS_WITHIN_MC_UNCERTAINTY"
-            if reference_case.reference_id == "mcig" and same_angular_model != "true":
+            if reference_case.reference_id == "mcig" and angular_model_status != "match":
                 status = "DEGRADED"
             common = {
                 "reference_id": reference_case.reference_id,
@@ -779,10 +778,7 @@ def run_benchmark(
                 "E_over_N_Td": candidate.e_over_n_Td,
                 "status": status,
                 "confidence_status": confidence_status,
-                "same_angular_model": same_angular_model,
-                "angular_model_reference": ref_angular,
-                "angular_model_candidate": cand_angular,
-                "angular_model_mismatch_reason": angular_reason,
+                "angular_model_status": angular_model_status,
                 "mc_confidence_interval_coverage": confidence_coverage,
             }
             summary_rows.append(
@@ -809,7 +805,8 @@ def run_benchmark(
                         candidate_method=candidate.metadata.get("solver_method", ""),
                         reference_case=reference_case,
                         eover=candidate.e_over_n_Td,
-                        same_angular_model=same_angular_model,
+                        angular_model_status=angular_model_status,
+                        angular_evidence=angular_evidence,
                         confidence_status=confidence_status,
                     )
                 )
@@ -833,7 +830,7 @@ def run_benchmark(
 
                 bolsig_as_case = reference_to_swarm_case(bolsig_case)
                 metrics = reference_comparison_metrics(mcig_case, bolsig_as_case)
-                same_angular_model, ref_angular, cand_angular, angular_reason = _angular_status(
+                angular_model_status, _angular_evidence = _angular_status(
                     mcig_case,
                     bolsig_as_case,
                 )
@@ -844,12 +841,9 @@ def run_benchmark(
                     "candidate_method": "bolsig_plus",
                     "candidate_lmax": "",
                     "E_over_N_Td": mcig_case.e_over_n_Td,
-                    "status": "DEGRADED" if same_angular_model != "true" else "PASS",
+                    "status": "DEGRADED" if angular_model_status != "match" else "PASS",
                     "confidence_status": "unknown" if mcig_case.metadata.get("uncertainty_unavailable", False) else "reported",
-                    "same_angular_model": same_angular_model,
-                    "angular_model_reference": ref_angular,
-                    "angular_model_candidate": cand_angular,
-                    "angular_model_mismatch_reason": angular_reason,
+                    "angular_model_status": angular_model_status,
                     "mc_confidence_interval_coverage": "",
                 }
                 summary_rows.append(
@@ -898,9 +892,9 @@ def run_benchmark(
                     )
                 )
 
-    _write_csv(summary_path, summary_rows, SUMMARY_FIELDS)
-    _write_csv(metrics_path, metric_rows, METRIC_FIELDS)
-    _write_csv(failures_path, failure_rows, FAILURE_FIELDS)
+    write_csv(summary_path, summary_rows, SUMMARY_FIELDS)
+    write_csv(metrics_path, metric_rows, METRIC_FIELDS)
+    write_csv(failures_path, failure_rows, FAILURE_FIELDS)
     written_plot = _write_plot(out_dir, base_name, reference_cases, solver_cases) if plot else None
     status = "PASS"
     if [row for row in summary_rows if row.get("status") == "FAIL"]:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 import electron_swarm
@@ -76,8 +77,9 @@ def test_direct_lmax4_example_runs_in_limited_product_scope() -> None:
     assert case.solver == "multi_term"
     assert case.metadata["solver_method"] == "pn_closure_direct"
     assert case.metadata["lmax"] == 4
-    assert case.metadata["higher_l_collision_model"] == "angular_closure_damping"
-    assert case.metadata["higher_l_inelastic_model"] == "sink_only"
+    assert case.metadata["transport_definition"] == "f0_gradient_reconstruction"
+    assert "higher_l_collision_model" not in case.metadata
+    assert "higher_l_inelastic_model" not in case.metadata
     assert case.metadata["exact_dcs_based"] is False
 
 
@@ -110,13 +112,16 @@ def test_legacy_top_level_runtime_projects_are_removed() -> None:
         assert not (ROOT / name).exists()
 
 
-def test_case_summary_dict_uses_stable_metadata_allowlist() -> None:
-    result = run(load_config(ROOT / "examples" / "two_term.yaml"), write=False)
-    summary = result.cases[0].summary_dict()
-    assert summary["meta_solver_method"] == "native_sg"
-    assert "meta_grid_n_cells" not in summary
-    assert "meta_transport_definition" in summary
-    assert "meta_tail_probability" in summary
+def test_summary_csv_uses_stable_metadata_allowlist(tmp_path: Path) -> None:
+    cfg = load_config(ROOT / "examples" / "two_term.yaml")
+    cfg.output.directory = tmp_path
+    run(cfg, write=True)
+    summary = pd.read_csv(tmp_path / f"{cfg.output.base_name}_summary.csv")
+    row = summary.iloc[0]
+    assert row["solver_method"] == "native_sg"
+    assert "meta_grid_n_cells" not in summary.columns
+    assert "meta_transport_definition" in summary.columns
+    assert "meta_tail_rate_fraction_max" not in summary.columns
 
 
 def test_public_docs_do_not_advertise_obsolete_api() -> None:

@@ -7,11 +7,9 @@ from pathlib import Path
 import pandas as pd
 
 from electron_swarm.core.config import ComparisonConfig, OutputConfig
-from electron_swarm.core.results import (
-    SUMMARY_METADATA_KEYS,
-    SwarmCaseResult,
-    SwarmRunResult,
-)
+from electron_swarm.core.result_metadata import SUMMARY_METADATA_KEYS
+from electron_swarm.core.results import SwarmCaseResult, SwarmRunResult
+from electron_swarm.core.numerics import widths_from_centers
 
 
 SUMMARY_COLUMNS = [
@@ -50,6 +48,7 @@ EEDF_COLUMNS = [
     "case_id",
     "E_over_N_Td",
     "energy_eV",
+    "energy_width_eV",
     "eedf",
     "eepf",
     "sample_count",
@@ -69,16 +68,9 @@ SOLVER_PLAN_COLUMNS = [
     "effective_ionization_source",
     "effective_electron_electron",
     "effective_magnetic_field",
+    "effective_rf_field",
     "effective_tail_refinement",
-    "effective_bulk_transport",
     "effective_finite_k",
-    "capability_electron_neutral",
-    "capability_angular_scattering",
-    "capability_ionization_source",
-    "capability_electron_electron",
-    "capability_magnetic_field",
-    "capability_tail_refinement",
-    "capability_bulk_transport",
 ]
 
 COMPARISON_SUMMARY_COLUMNS = [
@@ -86,18 +78,7 @@ COMPARISON_SUMMARY_COLUMNS = [
     "E_over_N_Td",
     "reference_solver",
     "candidate_solver",
-    "angular_model",
-    "same_angular_model",
-    "angular_model_warning",
-    "angular_model_mismatch_reason",
-    "angular_sampler_treatment",
     "angular_model_status",
-    "angular_model_reference",
-    "angular_model_candidate",
-    "reference_angular_model",
-    "candidate_angular_model",
-    "reference_angular_moment_source",
-    "candidate_angular_moment_source",
     "mean_energy_eV_relative_difference",
     "drift_velocity_relative_difference",
     "mobility_relative_difference",
@@ -107,22 +88,31 @@ COMPARISON_SUMMARY_COLUMNS = [
 ]
 
 
+def _summary_columns() -> list[str]:
+    return SUMMARY_COLUMNS + [
+        f"meta_{key}" for key in SUMMARY_METADATA_COLUMNS
+    ]
+
+
+def _canonical_frame(
+    rows: list[dict[str, object]],
+    columns: list[str],
+) -> pd.DataFrame:
+    return pd.DataFrame(rows).reindex(columns=columns)
+
+
 def _summary_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
-    rows = []
+    rows: list[dict[str, object]] = []
     for case in cases:
         row = {
             "solver": case.solver,
-            "schema_version": case.schema_version,
             "case_id": case.case_id,
             "E_over_N_Td": case.e_over_n_Td,
             "mean_energy_eV": case.mean_energy_eV,
             "drift_velocity_m_s": case.drift_velocity_m_s,
             "mobility_m2_V_s": case.mobility_m2_V_s,
-            "reduced_mobility_m2_V_s_m3": case.reduced_mobility_m2_V_s_m3,
             "diffusion_L_m2_s": case.diffusion_L_m2_s,
             "diffusion_T_m2_s": case.diffusion_T_m2_s,
-            "reduced_diffusion_L_m2_s_m3": case.reduced_diffusion_L_m2_s_m3,
-            "reduced_diffusion_T_m2_s_m3": case.reduced_diffusion_T_m2_s_m3,
             "net_ionization_frequency_s": case.net_ionization_frequency_s,
             "effective_townsend_m2": case.effective_townsend_m2,
         }
@@ -130,14 +120,7 @@ def _summary_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
         for key in SUMMARY_METADATA_COLUMNS:
             row[f"meta_{key}"] = case.metadata.get(key, "")
         rows.append(row)
-    frame = pd.DataFrame(rows)
-    if frame.empty:
-        return pd.DataFrame(columns=SUMMARY_COLUMNS)
-    ordered = [col for col in SUMMARY_COLUMNS if col in frame.columns]
-    ordered.extend(
-        f"meta_{col}" for col in SUMMARY_METADATA_COLUMNS if f"meta_{col}" in frame.columns
-    )
-    return frame[ordered]
+    return _canonical_frame(rows, _summary_columns())
 
 
 def _eedf_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
@@ -145,9 +128,19 @@ def _eedf_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
     for case in cases:
         counts = case.eedf_counts
         effective_counts = case.eedf_effective_counts
+        widths = case.energy_widths_eV
+        if widths is None or len(widths) != len(case.energy_eV):
+            widths = widths_from_centers(case.energy_eV)
         for index, (energy, eedf, eepf) in enumerate(zip(
             case.energy_eV, case.eedf, case.eepf, strict=False
         )):
+            width = (
+                float(widths[index])
+                if widths is not None
+                and index < len(widths)
+                and pd.notna(widths[index])
+                else None
+            )
             count = (
                 int(counts[index])
                 if counts is not None and index < len(counts)
@@ -169,6 +162,7 @@ def _eedf_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
                     "case_id": case.case_id,
                     "E_over_N_Td": case.e_over_n_Td,
                     "energy_eV": energy,
+                    "energy_width_eV": width,
                     "eedf": eedf,
                     "eepf": eepf,
                     "sample_count": count,
@@ -204,11 +198,7 @@ def _rates_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
 
 def _solver_plan_frame(result: SwarmRunResult) -> pd.DataFrame:
     rows = result.metadata.get("solver_plan", [])
-    frame = pd.DataFrame(rows)
-    if frame.empty:
-        return pd.DataFrame(columns=SOLVER_PLAN_COLUMNS)
-    ordered = [col for col in SOLVER_PLAN_COLUMNS if col in frame.columns]
-    return frame[ordered]
+    return _canonical_frame(rows, SOLVER_PLAN_COLUMNS)
 
 
 def _write_csv(frame: pd.DataFrame, path: Path, float_format: str) -> None:

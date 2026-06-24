@@ -12,6 +12,7 @@ from electron_swarm.core.capabilities import (
     get_solver_capabilities,
 )
 from electron_swarm.core.config import CANONICAL_SOLVER_IDS
+from electron_swarm.core.solver_configs import build_internal_solver_configs
 from electron_swarm.orchestration.plan import build_solve_plan
 import electron_swarm.orchestration.plan as plan_module
 
@@ -20,7 +21,6 @@ from product_helpers import ROOT, base_product_config, write_config, write_momen
 
 def test_schema_v2_valid_config_and_canonical_solver_ids(tmp_path: Path) -> None:
     data = base_product_config(tmp_path, ["two_term", "multi_term", "monte_carlo"])
-    data["feature_policy"]["allow_unsupported_fallback"] = True
     cfg = load_config(write_config(tmp_path, data))
     assert cfg.schema_version == 2
     assert [item.id for item in cfg.run.solvers] == [
@@ -31,46 +31,66 @@ def test_schema_v2_valid_config_and_canonical_solver_ids(tmp_path: Path) -> None
     assert not hasattr(cfg, "boltzmann_two_term")
     assert not hasattr(cfg, "multiterm_boltzmann")
     assert not hasattr(cfg, "monte_carlo")
-    assert cfg.internal.two_term.backend
-    assert cfg.internal.multi_term.product_method == "pn_closure_direct"
-    assert cfg.solvers.monte_carlo.angular_scattering == "external"
-    assert cfg.feature_policy.allow_unsupported_fallback is True
+    assert not hasattr(cfg, "internal")
+    internal = build_internal_solver_configs(cfg.solvers, cfg.physics)
+    assert internal.two_term.backend
+    assert internal.multi_term.product_method == "pn_closure_direct"
+    assert cfg.solvers.monte_carlo.population_model == "fixed_particle_single_daughter"
+    assert cfg.feature_policy.degraded == "record"
+    assert not hasattr(cfg.feature_policy, "allow_unsupported_fallback")
+    assert not hasattr(cfg, "references")
 
 
-def test_monte_carlo_angular_scattering_schema(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "removed_field",
+    [
+        "backend",
+        "angular_scattering",
+        "command",
+        "python_api",
+        "working_directory",
+        "environment",
+        "timeout_s",
+        "output_summary_csv",
+        "output_eedf_csv",
+        "passthrough",
+    ],
+)
+def test_monte_carlo_removed_product_fields_are_migration_errors(
+    tmp_path: Path,
+    removed_field: str,
+) -> None:
     data = base_product_config(tmp_path, ["monte_carlo"])
-    data["solvers"]["monte_carlo"] = {}
-    data["solvers"]["monte_carlo"]["angular_scattering"] = "same_as_physics"
-    cfg = load_config(write_config(tmp_path, data))
-    assert cfg.solvers.monte_carlo.angular_scattering == "same_as_physics"
-    assert cfg.internal.monte_carlo.angular_scattering == "same_as_physics"
-
-    data["solvers"]["monte_carlo"]["angular_scattering"] = "isotropic"
-    with pytest.raises(ValueError, match="solvers.monte_carlo.angular_scattering"):
+    data["solvers"]["monte_carlo"] = {removed_field: "x"}
+    with pytest.raises(ValueError, match="internal product backend only"):
         load_config(write_config(tmp_path, data))
 
 
-def test_monte_carlo_internal_backend_schema(tmp_path: Path) -> None:
+def test_monte_carlo_internal_schema(tmp_path: Path) -> None:
     data = base_product_config(tmp_path, ["monte_carlo"])
     data["solvers"]["monte_carlo"] = {
-        "backend": "internal",
-        "angular_scattering": "same_as_physics",
         "particles": 8,
         "warmup_collisions": 2,
         "max_collisions": 4,
         "seed": 123,
     }
     cfg = load_config(write_config(tmp_path, data))
-    assert cfg.solvers.monte_carlo.backend == "internal"
-    assert cfg.internal.monte_carlo.backend == "internal"
+    internal = build_internal_solver_configs(cfg.solvers, cfg.physics)
     assert cfg.solvers.monte_carlo.seed == 123
     assert cfg.solvers.monte_carlo.warmup_collisions == 2
-    assert cfg.internal.monte_carlo.warmup_collisions == 2
+    assert internal.monte_carlo.warmup_collisions == 2
     assert cfg.solvers.monte_carlo.population_model == "fixed_particle_single_daughter"
 
     data["solvers"]["monte_carlo"] = {
-        "backend": "internal",
-        "angular_scattering": "same_as_physics",
+        "population_model": "weighted_branching",
+        "particles": 8,
+    }
+    cfg = load_config(write_config(tmp_path, data))
+    assert cfg.solvers.monte_carlo.population_model == "weighted_branching"
+    internal = build_internal_solver_configs(cfg.solvers, cfg.physics)
+    assert internal.monte_carlo.population_model == "weighted_branching"
+
+    data["solvers"]["monte_carlo"] = {
         "population_model": "branching_weighted",
         "particles": 8,
     }
@@ -78,16 +98,12 @@ def test_monte_carlo_internal_backend_schema(tmp_path: Path) -> None:
         load_config(write_config(tmp_path, data))
 
     data["solvers"]["monte_carlo"] = {
-        "backend": "internal",
-        "angular_scattering": "same_as_physics",
         "population_control": "systematic_resampling",
     }
     with pytest.raises(ValueError, match="Unsupported solvers.monte_carlo fields"):
         load_config(write_config(tmp_path, data))
 
     data["solvers"]["monte_carlo"] = {
-        "backend": "internal",
-        "angular_scattering": "same_as_physics",
         "target_particles": 10,
         "max_particles": 20,
     }
@@ -95,29 +111,15 @@ def test_monte_carlo_internal_backend_schema(tmp_path: Path) -> None:
         load_config(write_config(tmp_path, data))
 
     data["solvers"]["monte_carlo"] = {
-        "backend": "internal",
-        "angular_scattering": "same_as_physics",
-    }
-    data["solvers"]["monte_carlo"]["command"] = "echo nope"
-    with pytest.raises(ValueError, match="backend=internal"):
-        load_config(write_config(tmp_path, data))
-
-    data["solvers"]["monte_carlo"] = {
-        "backend": "internal",
-        "angular_scattering": "same_as_physics",
         "warmup_collisions": -1,
     }
     with pytest.raises(ValueError, match="warmup_collisions"):
         load_config(write_config(tmp_path, data))
 
-    data["solvers"]["monte_carlo"] = {"backend": "internal"}
-    with pytest.raises(ValueError, match="same_as_physics"):
-        load_config(write_config(tmp_path, data))
-
 
 def test_monte_carlo_same_as_physics_sampler_policy(tmp_path: Path) -> None:
     data = base_product_config(tmp_path, ["monte_carlo"])
-    data["solvers"]["monte_carlo"] = {"angular_scattering": "same_as_physics"}
+    data["solvers"]["monte_carlo"] = {}
     cfg = load_config(write_config(tmp_path, data))
     [item] = build_solve_plan(cfg)
     assert item.runnable
@@ -125,6 +127,9 @@ def test_monte_carlo_same_as_physics_sampler_policy(tmp_path: Path) -> None:
         item.effective_physics["angular_scattering"]
         == "same_as_physics:isotropic:sampler_supported"
     )
+    treatment = item.feature_treatments["angular_scattering"]
+    assert treatment.requested is True
+    assert treatment.treatment == item.effective_physics["angular_scattering"]
 
     data["physics"]["angular_scattering"] = {
         "model": "momentum_power",
@@ -138,27 +143,24 @@ def test_monte_carlo_same_as_physics_sampler_policy(tmp_path: Path) -> None:
     [item] = build_solve_plan(cfg)
     assert item.skipped
     assert item.effective_physics["angular_scattering"].endswith("unsupported_sampler")
+    assert item.feature_treatments["angular_scattering"].reason is not None
 
     data["feature_policy"]["unsupported"] = "approximate"
-    with pytest.raises(ValueError, match="cannot be silently approximated"):
-        build_solve_plan(load_config(write_config(tmp_path, data)))
+    with pytest.raises(ValueError, match="feature_policy.unsupported"):
+        load_config(write_config(tmp_path, data))
 
     data["feature_policy"]["allow_unsupported_fallback"] = True
-    cfg = load_config(write_config(tmp_path, data))
-    [item] = build_solve_plan(cfg)
-    assert item.runnable
-    assert item.degraded
-    assert item.effective_physics["angular_scattering"].endswith(
-        "external_metadata_validation_fallback"
-    )
+    with pytest.raises(ValueError, match="allow_unsupported_fallback"):
+        load_config(write_config(tmp_path, data))
 
-    data["solvers"]["monte_carlo"]["backend"] = "internal"
-    with pytest.raises(ValueError, match="internal monte_carlo"):
+    data["feature_policy"].pop("allow_unsupported_fallback")
+    data["feature_policy"]["unsupported"] = "fail"
+    with pytest.raises(ValueError, match="no product MC sampler"):
         build_solve_plan(load_config(write_config(tmp_path, data)))
 
     table = write_moment_table(tmp_path)
     data = base_product_config(tmp_path, ["monte_carlo"])
-    data["solvers"]["monte_carlo"] = {"angular_scattering": "same_as_physics"}
+    data["solvers"]["monte_carlo"] = {}
     data["physics"]["angular_scattering"] = {
         "model": "moment_table",
         "moment_table": {
@@ -277,6 +279,47 @@ def test_schema_v2_rejects_non_boolean_and_nested_unknown_fields(tmp_path: Path)
     with pytest.raises(ValueError, match="Unsupported comparison fields"):
         load_config(write_config(tmp_path, data))
 
+    data = base_product_config(tmp_path)
+    data["run"]["solvers"] = ["two_term"]
+    with pytest.raises(ValueError, match="run.solvers entries must be mappings"):
+        load_config(write_config(tmp_path, data))
+
+    data = base_product_config(tmp_path)
+    data["run"]["solvers"][0]["label"] = "legacy label"
+    with pytest.raises(ValueError, match="Unsupported run.solvers\\[0\\] fields"):
+        load_config(write_config(tmp_path, data))
+
+    data = base_product_config(tmp_path)
+    data["run"]["E_over_N_Td"] = [50.0]
+    with pytest.raises(ValueError, match="Unsupported run fields"):
+        load_config(write_config(tmp_path, data))
+
+    data = base_product_config(tmp_path)
+    data["conditions"]["unused"] = True
+    with pytest.raises(ValueError, match="Unsupported conditions fields"):
+        load_config(write_config(tmp_path, data))
+
+    data = base_product_config(tmp_path)
+    data["cross_sections"]["unused"] = True
+    with pytest.raises(ValueError, match="Unsupported cross_sections fields"):
+        load_config(write_config(tmp_path, data))
+
+    data = base_product_config(tmp_path)
+    data["feature_policy"]["unsupported"] = "approximate"
+    with pytest.raises(ValueError, match="feature_policy.unsupported"):
+        load_config(write_config(tmp_path, data))
+
+    for degraded in ("warn", "record_only"):
+        data = base_product_config(tmp_path)
+        data["feature_policy"]["degraded"] = degraded
+        with pytest.raises(ValueError, match="feature_policy.degraded"):
+            load_config(write_config(tmp_path, data))
+
+    data = base_product_config(tmp_path)
+    data["unexpected"] = True
+    with pytest.raises(ValueError, match="Unsupported top-level fields"):
+        load_config(write_config(tmp_path, data))
+
 
 def test_schema_v2_rejects_old_public_fields(tmp_path: Path) -> None:
     data = base_product_config(tmp_path)
@@ -309,6 +352,11 @@ def test_schema_v2_rejects_old_public_fields(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="fixed canonical outputs"):
         load_config(write_config(tmp_path, data))
 
+    data = base_product_config(tmp_path)
+    data["references"] = {"external": []}
+    with pytest.raises(ValueError, match="references.external is benchmark-only"):
+        load_config(write_config(tmp_path, data))
+
 
 def test_multi_term_product_method_validation(tmp_path: Path) -> None:
     for old_method in ["moment_closure", "operator", "hybrid", "pn_closure_surrogate"]:
@@ -338,7 +386,8 @@ def test_multi_term_product_method_validation(tmp_path: Path) -> None:
     [case] = result.cases
     assert case.metadata["solver_method"] == "pn_closure_direct"
     assert case.metadata["lmax"] == 2
-    assert case.metadata["higher_l_inelastic_model"] == "sink_only"
+    assert case.metadata["transport_definition"] == "f0_gradient_reconstruction"
+    assert "higher_l_inelastic_model" not in case.metadata
 
     data = base_product_config(tmp_path, ["multi_term"])
     data["solvers"]["multi_term"]["method"] = "pn_dcs"
@@ -381,13 +430,11 @@ def test_direct_pn_roadmap_records_implementation_gate() -> None:
 def test_capability_matrix_is_canonical_and_minimal() -> None:
     expected = {
         "solver",
-        "electron_neutral",
         "angular_scattering",
         "ionization_source",
         "electron_electron",
         "magnetic_field",
         "tail_refinement",
-        "bulk_transport",
     }
     for solver in CANONICAL_SOLVER_IDS:
         caps = get_solver_capabilities(solver)
@@ -395,10 +442,6 @@ def test_capability_matrix_is_canonical_and_minimal() -> None:
         assert all(isinstance(value, SupportLevel) for value in asdict(caps).values() if value != solver)
     assert get_solver_capabilities("two_term").electron_electron == SupportLevel.APPROXIMATE
     assert get_solver_capabilities("multi_term").electron_electron == SupportLevel.APPROXIMATE
-    assert all(
-        get_solver_capabilities(solver).bulk_transport == SupportLevel.UNSUPPORTED
-        for solver in CANONICAL_SOLVER_IDS
-    )
 
 
 def test_solver_plan_and_unsupported_feature_policy(tmp_path: Path) -> None:
@@ -425,22 +468,12 @@ def test_solver_plan_and_unsupported_feature_policy(tmp_path: Path) -> None:
     assert all(row["skipped"] for row in result.metadata["solver_plan"])
 
     data["feature_policy"]["unsupported"] = "approximate"
-    with pytest.raises(ValueError, match="cannot be silently approximated"):
-        run(load_config(write_config(tmp_path, data)), write=False)
+    with pytest.raises(ValueError, match="feature_policy.unsupported"):
+        load_config(write_config(tmp_path, data))
 
     data["feature_policy"]["allow_unsupported_fallback"] = True
-    cfg = load_config(write_config(tmp_path, data))
-    fallback_plan = build_solve_plan(cfg)
-    assert all(item.runnable for item in fallback_plan)
-    assert all(item.degraded for item in fallback_plan)
-    assert {
-        item.effective_physics["magnetic_field"] for item in fallback_plan
-    } == {"ignored_fallback"}
-    result = run(cfg, write=False)
-    assert result.cases
-    assert {
-        case.metadata["magnetic_field_treatment"] for case in result.cases
-    } == {"ignored_fallback"}
+    with pytest.raises(ValueError, match="allow_unsupported_fallback"):
+        load_config(write_config(tmp_path, data))
 
 
 def test_magnetic_policy_skips_unsupported_pn_but_runs_internal_mc(
@@ -448,8 +481,6 @@ def test_magnetic_policy_skips_unsupported_pn_but_runs_internal_mc(
 ) -> None:
     data = base_product_config(tmp_path, ["two_term", "multi_term", "monte_carlo"])
     data["solvers"]["monte_carlo"] = {
-        "backend": "internal",
-        "angular_scattering": "same_as_physics",
         "particles": 8,
         "max_collisions": 4,
         "seed": 5,
@@ -467,7 +498,7 @@ def test_magnetic_policy_skips_unsupported_pn_but_runs_internal_mc(
     assert by_solver["multi_term"].skipped
     assert by_solver["monte_carlo"].runnable
     assert by_solver["monte_carlo"].degraded
-    assert by_solver["monte_carlo"].effective_physics["magnetic_field"] == "approximate"
+    assert by_solver["monte_carlo"].effective_physics["magnetic_field"] == "boris_lorentz_push"
 
 
 def test_magnetic_field_schema_validation(tmp_path: Path) -> None:
@@ -508,8 +539,8 @@ def test_finite_k_is_schema_validated_and_policy_handled(tmp_path: Path) -> None
     assert all(row["effective_finite_k"] == "unsupported" for row in result.metadata["solver_plan"])
 
     data["feature_policy"]["unsupported"] = "approximate"
-    with pytest.raises(ValueError, match="cannot be silently approximated"):
-        run(load_config(write_config(tmp_path, data)), write=False)
+    with pytest.raises(ValueError, match="feature_policy.unsupported"):
+        load_config(write_config(tmp_path, data))
 
 
 @pytest.mark.parametrize("k_m_inv", [None, 0.0, -1.0, ".inf", ".nan"])
@@ -541,13 +572,11 @@ def test_degraded_policy_applies_to_tail_refinement(
     def fake_capabilities(solver: str) -> SolverCapabilities:
         return SolverCapabilities(
             solver=solver,
-            electron_neutral=SupportLevel.EXACT,
             angular_scattering=SupportLevel.EXACT,
             ionization_source=SupportLevel.EXACT,
             electron_electron=SupportLevel.EXACT,
             magnetic_field=SupportLevel.EXACT,
             tail_refinement=SupportLevel.APPROXIMATE,
-            bulk_transport=SupportLevel.EXACT,
         )
 
     monkeypatch.setattr(plan_module, "get_solver_capabilities", fake_capabilities)
@@ -558,7 +587,6 @@ def test_degraded_policy_applies_to_tail_refinement(
 def test_electron_electron_unsupported_solver_policy(tmp_path: Path) -> None:
     data = base_product_config(tmp_path, ["monte_carlo"])
     data["solvers"]["monte_carlo"] = {}
-    data["solvers"]["monte_carlo"]["python_api"] = "product_helpers:fake_mc_missing"
     data["physics"]["electron_electron"] = {
         "enabled": True,
         "model": "relaxation_postprocess",
@@ -574,9 +602,7 @@ def test_electron_electron_unsupported_solver_policy(tmp_path: Path) -> None:
     assert item.effective_physics["electron_electron"] == "unsupported"
 
     data = base_product_config(tmp_path, ["monte_carlo"])
-    data["solvers"]["monte_carlo"] = {
-        "python_api": "product_helpers:fake_mc_missing",
-    }
+    data["solvers"]["monte_carlo"] = {}
     data["physics"]["electron_electron"] = {
         "enabled": True,
         "model": "fp_energy",

@@ -9,6 +9,10 @@ import numpy as np
 from electron_swarm.core.config import SwarmConfig
 from electron_swarm.core.cross_sections import CrossSectionSet
 from electron_swarm.core.results import RateResult
+from electron_swarm.core.solver_configs import (
+    MultiTermInternalConfig,
+    TwoTermInternalConfig,
+)
 from electron_swarm.core.transport import BulkTransport, TransportSet
 
 from .diagnostics import SolverDiagnostics
@@ -19,6 +23,8 @@ from .grid import EnergyGrid
 class MultiTermCase:
     config: SwarmConfig
     cross_sections: CrossSectionSet
+    multi_term_config: MultiTermInternalConfig
+    two_term_config: TwoTermInternalConfig
     grid: EnergyGrid
     e_over_n_Td: float
     gas_number_density_m3: float

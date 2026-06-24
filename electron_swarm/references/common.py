@@ -8,12 +8,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 import numpy as np
 import pandas as pd
+import yaml
 
-from electron_swarm.core.config import ExternalReferenceConfig
 from electron_swarm.core.results import RateResult, SwarmCaseResult
 from electron_swarm.diagnostics.eedf_compare import (
     cell_widths_from_centers,
@@ -39,6 +39,26 @@ UNCERTAINTY_COLUMNS = {
     "net_ionization_frequency_s": "net_ionization_frequency_s_ci95",
 }
 
+ReferenceId = Literal["bolsig_plus", "mcig"]
+ReferenceFormat = Literal[
+    "electron_swarm_reference_csv",
+    "bolsig_text",
+    "mcig_csv",
+]
+ReferenceEedfConvention = Literal["eedf", "eepf"]
+ReferenceUncertainty = Literal["unavailable", "reported"]
+ReferenceAngularModel = Literal["isotropic", "mcig_default", "unknown"]
+
+
+@dataclass(slots=True)
+class ExternalReferenceConfig:
+    id: ReferenceId
+    path: Path
+    format: ReferenceFormat = "electron_swarm_reference_csv"
+    eedf_convention: ReferenceEedfConvention = "eedf"
+    uncertainty: ReferenceUncertainty = "unavailable"
+    angular_model: ReferenceAngularModel = "unknown"
+
 
 @dataclass(slots=True)
 class ReferenceCaseResult:
@@ -50,6 +70,101 @@ class ReferenceCaseResult:
     rates: dict[str, float] = field(default_factory=dict)
     scalars: dict[str, float] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
+
+
+def _validate_literal(value: str, allowed: set[str], field_name: str) -> str:
+    if value not in allowed:
+        raise ValueError(f"{field_name} must be one of {sorted(allowed)}")
+    return value
+
+
+def parse_external_reference_configs(
+    raw: dict[str, Any],
+    *,
+    base: Path,
+) -> list[ExternalReferenceConfig]:
+    refs_raw = raw.get("references", {}) or {}
+    if not isinstance(refs_raw, dict):
+        raise ValueError("references must be a mapping")
+    external_raw = refs_raw.get("external", []) or []
+    if not isinstance(external_raw, list):
+        raise ValueError("references.external must be a list")
+    configs: list[ExternalReferenceConfig] = []
+    for index, item in enumerate(external_raw):
+        if not isinstance(item, dict):
+            raise ValueError(f"references.external[{index}] must be a mapping")
+        unknown = set(item) - {
+            "id",
+            "path",
+            "format",
+            "eedf_convention",
+            "uncertainty",
+            "angular_model",
+        }
+        if unknown:
+            raise ValueError(
+                f"Unsupported references.external[{index}] fields: {sorted(unknown)}"
+            )
+        if "id" not in item:
+            raise ValueError(f"references.external[{index}].id is required")
+        if "path" not in item:
+            raise ValueError(f"references.external[{index}].path is required")
+        path = Path(str(item["path"]))
+        if not path.is_absolute():
+            path = (base / path).resolve()
+        configs.append(
+            ExternalReferenceConfig(
+                id=cast(
+                    ReferenceId,
+                    _validate_literal(
+                        str(item["id"]),
+                        {"bolsig_plus", "mcig"},
+                        f"references.external[{index}].id",
+                    ),
+                ),
+                path=path,
+                format=cast(
+                    ReferenceFormat,
+                    _validate_literal(
+                        str(item.get("format", "electron_swarm_reference_csv")),
+                        {"electron_swarm_reference_csv", "bolsig_text", "mcig_csv"},
+                        f"references.external[{index}].format",
+                    ),
+                ),
+                eedf_convention=cast(
+                    ReferenceEedfConvention,
+                    _validate_literal(
+                        str(item.get("eedf_convention", "eedf")),
+                        {"eedf", "eepf"},
+                        f"references.external[{index}].eedf_convention",
+                    ),
+                ),
+                uncertainty=cast(
+                    ReferenceUncertainty,
+                    _validate_literal(
+                        str(item.get("uncertainty", "unavailable")),
+                        {"unavailable", "reported"},
+                        f"references.external[{index}].uncertainty",
+                    ),
+                ),
+                angular_model=cast(
+                    ReferenceAngularModel,
+                    _validate_literal(
+                        str(item.get("angular_model", "unknown")),
+                        {"isotropic", "mcig_default", "unknown"},
+                        f"references.external[{index}].angular_model",
+                    ),
+                ),
+            )
+        )
+    return configs
+
+
+def load_external_reference_configs(path: Path) -> list[ExternalReferenceConfig]:
+    data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+    if not isinstance(data, dict):
+        raise ValueError("reference config root must be a mapping")
+    return parse_external_reference_configs(data, base=Path(path).resolve().parent)
 
 
 def eepf_to_eedf(energy_eV: np.ndarray, eepf_eV_m32: np.ndarray) -> np.ndarray:

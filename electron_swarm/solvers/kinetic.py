@@ -7,7 +7,8 @@ from dataclasses import dataclass
 import numpy as np
 from scipy import sparse
 
-from electron_swarm.core.config import SwarmConfig, TwoTermInternalConfig
+from electron_swarm.core.config import SwarmConfig
+from electron_swarm.core.solver_configs import TwoTermInternalConfig
 from electron_swarm.core.constants import (
     AMU_KG,
     BOLTZMANN_J_K,
@@ -189,8 +190,9 @@ def build_effective_collision_data(
     cross_sections: CrossSectionSet,
     energy: np.ndarray,
     gas_number_density_m3: float,
+    solver_config: TwoTermInternalConfig,
 ) -> EffectiveCollisionData:
-    cfg = config.internal.two_term
+    cfg = solver_config
     speed = electron_speed_m_s(energy)
     sigma_m = np.zeros_like(energy)
     sigma_total_like = np.zeros_like(energy)
@@ -402,11 +404,12 @@ def assemble_collision_operator(
     energy: np.ndarray,
     widths: np.ndarray,
     gas_number_density_m3: float,
+    solver_config: TwoTermInternalConfig,
 ) -> sparse.csr_matrix:
     n = len(energy)
     mat = sparse.lil_matrix((n, n), dtype=float)
     speed = electron_speed_m_s(energy)
-    cfg = config.internal.two_term
+    cfg = solver_config
     for proc in cross_sections.processes:
         frac = mixture_fraction(config.conditions, proc.species)
         if frac <= 0.0:
@@ -459,6 +462,7 @@ def assemble_native_operator_blocks(
     cross_sections: CrossSectionSet,
     e_over_n_Td: float,
     grid: KineticGrid,
+    solver_config: TwoTermInternalConfig,
 ) -> KineticOperatorBlock:
     N = gas_number_density(config)
     electric_field = e_over_n_Td * TOWNSEND * N
@@ -467,6 +471,7 @@ def assemble_native_operator_blocks(
         cross_sections,
         grid.energy_eV,
         N,
+        solver_config,
     )
     energy_flux = assemble_energy_flux_operator(
         grid.energy_eV,
@@ -480,6 +485,7 @@ def assemble_native_operator_blocks(
         grid.energy_eV,
         grid.widths_eV,
         N,
+        solver_config,
     )
     return KineticOperatorBlock(
         grid=grid,
@@ -587,9 +593,10 @@ def transport_from_eedf(
     eedf: np.ndarray,
     gas_number_density_m3: float,
     e_over_n_Td: float,
+    solver_config: TwoTermInternalConfig,
 ) -> TransportCoefficients:
     coll = build_effective_collision_data(
-        config, cross_sections, energy, gas_number_density_m3
+        config, cross_sections, energy, gas_number_density_m3, solver_config
     )
     nuN = np.maximum(coll.nu_m_over_N, 1.0e-80)
     speed = electron_speed_m_s(energy)

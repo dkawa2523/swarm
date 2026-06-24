@@ -5,8 +5,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from electron_swarm import load_config
 from benchmarks.run_product_benchmarks import main as benchmark_main
+from tools.benchmark_ar_external_references import load_benchmark_config
 
 
 @pytest.mark.regression
@@ -38,6 +38,6 @@ def test_ar_eedf_consistency_configs_parse() -> None:
         Path("configs/benchmarks/ar_mcig_reference.yaml"),
         Path("configs/benchmarks/ar_bolsig_mcig_triage.yaml"),
     ]:
-        cfg = load_config(path)
+        cfg, _references = load_benchmark_config(path)
         assert cfg.schema_version == 2
         assert [item.id for item in cfg.run.solvers][:2] == ["two_term", "multi_term"]

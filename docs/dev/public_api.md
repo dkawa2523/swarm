@@ -24,22 +24,20 @@ Stable output files:
 - `<base>_solver_plan.csv`
 - `<base>_comparison_summary.csv` when comparison is enabled
 
-Comparison summary rows include same-angular validation fields for PN/MC:
-`same_angular_model`, `angular_model_reference`, `angular_model_candidate`,
-`angular_sampler_treatment`, and `angular_model_mismatch_reason`.
+Comparison summary rows include `angular_model_status`, scalar relative
+differences, and optional `eedf_l1_error`.
 
 Stable summary metadata:
 
-- solver method and physics level
-- angular model, moment source, and moment-table provenance
+- solver method and angular model/source
 - ordinary-XS closure / exact-DCS flags
-- `multi_term` `lmax` and direct-PN flag
+- `multi_term` `lmax`
 - ionization source treatment
 - e-e treatment and transport-stale flag
 - transport definition
 - magnetic treatment
-- compact tail metrics
+- tail refinement treatment
 
-Direct-PN residuals, negative-mass diagnostics, benchmark failure categories,
-and solver-plan capability details are internal or benchmark outputs unless
-documented in the product schema.
+Direct-PN residuals, negative-mass diagnostics, MC audit counters, benchmark
+failure categories, and solver-plan capability details are internal or
+benchmark outputs unless documented in the product schema.

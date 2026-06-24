@@ -41,6 +41,15 @@ change intentionally changes the accepted numerical behavior.
 
 ## Benchmarks
 
+Benchmarks are development aids for solver regressions, physics triage, and
+manual comparison against external references. BOLSIG+ and MCIG files or local
+binaries are not product solver modes, and agreement with those external tools
+is not part of the default schema v2 run contract.
+For internal-MC physics triage, use
+`tools/benchmark_internal_mc_physics_triage.py`; it compares raw bin mass,
+quantiles, tail survival, and model-definition metadata without smoothing or
+declaring any external result to be the truth.
+
 Run one product benchmark config:
 
 ```powershell
@@ -73,7 +82,7 @@ light-MC statistical uncertainty remain in the failure CSV as diagnostic rows.
 See `docs/benchmarks/ar_eedf_consistency.md` for the gate definition and output
 interpretation.
 
-The Ar BOLSIG+ equivalence benchmark compares `two_term` and
+The Ar BOLSIG+ manual reference benchmark compares `two_term` and
 `multi_term pn_closure_direct lmax=1` against ingested BOLSIG+ output:
 
 ```powershell
@@ -86,7 +95,7 @@ It writes `ar_bolsig_plus_equivalence_summary.csv`,
 `ar_bolsig_plus_equivalence_report.md`.  See
 `docs/benchmarks/ar_bolsig_plus_equivalence.md`.
 
-The MCIG reference benchmark uses the same external-reference CLI:
+The MCIG manual reference benchmark uses the same external-reference CLI:
 
 ```powershell
 py -3 tools\benchmark_ar_external_references.py --config configs\benchmarks\ar_mcig_reference.yaml --reference mcig
@@ -117,10 +126,11 @@ templates when local external binaries should be executed before ingest. See
 `docs/benchmarks/ar_bolsig_mcig_triage.md`.
 
 External BOLSIG+ / MCIG output files can also be ingested by adding
-`references.external` entries to the benchmark config.  The benchmark then
+benchmark-only reference entries to a benchmark config. Product YAML loaded by
+`electron_swarm.load_config` rejects those entries. The benchmark then
 writes `ar_reference_comparison_summary.csv`,
 `ar_reference_eedf_metrics.csv`, `ar_reference_failure_analysis.csv`, and
-`ar_reference_report.md`.  See
+`ar_reference_report.md`. See
 `docs/benchmarks/ar_external_references.md` for the canonical CSV format.
 The limited implementation scope for direct PN higher-order moments is documented in
 `docs/dev/direct_pn_lmax_gt1_gate.md`.
@@ -133,3 +143,8 @@ py -3 tools\benchmark_ar_eedf_consistency.py --config configs\benchmarks\ar_bols
 ```
 
 That run is not part of default pytest or CI.
+
+For internal MC audit-only runs, `tools\benchmark_internal_mc_audit.py` writes
+the raw histogram bin width, probability mass, cumulative probability, survival
+probability, and sample-quality columns. It does not smooth or fit the EEDF to
+external references.

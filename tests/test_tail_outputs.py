@@ -110,8 +110,9 @@ def test_tail_status_insufficient_for_cutoff_rate_contribution(tmp_path: Path) -
     )
     attach_tail_metrics(case, cfg, CrossSectionSet([process]))
 
-    assert case.metadata["energy_grid_tail_status"] == "insufficient"
-    assert case.metadata["high_energy_cutoff_rate_fraction"] > 0.05
+    tail = case.diagnostics["tail_metrics"]
+    assert tail["energy_grid_tail_status"] == "insufficient"
+    assert tail["high_energy_cutoff_rate_fraction"] > 0.05
     assert case.rates[0].tail_fraction == pytest.approx(1.0)
 
 
@@ -121,11 +122,12 @@ def test_tail_metrics_disabled_keeps_output_shape(tmp_path: Path) -> None:
     cfg = load_config(write_config(tmp_path, data))
     result = run(cfg, write=True)
     [case] = result.cases
-    assert case.metadata["tail_metrics_enabled"] is False
+    assert case.diagnostics["tail_metrics"]["tail_metrics_enabled"] is False
     assert all(rate.tail_fraction is None for rate in case.rates)
     summary = pd.read_csv(tmp_path / "prod_summary.csv")
     rates = pd.read_csv(tmp_path / "prod_rates.csv")
-    assert "meta_tail_probability" in summary.columns
-    assert "meta_energy_grid_tail_status" in summary.columns
-    assert pd.isna(summary["meta_tail_probability"].iloc[0])
+    assert "meta_tail_refinement_treatment" in summary.columns
+    assert "meta_tail_rate_fraction_max" not in summary.columns
+    assert "meta_tail_probability" not in summary.columns
+    assert summary["meta_tail_refinement_treatment"].iloc[0] == "approximate"
     assert "tail_fraction" in rates.columns

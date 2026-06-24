@@ -6,9 +6,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from electron_swarm.core.config import SwarmConfig
 from electron_swarm.core.constants import ELECTRON_MASS_KG, EV_TO_J
 from electron_swarm.core.cross_sections import CrossSectionSet
+from electron_swarm.core.solver_configs import MultiTermInternalConfig
 from electron_swarm.grids.energy import build_energy_grid as build_shared_energy_grid
 
 
@@ -104,10 +104,10 @@ class EnergyGrid:
 
 
 def make_energy_grid(
-    config: SwarmConfig,
+    solver_config: MultiTermInternalConfig,
     cross_sections: CrossSectionSet | None = None,
 ) -> EnergyGrid:
-    grid = config.internal.multi_term.energy_grid
+    grid = solver_config.energy_grid
     if grid.refine.enabled:
         shared = build_shared_energy_grid(
             min_eV=grid.min_eV,

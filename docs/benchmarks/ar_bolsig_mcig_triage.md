@@ -50,6 +50,10 @@ Outputs:
 - `ar_triage_report.md`
 - optional `ar_triage_eedf.png` with `--plot`
 
+The metric CSVs use `angular_model_status` for angular compatibility. Detailed
+reference/candidate angular labels are kept out of the CSV schema and appear
+only as failure-analysis evidence when needed.
+
 Interpretation:
 
 - `code_regression_multi_term_lmax1` is a product bug.  Fix the direct lmax=1

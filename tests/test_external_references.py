@@ -8,12 +8,13 @@ import pandas as pd
 import pytest
 
 from electron_swarm import load_config, run
-from electron_swarm.core.config import ExternalReferenceConfig
 from electron_swarm.core.results import RateResult, SwarmCaseResult
 from electron_swarm.references import load_bolsig_reference, load_mcig_reference
 from electron_swarm.references.common import (
+    ExternalReferenceConfig,
     ReferenceCaseResult,
     eepf_to_eedf,
+    parse_external_reference_configs,
     reference_comparison_metrics,
     reference_to_swarm_case,
 )
@@ -24,6 +25,7 @@ from tools.benchmark_ar_external_references import (
     _classify_bolsig_mismatch,
     _classify_mcig_mismatch,
     _mc_confidence_status,
+    load_benchmark_config,
     run_benchmark as run_external_benchmark,
 )
 from tools import benchmark_ar_bolsig_mcig_triage as triage
@@ -99,7 +101,7 @@ def test_reference_missing_file_and_unsupported_format_fail_clearly(tmp_path: Pa
         ]
     }
     with pytest.raises(ValueError, match="references.external\\[0\\].format"):
-        load_config(write_config(tmp_path, data, "bad_reference.yaml"))
+        parse_external_reference_configs(data, base=tmp_path)
 
 
 def test_external_reference_command_generates_output(tmp_path: Path) -> None:
@@ -167,17 +169,21 @@ def test_ar_benchmark_reports_missing_optional_external_reference(tmp_path: Path
 
 
 def test_ar_bolsig_plus_equivalence_config_parses() -> None:
-    cfg = load_config(ROOT / "configs" / "benchmarks" / "ar_bolsig_plus_equivalence.yaml")
+    cfg, references = load_benchmark_config(
+        ROOT / "configs" / "benchmarks" / "ar_bolsig_plus_equivalence.yaml"
+    )
     assert cfg.schema_version == 2
     assert [item.id for item in cfg.run.solvers] == ["two_term", "multi_term"]
-    assert cfg.references.external[0].id == "bolsig_plus"
+    assert references[0].id == "bolsig_plus"
 
 
 def test_ar_mcig_reference_config_parses() -> None:
-    cfg = load_config(ROOT / "configs" / "benchmarks" / "ar_mcig_reference.yaml")
+    cfg, references = load_benchmark_config(
+        ROOT / "configs" / "benchmarks" / "ar_mcig_reference.yaml"
+    )
     assert cfg.schema_version == 2
     assert [item.id for item in cfg.run.solvers] == ["two_term", "multi_term", "monte_carlo"]
-    assert cfg.references.external[0].id == "mcig"
+    assert references[0].id == "mcig"
 
 
 def test_bolsig_equivalence_missing_reference_skips(tmp_path: Path) -> None:
@@ -293,7 +299,8 @@ def test_mcig_angular_mismatch_classification() -> None:
         candidate_method="pn_closure_direct",
         reference_case=reference,
         eover=50.0,
-        same_angular_model="false",
+        angular_model_status="mismatch",
+        angular_evidence="reference=mcig_default; candidate=isotropic",
         confidence_status="unknown",
     )
     assert {row["category"] for row in rows} == {"angular_model_mismatch"}
@@ -348,7 +355,7 @@ def test_mcig_synthetic_reference_comparison_degraded_for_unknown_angular(tmp_pa
     run_external_benchmark(write_config(tmp_path, data, "mcig_degraded.yaml"), reference="mcig")
     summary = pd.read_csv(tmp_path / "prod_summary.csv")
     assert summary.loc[0, "status"] == "DEGRADED"
-    assert summary.loc[0, "same_angular_model"] == "unknown"
+    assert summary.loc[0, "angular_model_status"] == "unknown"
 
 
 def _triage_swarm_case(

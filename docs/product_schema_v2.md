@@ -1,7 +1,8 @@
 # Product Schema v2
 
 Product YAML files must set `schema_version: 2` and select solvers with
-`run.solvers`.
+`run.solvers`. Each solver entry is a mapping with `id` and optional `enabled`;
+string entries and labels are not part of the product schema.
 
 Canonical solver ids:
 
@@ -50,27 +51,43 @@ physics:
 
 ## Monte Carlo
 
-`monte_carlo.backend: external` delegates execution to a configured command or
-Python API. `angular_scattering: same_as_physics` is a strict metadata
-validation contract.
+Product `monte_carlo` always means the limited internal particle backend.
+External BOLSIG+, MCIG, and external MC ingest are benchmark/reference tooling
+concerns and are not accepted by product YAML.
 
-`monte_carlo.backend: internal` runs the limited product particle backend and
-requires `angular_scattering: same_as_physics`. It supports `isotropic` and
-`maxent_p1` angular samplers plus DC magnetic dynamics through a Boris pusher.
-The default internal population model is
-`mc_population_model=fixed_particle_single_daughter`: ionization follows one
-tracked daughter, while the untracked secondary-energy gap is exposed through MC
-audit metadata. `max_collisions` controls the production sampling length.
-`warmup_collisions` is optional and discards initial transient flights from the
-EEDF/transport estimator without changing the public solver mode.
-Full ionization branching and weighted growth-population MC remain roadmap and
-are not accepted in product schema.
+The internal MC sampler uses and reports the angular model requested under
+`physics.angular_scattering`. It supports `isotropic` and `maxent_p1` angular
+samplers plus DC magnetic dynamics through a Boris pusher. Unsupported angular
+samplers are handled by `feature_policy` and are never silently approximated.
+`maxent_p1` requires both total/effective elastic and momentum-transfer cross
+sections for each active scattering species. Magnetic trajectories are
+substepped only inside a sampled null-collision trial interval; collision
+acceptance still occurs once at the trial event.
+
+Public `solvers.monte_carlo` fields are limited to `population_model`, `seed`,
+`particles`, `max_collisions`, and `warmup_collisions`. The default population
+model is `fixed_particle_single_daughter`; `population_model:
+weighted_branching` enables a bounded weighted two-daughter ionization model.
+The two daughter energies follow `physics.ionization.energy_sharing`; the
+ionization threshold is always recorded as an energy loss. When the particle
+ensemble grows past twice `particles`, the backend systematic-resamples back to
+`particles` while preserving total weight.
+
+Internal MC EEDF output uses midpoint time-residence histogramming. Product
+metadata reports only the observable definition with `transport_definition`
+plus solver-comparison interpretation fields. Population-model details such as
+`swarm_population_treatment`, branching counters, and estimator diagnostics are
+available only when benchmark tools request diagnostic collection; they are not
+part of normal product summary metadata. Weighted branching is still a
+flux-like particle-tracking estimator; validated bulk transport remains out of
+scope.
 
 ## Physics Features
 
 - e-e: `none`, `relaxation_postprocess`, or `fp_energy`.
 - ionization source: `equal`, `primary_secondary`, or `loss_only`.
-- tail metrics: compact high-energy probability/rate diagnostics.
+- tail refinement: product metadata records treatment only; compact
+  high-energy probability/rate diagnostics live in `case.diagnostics`.
 - finite-k: request is validated and policy-handled, but no solver emits
   validated finite-k coefficients yet.
 
@@ -78,10 +95,12 @@ Unsupported physics is handled by:
 
 ```yaml
 feature_policy:
-  unsupported: fail        # fail | skip_solver | approximate
-  degraded: warn           # fail | warn | record_only
-  allow_unsupported_fallback: false
+  unsupported: fail        # fail | skip_solver
+  degraded: record         # fail | record
 ```
+
+Unsupported physics is never approximated or ignored as a fallback. Degraded
+support is either recorded in the solver plan or rejected with `degraded: fail`.
 
 ## Outputs
 
@@ -93,27 +112,24 @@ Canonical product outputs:
 - `<base>_solver_plan.csv`
 - `<base>_comparison_summary.csv` when comparison is enabled
 
-The EEDF CSV always includes nullable `sample_count`, `effective_sample_count`,
-and `relative_standard_error` columns. Boltzmann solvers leave them empty;
-internal Monte Carlo fills them from EEDF histogram counts or weighted bin ESS
-so weak tail bins are visible instead of being mistaken for converged physics.
-Internal MC summary metadata also includes `mc_tail_comparison_status`:
-`ok`, `weak_tail_statistics`, `energy_balance_warning`,
-or `energy_balance_fail`.
-Tail bins with low ESS do not automatically fail the whole comparison when
-their combined probability mass is below the product threshold; the reported
-`mc_tail_weak_probability_fraction` records that residual weak-tail mass.
+The EEDF CSV always includes `energy_width_eV` plus nullable `sample_count`,
+`effective_sample_count`, and `relative_standard_error` columns. Boltzmann
+solvers leave the sample-quality columns empty. Internal Monte Carlo fills them
+from the EEDF histogram raw counts and weighted bin ESS. The EEDF is a
+normalized density in `1/eV`, so `sum(eedf * energy_width_eV) == 1` up to
+floating-point tolerance.
 
-PN-vs-MC comparison rows include `same_angular_model`,
-`angular_model_reference`, `angular_model_candidate`,
-`angular_sampler_treatment`, and `angular_model_mismatch_reason`. A required
-comparison fails when a PN/MC row has unknown or mismatched angular metadata.
+Summary metadata includes only product-facing interpretation fields: solver
+method, angular model/source, ionization/e-e/magnetic/tail/transport treatment,
+and DCS/closure flags. Detailed grid, convolution, tail, e-e operator,
+direct-PN, and internal-MC audit values are diagnostics or development-tool
+outputs, not summary columns.
+
+PN-vs-MC comparison rows include `angular_model_status` plus scalar relative
+differences and optional `eedf_l1_error`. A required comparison can still
+require known, matching angular metadata, but external reference agreement is
+benchmark tooling rather than a product schema contract.
 
 The `output` block configures only `directory`, `base_name`, and
-`float_format`.
-
-External BOLSIG+ / MCIG benchmark files can be listed under
-`references.external`. They are reference sources, not solver ids, and are used
-only by benchmark tooling. The supported ingest format is
-`electron_swarm_reference_csv` with either `eedf_eV_inv` or `eepf_eV_m32`; both
-are converted to normalized EEDF `F(E)` in `1/eV` before comparison.
+`float_format`. Product YAML does not accept external reference inputs.
+BOLSIG+ / MCIG files are benchmark-tool inputs, not product schema fields.

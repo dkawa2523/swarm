@@ -3,15 +3,8 @@
 from __future__ import annotations
 
 import argparse
-import csv
-import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-from electron_swarm import load_config
 from electron_swarm.diagnostics.eedf_compare import compare_eedf_cases
 from electron_swarm.references.common import (
     ReferenceCaseResult,
@@ -25,10 +18,12 @@ from tools.benchmark_ar_external_references import (
     _failure,
     _mc_confidence_status,
     _write_plot,
+    load_benchmark_config,
     load_selected_references,
     run_requested_external_reference_commands,
     run_solver_variants,
 )
+from tools.benchmark_common import write_csv
 
 
 TRIAGE_FIELDS = [
@@ -52,7 +47,7 @@ METRIC_FIELDS = [
     "candidate",
     "candidate_method",
     "candidate_lmax",
-    "same_angular_model",
+    "angular_model_status",
     "confidence_status",
     "eedf_relative_l1",
     "log_tail_error",
@@ -77,28 +72,28 @@ FAILURE_FIELDS = [
 ]
 
 
-def _write_csv(path: Path, rows: list[dict[str, object]], fields: list[str]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8", newline="") as fp:
-        writer = csv.DictWriter(fp, fieldnames=fields, extrasaction="ignore")
-        writer.writeheader()
-        writer.writerows(rows)
-
-
 def _solver_label(case) -> str:
     if case.solver == "multi_term":
         return f"multi_term_lmax{case.metadata.get('lmax', '')}"
     return str(case.solver)
 
 
-def _metric_row(eover: float, reference: str, candidate, metrics: dict[str, float], *, same_angular: str = "", confidence: str = "") -> dict[str, object]:
+def _metric_row(
+    eover: float,
+    reference: str,
+    candidate,
+    metrics: dict[str, float],
+    *,
+    angular_status: str = "",
+    confidence: str = "",
+) -> dict[str, object]:
     return {
         "E_over_N_Td": eover,
         "reference": reference,
         "candidate": _solver_label(candidate) if not isinstance(candidate, str) else candidate,
         "candidate_method": "" if isinstance(candidate, str) else candidate.metadata.get("solver_method", ""),
         "candidate_lmax": "" if isinstance(candidate, str) else candidate.metadata.get("lmax", ""),
-        "same_angular_model": same_angular,
+        "angular_model_status": angular_status,
         "confidence_status": confidence,
         **metrics,
     }
@@ -146,10 +141,11 @@ def run_triage(
     fail_on_physics_mismatch: bool = False,
     plot: bool = False,
 ) -> tuple[Path, ...]:
-    cfg = load_config(config_path)
+    cfg, reference_configs = load_benchmark_config(config_path)
     out_dir = cfg.output.directory
     run_requested_external_reference_commands(
         cfg,
+        reference_configs=reference_configs,
         config_path=config_path,
         bolsig_command=bolsig_command,
         mcig_command=mcig_command,
@@ -162,6 +158,7 @@ def run_triage(
     )
     references, ref_failures = load_selected_references(
         cfg,
+        reference_configs=reference_configs,
         bolsig_output=bolsig_output,
         mcig_output=mcig_output,
         require_bolsig=require_bolsig,
@@ -268,11 +265,11 @@ def run_triage(
         if mcig is not None:
             for candidate in [case for case in solver_cases if abs(case.e_over_n_Td - eover) < 1.0e-9]:
                 metrics = reference_comparison_metrics(mcig, candidate)
-                same, _, _, _ = _angular_status(mcig, candidate)
+                angular_status, angular_evidence = _angular_status(mcig, candidate)
                 confidence, _ = _mc_confidence_status(mcig, candidate, metrics)
-                eedf_rows.append(_metric_row(eover, "mcig", candidate, metrics, same_angular=same, confidence=confidence))
-                transport_rows.append(_metric_row(eover, "mcig", candidate, metrics, same_angular=same, confidence=confidence))
-                rate_rows.append(_metric_row(eover, "mcig", candidate, metrics, same_angular=same, confidence=confidence))
+                eedf_rows.append(_metric_row(eover, "mcig", candidate, metrics, angular_status=angular_status, confidence=confidence))
+                transport_rows.append(_metric_row(eover, "mcig", candidate, metrics, angular_status=angular_status, confidence=confidence))
+                rate_rows.append(_metric_row(eover, "mcig", candidate, metrics, angular_status=angular_status, confidence=confidence))
                 if confidence in {"unknown", "pass_within_mc_uncertainty"}:
                     mc_uncertain = True
                 if confidence == "pass_within_mc_uncertainty":
@@ -288,12 +285,12 @@ def run_triage(
                         "low",
                     )
                     continue
-                if same != "true":
+                if angular_status != "match":
                     likely.append("angular_model_mismatch")
                     _add_failure(
                         failure_rows,
                         "angular_model_mismatch",
-                        f"same_angular_model={same}",
+                        angular_evidence or f"angular_model_status={angular_status}",
                         eover,
                         f"mcig->{_solver_label(candidate)}",
                         "angular scattering metadata",
@@ -405,11 +402,11 @@ def run_triage(
         "failures": out_dir / "ar_triage_failure_analysis.csv",
         "report": out_dir / "ar_triage_report.md",
     }
-    _write_csv(paths["matrix"], matrix_rows, TRIAGE_FIELDS)
-    _write_csv(paths["eedf"], eedf_rows, METRIC_FIELDS)
-    _write_csv(paths["transport"], transport_rows, METRIC_FIELDS)
-    _write_csv(paths["rates"], rate_rows, METRIC_FIELDS)
-    _write_csv(paths["failures"], failure_rows, FAILURE_FIELDS)
+    write_csv(paths["matrix"], matrix_rows, TRIAGE_FIELDS)
+    write_csv(paths["eedf"], eedf_rows, METRIC_FIELDS)
+    write_csv(paths["transport"], transport_rows, METRIC_FIELDS)
+    write_csv(paths["rates"], rate_rows, METRIC_FIELDS)
+    write_csv(paths["failures"], failure_rows, FAILURE_FIELDS)
     status = "PASS"
     if any(row["overall_status"] == "FAIL" for row in matrix_rows):
         status = "FAIL"

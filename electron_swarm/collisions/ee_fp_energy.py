@@ -5,7 +5,6 @@ from __future__ import annotations
 import numpy as np
 
 from electron_swarm.collisions.electron_electron import (
-    mean_energy_eV,
     relaxation_target,
 )
 
@@ -82,7 +81,6 @@ def apply_fp_energy_operator(
         raise ValueError("electron_electron relaxation_fraction must be in [0, 1]")
 
     old = _normalize(energy, widths, old)
-    before_mean = mean_energy_eV(energy, widths, old)
     target = relaxation_target(
         energy,
         widths,
@@ -91,11 +89,7 @@ def apply_fp_energy_operator(
         fallback_temperature_eV=fallback_temperature_eV,
     )
     if alpha == 0.0:
-        return old, {
-            "electron_electron_operator_scope": "f0_energy_only",
-            "electron_electron_mean_energy_before_eV": before_mean,
-            "electron_electron_mean_energy_after_eV": before_mean,
-        }
+        return old, {}
 
     floor = max(float(np.max(target)) * 1.0e-14, 1.0e-300)
     target = _normalize(energy, widths, np.maximum(target, floor))
@@ -121,9 +115,4 @@ def apply_fp_energy_operator(
 
     relaxed = _solve_tridiagonal(lower, diag, upper, old)
     new = _normalize(energy, widths, relaxed)
-    after_mean = mean_energy_eV(energy, widths, new)
-    return new, {
-        "electron_electron_operator_scope": "f0_energy_only",
-        "electron_electron_mean_energy_before_eV": before_mean,
-        "electron_electron_mean_energy_after_eV": after_mean,
-    }
+    return new, {}

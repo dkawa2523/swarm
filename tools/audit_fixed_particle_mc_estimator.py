@@ -17,6 +17,7 @@ import pandas as pd
 import yaml
 
 from electron_swarm import load_config, run
+from tools.benchmark_common import case_audit_metadata, metadata_value
 
 
 RUN_COLUMNS = [
@@ -89,8 +90,6 @@ def _prepare_run_config(
     run_block["case_prefix"] = f"fixed_mc_audit_s{seed}_c{max_collisions}"
 
     solver = data.setdefault("solvers", {}).setdefault("monte_carlo", {})
-    solver["backend"] = "internal"
-    solver["angular_scattering"] = "same_as_physics"
     solver["population_model"] = "fixed_particle_single_daughter"
     solver["seed"] = seed
     solver["warmup_collisions"] = warmup_collisions
@@ -136,42 +135,49 @@ def _run_case_grid(
                 output_dir=output_dir,
             )
             _write_config(run_config, config_path)
-            result = run(load_config(config_path), write=False)
+            result = run(load_config(config_path), write=False, collect_diagnostics=True)
             for case in result.cases:
-                meta = case.metadata
+                meta = case_audit_metadata(case)
                 row = {
                     "E_over_N_Td": case.e_over_n_Td,
                     "seed": seed,
-                    "warmup_collisions": meta.get("mc_warmup_collisions", warmup_collisions),
+                    "warmup_collisions": metadata_value(meta, "mc_warmup_collisions", warmup_collisions),
                     "max_collisions": collisions,
-                    "particles": meta.get("particles", particles),
+                    "particles": metadata_value(meta, "mc_particles", particles),
                     "mean_energy_eV": case.mean_energy_eV,
                     "drift_velocity_m_s": case.drift_velocity_m_s,
                     "net_ionization_frequency_s": case.net_ionization_frequency_s,
-                    "mc_energy_balance_status": meta.get("mc_energy_balance_status", ""),
-                    "mc_tracked_energy_balance_residual_fraction": meta.get(
+                    "mc_energy_balance_status": metadata_value(meta, "mc_energy_balance_status", ""),
+                    "mc_tracked_energy_balance_residual_fraction": metadata_value(
+                        meta,
                         "mc_tracked_energy_balance_residual_fraction", np.nan
                     ),
-                    "mc_tail_comparison_status": meta.get(
+                    "mc_tail_comparison_status": metadata_value(
+                        meta,
                         "mc_tail_comparison_status", ""
                     ),
-                    "mc_tail_weak_probability_fraction": meta.get(
+                    "mc_tail_weak_probability_fraction": metadata_value(
+                        meta,
                         "mc_tail_weak_probability_fraction", np.nan
                     ),
-                    "mc_tail_effective_sample_count_min": meta.get(
+                    "mc_tail_effective_sample_count_min": metadata_value(
+                        meta,
                         "mc_tail_effective_sample_count_min", np.nan
                     ),
-                    "mc_max_resolved_energy_eV": meta.get(
+                    "mc_max_resolved_energy_eV": metadata_value(
+                        meta,
                         "mc_max_resolved_energy_eV", np.nan
                     ),
-                    "mc_null_collision_acceptance_fraction": meta.get(
+                    "mc_null_collision_acceptance_fraction": metadata_value(
+                        meta,
                         "mc_null_collision_acceptance_fraction", np.nan
                     ),
-                    "mc_max_collision_to_trial_ratio": meta.get(
+                    "mc_max_collision_to_trial_ratio": metadata_value(
+                        meta,
                         "mc_max_collision_to_trial_ratio", np.nan
                     ),
-                    "mc_samples": meta.get("mc_samples", np.nan),
-                    "mc_nonzero_bins": meta.get("mc_nonzero_bins", np.nan),
+                    "mc_samples": metadata_value(meta, "mc_samples", np.nan),
+                    "mc_nonzero_bins": metadata_value(meta, "mc_nonzero_bins", np.nan),
                 }
                 run_rows.append(row)
                 effective = case.eedf_effective_counts

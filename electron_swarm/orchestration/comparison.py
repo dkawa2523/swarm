@@ -6,7 +6,7 @@ import numpy as np
 
 from electron_swarm.core.config import ComparisonConfig
 from electron_swarm.core.results import SwarmCaseResult, SwarmRunResult
-from electron_swarm.diagnostics.common import widths_from_centers
+from electron_swarm.core.numerics import widths_from_centers
 
 
 SCALAR_METRICS = {
@@ -63,29 +63,6 @@ def _angular_model_status(
     return "mismatch"
 
 
-def _angular_model_warning(status: str) -> str:
-    if status == "match":
-        return ""
-    if status == "unknown":
-        return "angular_model_unknown"
-    return "angular_model_mismatch"
-
-
-def _angular_sampler_treatment(
-    candidate: SwarmCaseResult,
-    reference: SwarmCaseResult,
-) -> str:
-    for case in (candidate, reference):
-        if case.solver == "monte_carlo":
-            treatment = case.metadata.get("effective_angular_scattering")
-            if treatment not in {"", None}:
-                return str(treatment)
-            treatment = case.metadata.get("monte_carlo_angular_scattering")
-            if treatment not in {"", None}:
-                return str(treatment)
-    return "not_applicable"
-
-
 def comparison_summary_rows(
     result: SwarmRunResult,
     *,
@@ -113,32 +90,7 @@ def comparison_summary_rows(
                 "reference_solver": reference_solver,
                 "candidate_solver": solver,
                 "angular_model_status": _angular_model_status(candidate, reference),
-                "reference_angular_model": reference.metadata.get("angular_model", ""),
-                "candidate_angular_model": candidate.metadata.get("angular_model", ""),
-                "reference_angular_moment_source": reference.metadata.get(
-                    "angular_moment_source", ""
-                ),
-                "candidate_angular_moment_source": candidate.metadata.get(
-                    "angular_moment_source", ""
-                ),
             }
-            row["same_angular_model"] = row["angular_model_status"] == "match"
-            row["angular_model_warning"] = _angular_model_warning(
-                str(row["angular_model_status"])
-            )
-            row["angular_model_reference"] = row["reference_angular_model"]
-            row["angular_model_candidate"] = row["candidate_angular_model"]
-            row["angular_sampler_treatment"] = _angular_sampler_treatment(
-                candidate,
-                reference,
-            )
-            row["angular_model_mismatch_reason"] = row["angular_model_warning"]
-            if row["same_angular_model"]:
-                row["angular_model"] = row["reference_angular_model"]
-            else:
-                row["angular_model"] = (
-                    f"{row['reference_angular_model']}->{row['candidate_angular_model']}"
-                )
             for attr, column in SCALAR_METRICS.items():
                 row[column] = _relative_difference(
                     getattr(candidate, attr),

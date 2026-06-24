@@ -4,7 +4,9 @@ External BOLSIG+ and MCIG results are benchmark reference inputs, not solver
 modes.  Product solver ids remain only `two_term`, `multi_term`, and
 `monte_carlo`.
 
-Use schema v2 `references.external` to ingest existing output files:
+Benchmark configs may include a benchmark-only `references.external` block to
+ingest existing output files. This block is consumed by the benchmark tools and
+is not part of product YAML accepted by `electron_swarm.load_config`:
 
 ```yaml
 references:
@@ -41,6 +43,10 @@ The Ar benchmark writes:
 - `ar_reference_eedf_metrics.csv`
 - `ar_reference_failure_analysis.csv`
 - `ar_reference_report.md`
+
+Summary and metric CSVs use the compact `angular_model_status` field with
+`match`, `mismatch`, or `unknown`. Detailed angular reasons belong in
+failure-analysis evidence, not in separate summary columns.
 
 If BOLSIG+ or MCIG binaries are not installed, provide their output files in
 the canonical CSV format.  Missing files are reported as external-reference

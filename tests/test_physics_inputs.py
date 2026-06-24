@@ -16,7 +16,7 @@ from electron_swarm.physics.angular_scattering import (
     build_angular_model,
     expected_angular_metadata,
 )
-from electron_swarm.solvers.internal_monte_carlo import (
+from electron_swarm.solvers._internal_mc.orbit import (
     boris_push,
     magnetic_field_vector,
 )
@@ -85,7 +85,7 @@ def test_fp_energy_operator_preserves_normalized_finite_eedf() -> None:
     assert np.all(np.isfinite(updated))
     assert np.all(updated >= 0.0)
     assert mean_energy_eV(energy, widths, updated) == pytest.approx(before, rel=0.05)
-    assert metadata["electron_electron_operator_scope"] == "f0_energy_only"
+    assert metadata == {}
 
 
 def test_magnetic_field_vector_geometry() -> None:
@@ -400,7 +400,7 @@ def test_moment_table_expected_metadata(
 def test_monte_carlo_uses_shared_angular_model_config(tmp_path: Path) -> None:
     data = base_product_config(tmp_path, ["monte_carlo"])
     data["solvers"]["monte_carlo"] = {"angular_scattering": "isotropic"}
-    with pytest.raises(ValueError, match="solvers.monte_carlo.angular_scattering"):
+    with pytest.raises(ValueError, match="internal product backend only"):
         load_config(write_config(tmp_path, data))
 
 

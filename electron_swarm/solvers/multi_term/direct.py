@@ -6,8 +6,9 @@ import numpy as np
 from scipy import optimize, sparse
 from scipy.sparse import linalg as spla
 
-from electron_swarm.core.transport import FluxTransport, TransportMetadata, TransportSet
 from electron_swarm.core.cross_sections import ProcessType
+from electron_swarm.core.result_metadata import TRANSPORT_F0_GRADIENT_RECONSTRUCTION
+from electron_swarm.core.transport import FluxTransport, TransportMetadata, TransportSet
 from electron_swarm.physics.angular_scattering import build_angular_model
 from electron_swarm.solvers.kinetic import (
     EffectiveCollisionData,
@@ -130,14 +131,9 @@ def assemble_coefficient_pn_operator(
         raise NotImplementedError("pn_closure_direct lmax>1 supports dc fields only")
     magnetic = case.config.physics.field.magnetic_field
     if magnetic.enabled and magnetic.B_T > 0.0:
-        policy = case.config.feature_policy
-        if not (
-            policy.unsupported == "approximate"
-            and policy.allow_unsupported_fallback
-        ):
-            raise NotImplementedError(
-                "pn_closure_direct lmax>1 does not support B-field"
-            )
+        raise NotImplementedError(
+            "pn_closure_direct lmax>1 does not support B-field"
+        )
     if any(proc.process_type == ProcessType.SUPERELASTIC for proc in case.cross_sections.processes):
         raise NotImplementedError(
             "pn_closure_direct lmax>1 does not support superelastic l>0 treatment"
@@ -296,6 +292,7 @@ def _transport_set_from_eedf(
         f0,
         native.gas_number_density_m3,
         case.e_over_n_Td,
+        case.two_term_config,
     )
     flux = FluxTransport.with_characteristic_energies(
         transport.drift_velocity_m_s,
@@ -309,7 +306,7 @@ def _transport_set_from_eedf(
         rates.attachment_frequency_s_inv,
         TransportMetadata(
             solver=solver_name,
-            coefficient_definition="flux",
+            coefficient_definition=TRANSPORT_F0_GRADIENT_RECONSTRUCTION,
             swarm_condition="local_flux",
         ),
     )
@@ -360,7 +357,7 @@ def _solve_direct_higher_l(
     widths = native.grid.widths_eV
     energy = native.grid.energy_eV
     edges = native.grid.edges_eV
-    conv = case.config.internal.two_term.convergence
+    conv = case.two_term_config.convergence
     growth = 0.0
     previous_f0: np.ndarray | None = None
     residual = np.inf
@@ -427,18 +424,8 @@ def _solve_direct_higher_l(
         "ordinary_integral_xs_closure": True,
         "lmax": int(lmax),
         "angular_model": case.config.physics.angular_scattering.model,
-        "higher_l_collision_model": "angular_closure_damping",
-        "higher_l_inelastic_model": "sink_only",
-        "anisotropic_inelastic_source": False,
         "pn_residual": float(residual),
         "negative_mass_fraction": float(negative_mass),
-        "lmax_convergence_status": (
-            "ok"
-            if np.isfinite(residual)
-            and residual < 1.0e-6
-            and negative_mass <= _HIGHER_L_NEGATIVE_MASS_LIMIT
-            else "warning"
-        ),
     }
     if metadata_override:
         metadata.update(metadata_override)
@@ -474,7 +461,7 @@ def solve_direct_lmax1(
     native = native_override
     if native is None:
         kinetic_grid = make_two_term_energy_grid(
-            case.config.internal.two_term,
+            case.two_term_config,
             cross_sections=case.cross_sections,
         )
         native = assemble_native_operator_blocks(
@@ -482,6 +469,7 @@ def solve_direct_lmax1(
             case.cross_sections,
             case.e_over_n_Td,
             kinetic_grid,
+            case.two_term_config,
         )
     if lmax != 1:
         return _solve_direct_higher_l(
@@ -508,7 +496,7 @@ def solve_direct_lmax1(
         format="csr",
     )
 
-    conv = case.config.internal.two_term.convergence
+    conv = case.two_term_config.convergence
     growth = 0.0
     previous_f0: np.ndarray | None = None
     residual = np.inf
@@ -578,10 +566,10 @@ def solve_direct_lmax1(
         "angular_model": case.config.physics.angular_scattering.model,
         "pn_residual": float(residual),
         "negative_mass_fraction": float(negative_mass),
-        "grid_spacing": case.config.internal.two_term.energy_grid.spacing,
+        "grid_spacing": case.two_term_config.energy_grid.spacing,
         "threshold_refined": bool(
-            case.config.internal.two_term.energy_grid.refine.enabled
-            and len(energy) > case.config.internal.two_term.energy_grid.n
+            case.two_term_config.energy_grid.refine.enabled
+            and len(energy) > case.two_term_config.energy_grid.n
         ),
     }
     if method_used == "pn_closure_direct":
@@ -616,7 +604,7 @@ def solve_pn_dcs(
         )
     lmax = int(case.config.solvers.multi_term.lmax)
     kinetic_grid = make_two_term_energy_grid(
-        case.config.internal.two_term,
+        case.two_term_config,
         cross_sections=case.cross_sections,
     )
     native = assemble_native_operator_blocks(
@@ -624,6 +612,7 @@ def solve_pn_dcs(
         case.cross_sections,
         case.e_over_n_Td,
         kinetic_grid,
+        case.two_term_config,
     )
     angular = build_angular_model(case.config)
     moments = angular.moments(native.grid.energy_eV, max(lmax, 1))
@@ -642,14 +631,6 @@ def solve_pn_dcs(
         "exact_dcs_based": exact,
         "ordinary_integral_xs_closure": False,
     }
-    if lmax > 1:
-        metadata_override.update(
-            {
-                "higher_l_collision_model": "moment_table_damping",
-                "higher_l_inelastic_model": "sink_only",
-                "anisotropic_inelastic_source": False,
-            }
-        )
     return solve_direct_lmax1(
         case,
         case_id,

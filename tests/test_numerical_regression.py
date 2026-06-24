@@ -51,8 +51,7 @@ def test_argon_two_term_multi_term_scalar_regression(tmp_path: Path) -> None:
         "mean_energy_eV",
         "drift_velocity_m_s",
         "mobility_m2_V_s",
-        "meta_physics_level",
         "meta_transport_definition",
-        "meta_energy_grid_tail_status",
+        "meta_tail_refinement_treatment",
     ]:
         assert column in summary.columns

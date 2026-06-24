@@ -1,43 +1,22 @@
-"""Canonical solver identifiers and presentation metadata."""
+"""Canonical solver identifiers and compact product metadata."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 CANONICAL_SOLVER_IDS = ("two_term", "multi_term", "monte_carlo")
 
-
-@dataclass(frozen=True, slots=True)
-class SolverInfo:
-    name: str
-    plot_label: str
-    plot_color: str
+if TYPE_CHECKING:  # pragma: no cover
+    from electron_swarm.core.config import SwarmConfig
 
 
-SOLVER_REGISTRY: dict[str, SolverInfo] = {
-    "two_term": SolverInfo(
-        name="two_term",
-        plot_label="Two-term",
-        plot_color="#1565c0",
-    ),
-    "multi_term": SolverInfo(
-        name="multi_term",
-        plot_label="Multi-term closure",
-        plot_color="#2e7d32",
-    ),
-    "monte_carlo": SolverInfo(
-        name="monte_carlo",
-        plot_label="Monte Carlo",
-        plot_color="#c62828",
-    ),
-}
+def solver_method(config: "SwarmConfig", solver: str) -> str:
+    """Return the user-facing method label for a canonical solver id."""
 
-
-def solver_plot_label(solver: str) -> str:
-    info = SOLVER_REGISTRY.get(solver)
-    return info.plot_label if info is not None else solver
-
-
-def solver_plot_color(solver: str) -> str | None:
-    info = SOLVER_REGISTRY.get(solver)
-    return info.plot_color if info is not None else None
+    if solver == "two_term":
+        return str(config.solvers.two_term.backend)
+    if solver == "multi_term":
+        return str(config.solvers.multi_term.method)
+    if solver == "monte_carlo":
+        return "internal"
+    raise ValueError(f"Unknown canonical solver id: {solver!r}")

@@ -1,5 +1,0 @@
-E_over_N_Td,reference,candidate,eedf_relative_l1,reference_mean_energy_eV,candidate_mean_energy_eV,mean_energy_relative_difference,mc_energy_balance_status,mc_tail_comparison_status,mc_tail_weak_probability_fraction,mc_max_resolved_energy_eV
-100.0,MCIG GUI actual,"internal MC fixed warmup HP (768, warmup 600 + production 1200)",0.0314264665509728,6.427562525573979,6.546843971347718,0.018557804035222,ok,ok,0.0116694497616712,23.25
-200.0,MCIG GUI actual,"internal MC fixed warmup HP (768, warmup 600 + production 1200)",0.0452683425651288,7.757728733922895,8.062217393895653,0.0392497173356028,ok,ok,0.0041092917998614,33.25
-400.0,MCIG GUI actual,"internal MC fixed warmup HP (768, warmup 600 + production 1200)",0.0854070990891066,10.10913280279671,10.85694522113558,0.0739739434555639,ok,ok,0.0027178759474811,50.75
-600.0,MCIG GUI actual,"internal MC fixed warmup HP (768, warmup 600 + production 1200)",0.1079970029707448,12.461445029668951,13.782177622115976,0.1059855088476933,ok,ok,0.0022078609777176,105.0
