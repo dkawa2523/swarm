@@ -1,0 +1,61 @@
+schema_version: 2
+
+run:
+  solvers:
+    - id: two_term
+    - id: monte_carlo
+  e_over_n_Td: [50.0, 100.0, 200.0, 400.0]
+  case_prefix: ar_mcig_sweep_rerun
+
+conditions:
+  gas_temperature_K: 300.0
+  pressure_Pa: 100.0
+  gas_mixture:
+    - species: Ar
+      fraction: 1.0
+      mass_amu: 39.948
+
+cross_sections:
+  high_energy_extrapolation: hold
+  files:
+    - path: ../../../examples/cross_sections/argon_minimal.csv
+      species: Ar
+
+physics:
+  field:
+    type: dc
+    magnetic_field:
+      enabled: false
+      B_T: 0.0
+      angle_EB_deg: 90.0
+  angular_scattering:
+    model: isotropic
+    higher_moment_closure: zero
+  electron_electron:
+    enabled: false
+    model: none
+  ionization:
+    energy_sharing: equal
+  energy_grid_policy:
+    adaptive: true
+    threshold_refinement: true
+    max_eV_limit: 1000.0
+
+solvers:
+  monte_carlo:
+    population_model: fixed_particle_single_daughter
+    particles: 1024
+    warmup_collisions: 300
+    max_collisions: 3000
+    seed: 20260624
+
+comparison:
+  enabled: true
+  reference_solver: monte_carlo
+  candidate_solvers: [two_term]
+  compare_eedf: true
+  required: false
+
+output:
+  directory: .
+  base_name: ar_50_100_200_400_product
