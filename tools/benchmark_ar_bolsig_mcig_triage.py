@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
-from electron_swarm.diagnostics.eedf_compare import compare_eedf_cases
-from electron_swarm.references.common import (
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from tools.eedf_compare import compare_eedf_cases
+from tools.references.common import (
     ReferenceCaseResult,
     reference_comparison_metrics,
     reference_to_swarm_case,

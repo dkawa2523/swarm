@@ -44,18 +44,6 @@ MONTE_CARLO_SOLVER_FIELDS = {
     "warmup_collisions",
     "max_collisions",
 }
-REMOVED_MONTE_CARLO_SOLVER_FIELDS = {
-    "backend",
-    "angular_scattering",
-    "timeout_s",
-    "command",
-    "python_api",
-    "working_directory",
-    "environment",
-    "output_summary_csv",
-    "output_eedf_csv",
-    "passthrough",
-}
 TOP_LEVEL_FIELDS = {
     "schema_version",
     "run",
@@ -339,7 +327,7 @@ def _parse_finite_k(raw: dict[str, Any]) -> FiniteKConfig:
 
 
 def _validate_schema(raw: dict[str, Any]) -> None:
-    reject_removed_schema(raw, output_fields=OUTPUT_FIELDS)
+    reject_removed_schema(raw)
     _reject_unknown_fields(raw, TOP_LEVEL_FIELDS, "top-level")
     out_raw = raw.get("output", {}) or {}
     if not isinstance(out_raw, dict):
@@ -843,12 +831,6 @@ def _parse_solvers(raw: dict[str, Any], base: Path) -> SolversConfig:
     tt_raw = solvers_raw.get("two_term", {}) or {}
     mt_raw = solvers_raw.get("multi_term", {}) or {}
     mc_raw = solvers_raw.get("monte_carlo", {}) or {}
-    removed_mc = sorted(set(mc_raw) & REMOVED_MONTE_CARLO_SOLVER_FIELDS)
-    if removed_mc:
-        raise ValueError(
-            f"{MIGRATION_ERROR}; solvers.monte_carlo is the internal product "
-            f"backend only, remove fields {removed_mc}"
-        )
     _reject_unknown_fields(tt_raw, TWO_TERM_SOLVER_FIELDS, "solvers.two_term")
     _reject_unknown_fields(mt_raw, MULTI_TERM_SOLVER_FIELDS, "solvers.multi_term")
     _reject_unknown_fields(mc_raw, MONTE_CARLO_SOLVER_FIELDS, "solvers.monte_carlo")

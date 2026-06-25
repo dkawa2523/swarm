@@ -38,19 +38,17 @@ from electron_swarm.core.cross_sections import (
 )
 from electron_swarm.core.results import SwarmCaseResult
 from electron_swarm.core.solver_configs import TwoTermInternalConfig
-from electron_swarm.core.transport import FluxTransport, TransportMetadata, TransportSet
+from electron_swarm.core.transport import ElectronTransport
 from electron_swarm.solvers.kinetic import (
     EffectiveCollisionData,
     KineticGrid,
     KineticOperatorBlock,
-    TransportCoefficients,
     assemble_collision_operator,
     assemble_energy_flux_operator,
     assemble_native_operator_blocks,
     build_effective_collision_data,
     cell_edges_from_centers,
     compute_rates_from_eedf,
-    eepf_from_eedf,
     electron_speed_m_s,
     gas_number_density,
     make_two_term_energy_grid,
@@ -258,7 +256,7 @@ class TwoTermSolver(SwarmSolver):
         eedf = self._normalize_eedf(eedf, widths)
 
         N = _gas_number_density(self.config)
-        transport: TransportCoefficients | None = None
+        transport: ElectronTransport | None = None
         try:  # Prefer BOLOS' own transport integrals when available.
             muN = float(bs.mobility(eedf))
             diffN = float(bs.diffusion(eedf))
@@ -561,10 +559,19 @@ class TwoTermSolver(SwarmSolver):
             widths = _cell_edges_from_centers(energy)[1]
         return mean_energy_from_eedf(energy, widths, eedf)
 
-    def _transport_from_reduced(self, e_over_n_Td: float, N: float, muN: float, diffN: float) -> TransportCoefficients:
+    def _transport_from_reduced(
+        self, e_over_n_Td: float, N: float, muN: float, diffN: float
+    ) -> ElectronTransport:
         return transport_from_reduced(e_over_n_Td, N, muN, diffN)
 
-    def _transport_from_eedf(self, energy: np.ndarray, widths: np.ndarray, eedf: np.ndarray, N: float, e_over_n_Td: float) -> TransportCoefficients:
+    def _transport_from_eedf(
+        self,
+        energy: np.ndarray,
+        widths: np.ndarray,
+        eedf: np.ndarray,
+        N: float,
+        e_over_n_Td: float,
+    ) -> ElectronTransport:
         return transport_from_eedf(
             self.config,
             self.cross_sections,
@@ -583,7 +590,7 @@ class TwoTermSolver(SwarmSolver):
         eedf: np.ndarray,
         gas_number_density_m3: float,
         e_over_n_Td: float,
-    ) -> TransportCoefficients:
+    ) -> ElectronTransport:
         """Compute native flux transport from a normalized EEDF.
 
         This is the product-facing helper used by direct-PN reduction tests so
@@ -607,10 +614,30 @@ class TwoTermSolver(SwarmSolver):
         eedf: np.ndarray,
         *,
         metadata: dict[str, object],
-        transport_override: TransportCoefficients | None = None,
+        transport_override: ElectronTransport | None = None,
     ) -> SwarmCaseResult:
         N = _gas_number_density(self.config)
-        transport = transport_override or self._transport_from_eedf(energy, widths, eedf, N, e_over_n_Td)
+        transport = transport_override or self._transport_from_eedf(
+            energy, widths, eedf, N, e_over_n_Td
+        )
+        if transport.reduced_electron_energy_mobility_eV_m2_V_s_m3 is None:
+            energy_transport = self._transport_from_eedf(
+                energy, widths, eedf, N, e_over_n_Td
+            )
+            transport = ElectronTransport(
+                definition=transport.definition,
+                gas_number_density_m3=transport.gas_number_density_m3,
+                drift_velocity_m_s=transport.drift_velocity_m_s,
+                reduced_mobility_m2_V_s_m3=transport.reduced_mobility_m2_V_s_m3,
+                reduced_diffusion_L_m2_s_m3=transport.reduced_diffusion_L_m2_s_m3,
+                reduced_diffusion_T_m2_s_m3=transport.reduced_diffusion_T_m2_s_m3,
+                reduced_electron_energy_mobility_eV_m2_V_s_m3=(
+                    energy_transport.reduced_electron_energy_mobility_eV_m2_V_s_m3
+                ),
+                reduced_electron_energy_diffusion_eV_m2_s_m3=(
+                    energy_transport.reduced_electron_energy_diffusion_eV_m2_s_m3
+                ),
+            )
         mean_energy = self._mean_energy(energy, eedf, widths)
         rate_data = compute_rates_from_eedf(
             self.config,
@@ -627,9 +654,8 @@ class TwoTermSolver(SwarmSolver):
         attach_rate = rate_data.attachment_rate_m3_s
         net_ion_freq = rate_data.net_ionization_frequency_s
         effective_townsend = net_ion_freq / max(abs(transport.drift_velocity_m_s) * N, 1.0e-300)
-        eepf = eepf_from_eedf(energy, eedf)
         metadata = dict(metadata)
-        metadata["characteristic_energy_eV"] = transport.characteristic_energy_eV
+        metadata["characteristic_energy_eV"] = transport.characteristic_energy_L_eV
         metadata["normalization_integral"] = weighted_integral(eedf, widths)
         metadata["convolution_ionization_rate_coefficient_m3_s"] = ion_rate
         metadata["convolution_attachment_rate_coefficient_m3_s"] = attach_rate
@@ -640,42 +666,18 @@ class TwoTermSolver(SwarmSolver):
             abs(transport.drift_velocity_m_s), 1.0e-300
         )
         diagnostics = {"two_term": metadata}
-        flux_transport = FluxTransport.with_characteristic_energies(
-            transport.drift_velocity_m_s,
-            transport.mobility_m2_V_s,
-            diffusion_longitudinal_m2_s=transport.diffusion_L_m2_s,
-            diffusion_transverse_m2_s=transport.diffusion_T_m2_s,
-        )
-        transport_set = TransportSet.from_flux_only(
-            flux_transport,
-            ionization_frequency_s_inv=N * ion_rate,
-            attachment_frequency_s_inv=N * attach_rate,
-            metadata=TransportMetadata(
-                solver=self.name,
-                coefficient_definition="flux",
-                swarm_condition="local_flux",
-            ),
-        )
         return SwarmCaseResult(
             solver=self.name,
             case_id=case_id,
             e_over_n_Td=e_over_n_Td,
             mean_energy_eV=mean_energy,
-            drift_velocity_m_s=transport.drift_velocity_m_s,
-            mobility_m2_V_s=transport.mobility_m2_V_s,
-            reduced_mobility_m2_V_s_m3=transport.reduced_mobility_m2_V_s_m3,
-            diffusion_L_m2_s=transport.diffusion_L_m2_s,
-            diffusion_T_m2_s=transport.diffusion_T_m2_s,
-            reduced_diffusion_L_m2_s_m3=transport.reduced_diffusion_L_m2_s_m3,
-            reduced_diffusion_T_m2_s_m3=transport.reduced_diffusion_T_m2_s_m3,
             net_ionization_frequency_s=net_ion_freq,
             effective_townsend_m2=effective_townsend,
+            transport=transport,
             energy_eV=energy,
             eedf=eedf,
-            eepf=eepf,
             energy_widths_eV=widths,
             rates=rates,
             metadata={},
             diagnostics=diagnostics,
-            transport=transport_set,
         )

@@ -9,8 +9,9 @@ import pytest
 
 from electron_swarm import load_config, run
 from electron_swarm.core.results import RateResult, SwarmCaseResult
-from electron_swarm.references import load_bolsig_reference, load_mcig_reference
-from electron_swarm.references.common import (
+from electron_swarm.core.transport import ElectronTransport
+from tools.references import load_bolsig_reference, load_mcig_reference
+from tools.references.common import (
     ExternalReferenceConfig,
     ReferenceCaseResult,
     eepf_to_eedf,
@@ -18,7 +19,7 @@ from electron_swarm.references.common import (
     reference_comparison_metrics,
     reference_to_swarm_case,
 )
-from electron_swarm.references.runner import run_external_reference_command
+from tools.references.runner import run_external_reference_command
 from tests.product_helpers import base_product_config, write_config
 from tools.benchmark_ar_eedf_consistency import run_benchmark
 from tools.benchmark_ar_external_references import (
@@ -378,18 +379,18 @@ def _triage_swarm_case(
         case_id="triage_0000",
         e_over_n_Td=50.0,
         mean_energy_eV=mean_energy,
-        drift_velocity_m_s=drift,
-        mobility_m2_V_s=2.0,
-        reduced_mobility_m2_V_s_m3=0.0,
-        diffusion_L_m2_s=0.1,
-        diffusion_T_m2_s=0.2,
-        reduced_diffusion_L_m2_s_m3=0.0,
-        reduced_diffusion_T_m2_s_m3=0.0,
         net_ionization_frequency_s=rate,
         effective_townsend_m2=0.0,
+        transport=ElectronTransport.from_actual(
+            definition="test",
+            gas_number_density_m3=1.0,
+            drift_velocity_m_s=drift,
+            mobility_m2_V_s=2.0,
+            diffusion_L_m2_s=0.1,
+            diffusion_T_m2_s=0.2,
+        ),
         energy_eV=energy,
         eedf=values,
-        eepf=values / np.sqrt(np.maximum(energy, 1.0e-30)),
         energy_widths_eV=np.ones_like(energy),
         rates=[
             RateResult(
@@ -401,7 +402,6 @@ def _triage_swarm_case(
                 process_type="IONIZATION",
                 threshold_eV=15.0,
                 rate_coefficient_m3_s=rate,
-                mixture_weighted_rate_m3_s=rate,
             )
         ],
         metadata=metadata,

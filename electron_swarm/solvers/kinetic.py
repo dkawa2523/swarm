@@ -24,7 +24,9 @@ from electron_swarm.core.cross_sections import (
     gas_mass_amu,
     mixture_fraction,
 )
+from electron_swarm.core.numerics import eepf_from_eedf, f0_from_eedf
 from electron_swarm.core.results import RateResult
+from electron_swarm.core.transport import ElectronTransport
 from electron_swarm.grids.energy import build_energy_grid
 
 
@@ -73,18 +75,6 @@ class KineticOperatorBlock:
     @property
     def widths_eV(self) -> np.ndarray:
         return self.grid.widths_eV
-
-
-@dataclass(slots=True)
-class TransportCoefficients:
-    drift_velocity_m_s: float
-    mobility_m2_V_s: float
-    reduced_mobility_m2_V_s_m3: float
-    diffusion_L_m2_s: float
-    diffusion_T_m2_s: float
-    reduced_diffusion_L_m2_s_m3: float
-    reduced_diffusion_T_m2_s_m3: float
-    characteristic_energy_eV: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -541,10 +531,48 @@ def mean_energy_from_eedf(
     return weighted_integral(energy * values, widths)
 
 
-def eepf_from_eedf(energy_eV: np.ndarray, eedf: np.ndarray) -> np.ndarray:
-    return np.asarray(eedf, dtype=float) / np.sqrt(
-        np.maximum(np.asarray(energy_eV, dtype=float), 1.0e-30)
+def nonuniform_center_gradient(values: np.ndarray, energy_eV: np.ndarray) -> np.ndarray:
+    """Second-order center gradient for nonuniform energy centers."""
+
+    values = np.asarray(values, dtype=float)
+    energy = np.asarray(energy_eV, dtype=float)
+    if values.shape != energy.shape or values.ndim != 1:
+        raise ValueError("Gradient values and energy grid must be matching 1-D arrays")
+    n = len(energy)
+    if n < 2:
+        return np.zeros_like(values)
+    if np.any(np.diff(energy) <= 0.0):
+        raise ValueError("Energy grid must be strictly increasing")
+    if n == 2:
+        slope = (values[1] - values[0]) / (energy[1] - energy[0])
+        return np.array([slope, slope], dtype=float)
+
+    gradient = np.empty_like(values)
+    for i in range(1, n - 1):
+        h0 = energy[i] - energy[i - 1]
+        h1 = energy[i + 1] - energy[i]
+        gradient[i] = (
+            h0 * h0 * values[i + 1]
+            + (h1 * h1 - h0 * h0) * values[i]
+            - h1 * h1 * values[i - 1]
+        ) / (h0 * h1 * (h0 + h1))
+
+    h0 = energy[1] - energy[0]
+    h1 = energy[2] - energy[1]
+    gradient[0] = (
+        -(2.0 * h0 + h1) * values[0] / (h0 * (h0 + h1))
+        + (h0 + h1) * values[1] / (h0 * h1)
+        - h0 * values[2] / (h1 * (h0 + h1))
     )
+
+    h0 = energy[-2] - energy[-3]
+    h1 = energy[-1] - energy[-2]
+    gradient[-1] = (
+        h1 * values[-3] / (h0 * (h0 + h1))
+        - (h0 + h1) * values[-2] / (h0 * h1)
+        + (h0 + 2.0 * h1) * values[-1] / (h1 * (h0 + h1))
+    )
+    return gradient
 
 
 def negative_mass_fraction(eedf: np.ndarray, widths: np.ndarray) -> float:
@@ -567,21 +595,72 @@ def transport_from_reduced(
     gas_number_density_m3: float,
     muN: float,
     diffN: float,
-) -> TransportCoefficients:
+) -> ElectronTransport:
     EN = e_over_n_Td * TOWNSEND
-    mobility = muN / gas_number_density_m3
-    diffusion = diffN / gas_number_density_m3
     drift = muN * EN
-    char_e = diffN / max(abs(muN), 1.0e-300)
-    return TransportCoefficients(
+    return ElectronTransport(
+        definition="flux",
+        gas_number_density_m3=gas_number_density_m3,
         drift_velocity_m_s=drift,
-        mobility_m2_V_s=mobility,
         reduced_mobility_m2_V_s_m3=muN,
-        diffusion_L_m2_s=diffusion,
-        diffusion_T_m2_s=diffusion,
         reduced_diffusion_L_m2_s_m3=diffN,
         reduced_diffusion_T_m2_s_m3=diffN,
-        characteristic_energy_eV=char_e,
+    )
+
+
+def particle_reduced_transport_from_eedf(
+    energy: np.ndarray,
+    widths: np.ndarray,
+    eedf: np.ndarray,
+    sigma_m_m2: np.ndarray,
+) -> tuple[float, float]:
+    speed = electron_speed_m_s(energy)
+    nuN = np.maximum(np.asarray(sigma_m_m2, dtype=float) * speed, 1.0e-80)
+    dF = nonuniform_center_gradient(eedf, energy)
+    mobility_integrand = (2.0 * energy / nuN) * dF - eedf / nuN
+    muN = -E_CHARGE_C / (3.0 * ELECTRON_MASS_KG) * weighted_integral(
+        mobility_integrand, widths
+    )
+    diffN = (1.0 / 3.0) * weighted_integral((speed * speed / nuN) * eedf, widths)
+    return float(muN), float(diffN)
+
+
+def f0_reduced_transport_from_eedf(
+    energy: np.ndarray,
+    widths: np.ndarray,
+    eedf: np.ndarray,
+    sigma_m_m2: np.ndarray,
+) -> tuple[float, float, float, float]:
+    energy = np.asarray(energy, dtype=float)
+    widths = np.asarray(widths, dtype=float)
+    eedf = np.asarray(eedf, dtype=float)
+    sigma_m = np.maximum(np.asarray(sigma_m_m2, dtype=float), 1.0e-300)
+    if energy.shape != widths.shape or eedf.shape != energy.shape:
+        raise ValueError("Energy, widths, and EEDF arrays must have matching shape")
+    mean_energy = mean_energy_from_eedf(energy, widths, eedf)
+    if not np.isfinite(mean_energy) or mean_energy <= 0.0:
+        raise ValueError("Mean energy must be positive for energy transport")
+
+    f0 = f0_from_eedf(energy, eedf)
+    dF0 = nonuniform_center_gradient(f0, energy)
+    gamma = float(np.sqrt(2.0 * E_CHARGE_C / ELECTRON_MASS_KG))
+    mobility = -gamma / 3.0 * weighted_integral((energy / sigma_m) * dF0, widths)
+    diffusion = gamma / 3.0 * weighted_integral((energy / sigma_m) * f0, widths)
+    energy_mobility = (
+        -gamma
+        / (3.0 * mean_energy)
+        * weighted_integral((energy * energy / sigma_m) * dF0, widths)
+    )
+    energy_diffusion = (
+        gamma
+        / (3.0 * mean_energy)
+        * weighted_integral((energy * energy / sigma_m) * f0, widths)
+    )
+    return (
+        float(mobility),
+        float(diffusion),
+        float(energy_mobility),
+        float(energy_diffusion),
     )
 
 
@@ -594,26 +673,26 @@ def transport_from_eedf(
     gas_number_density_m3: float,
     e_over_n_Td: float,
     solver_config: TwoTermInternalConfig,
-) -> TransportCoefficients:
+) -> ElectronTransport:
     coll = build_effective_collision_data(
         config, cross_sections, energy, gas_number_density_m3, solver_config
     )
-    nuN = np.maximum(coll.nu_m_over_N, 1.0e-80)
-    speed = electron_speed_m_s(energy)
-    if len(energy) >= 3:
-        dF = np.gradient(eedf, energy, edge_order=2)
-    else:
-        dF = np.gradient(eedf, energy)
-    mobility_integrand = (2.0 * energy / nuN) * dF - eedf / nuN
-    muN = -E_CHARGE_C / (3.0 * ELECTRON_MASS_KG) * weighted_integral(
-        mobility_integrand, widths
+    muN, diffN, energy_muN, energy_diffN = f0_reduced_transport_from_eedf(
+        energy, widths, eedf, coll.sigma_m
     )
     if not np.isfinite(muN) or muN <= 0.0:
-        nu_eff_over_N = weighted_integral(nuN * eedf, widths)
+        nu_eff_over_N = weighted_integral(coll.nu_m_over_N * eedf, widths)
         muN = E_CHARGE_C / (ELECTRON_MASS_KG * max(nu_eff_over_N, 1.0e-80))
-    diffN = (1.0 / 3.0) * weighted_integral((speed * speed / nuN) * eedf, widths)
-    return transport_from_reduced(
-        e_over_n_Td, gas_number_density_m3, float(muN), float(diffN)
+    EN = e_over_n_Td * TOWNSEND
+    return ElectronTransport(
+        definition="flux",
+        gas_number_density_m3=gas_number_density_m3,
+        drift_velocity_m_s=float(muN) * EN,
+        reduced_mobility_m2_V_s_m3=float(muN),
+        reduced_diffusion_L_m2_s_m3=float(diffN),
+        reduced_diffusion_T_m2_s_m3=float(diffN),
+        reduced_electron_energy_mobility_eV_m2_V_s_m3=float(energy_muN),
+        reduced_electron_energy_diffusion_eV_m2_s_m3=float(energy_diffN),
     )
 
 
@@ -661,9 +740,9 @@ def compute_rates_from_eedf(
                 process_type=proc.process_type.value,
                 threshold_eV=proc.threshold_eV,
                 rate_coefficient_m3_s=k,
-                mixture_weighted_rate_m3_s=kmix,
-                frequency_s_inv=N * kmix,
-                power_loss_eV_s=N * kmix * loss,
+                target_species_fraction=frac,
+                energy_loss_eV=loss,
+                gas_number_density_m3=N,
             )
         )
     return RateConvolution(rates, ion_rate, attach_rate, net_freq)

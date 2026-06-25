@@ -9,9 +9,14 @@ results.
 from __future__ import annotations
 
 import argparse
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import numpy as np
 import pandas as pd
@@ -20,8 +25,9 @@ from electron_swarm import load_config, run
 from electron_swarm.core.config import SwarmConfig
 from electron_swarm.core.results import SwarmCaseResult
 from electron_swarm.core.numerics import widths_from_centers
-from electron_swarm.diagnostics.eedf_compare import compare_eedf_cases, normalize_eedf
-from electron_swarm.references.common import (
+from electron_swarm.core.transport import ElectronTransport
+from tools.eedf_compare import compare_eedf_cases, normalize_eedf
+from tools.references.common import (
     reference_cases_from_frame,
     reference_to_swarm_case,
 )
@@ -494,18 +500,18 @@ def _case_from_distribution(dist: Distribution) -> SwarmCaseResult:
         case_id=dist.case_id,
         e_over_n_Td=dist.e_over_n_Td,
         mean_energy_eV=dist.mean_energy_eV,
-        drift_velocity_m_s=0.0,
-        mobility_m2_V_s=0.0,
-        reduced_mobility_m2_V_s_m3=0.0,
-        diffusion_L_m2_s=0.0,
-        diffusion_T_m2_s=0.0,
-        reduced_diffusion_L_m2_s_m3=0.0,
-        reduced_diffusion_T_m2_s_m3=0.0,
         net_ionization_frequency_s=0.0,
         effective_townsend_m2=0.0,
+        transport=ElectronTransport.from_actual(
+            definition="benchmark_distribution",
+            gas_number_density_m3=1.0,
+            drift_velocity_m_s=0.0,
+            mobility_m2_V_s=0.0,
+            diffusion_L_m2_s=0.0,
+            diffusion_T_m2_s=0.0,
+        ),
         energy_eV=dist.energy_eV,
         eedf=dist.eedf_eV_inv,
-        eepf=dist.eedf_eV_inv / np.sqrt(np.maximum(dist.energy_eV, 1.0e-300)),
         energy_widths_eV=dist.widths_eV,
         eedf_counts=None
         if dist.sample_count is None

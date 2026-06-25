@@ -13,7 +13,7 @@ from electron_swarm.core.solver_configs import (
     MultiTermInternalConfig,
     TwoTermInternalConfig,
 )
-from electron_swarm.core.transport import BulkTransport, TransportSet
+from electron_swarm.core.transport import ElectronTransport
 
 from .diagnostics import SolverDiagnostics
 from .grid import EnergyGrid
@@ -49,8 +49,7 @@ class MultiTermSolution:
     coefficients: np.ndarray
     eedf_eV_inv: np.ndarray
     rates: RateSet
-    transport: TransportSet
-    estimated_bulk: BulkTransport | None
+    transport: ElectronTransport
     diagnostics: SolverDiagnostics
     method_used: str
     metadata: dict[str, object] = field(default_factory=dict)

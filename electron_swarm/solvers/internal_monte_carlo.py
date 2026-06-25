@@ -25,6 +25,8 @@ from electron_swarm.core.result_metadata import (
 )
 from electron_swarm.core.results import RateResult, SwarmCaseResult
 from electron_swarm.core.solver_configs import MonteCarloAdapterConfig
+from electron_swarm.core.transport import ElectronTransport
+from electron_swarm.solvers.base import SwarmSolver
 from electron_swarm.physics.angular_scattering import (
     expected_angular_metadata,
     build_angular_model,
@@ -462,7 +464,6 @@ def _rate_results(
             continue
         k = float(np.sum(proc.sigma(energy) * speed * eedf * widths))
         kmix = frac * k
-        freq = density * kmix
         if proc.process_type == ProcessType.IONIZATION:
             ion_rate += kmix
         elif proc.process_type == ProcessType.ATTACHMENT:
@@ -477,10 +478,9 @@ def _rate_results(
                 process_type=proc.process_type.value,
                 threshold_eV=proc.threshold_eV,
                 rate_coefficient_m3_s=k,
-                mixture_weighted_rate_m3_s=kmix,
-                frequency_s_inv=freq,
-                power_loss_eV_s=freq
-                * _energy_loss_eV(proc.process_type, proc.threshold_eV),
+                target_species_fraction=frac,
+                energy_loss_eV=_energy_loss_eV(proc.process_type, proc.threshold_eV),
+                gas_number_density_m3=density,
             )
         )
     net_freq = density * (ion_rate - attach_rate)
@@ -798,24 +798,25 @@ def run_internal_monte_carlo(
             float(run_audit_metadata["mc_max_sampled_energy_eV"] or 0.0),
             float(run_audit_metadata["mc_energy_samples_above_xs_max_fraction"] or 0.0),
         )
+        transport = ElectronTransport.from_actual(
+            definition=str(population_metadata["transport_definition"]),
+            gas_number_density_m3=density,
+            drift_velocity_m_s=drift_velocity,
+            mobility_m2_V_s=mobility,
+            diffusion_L_m2_s=diffusion_l,
+            diffusion_T_m2_s=diffusion_t,
+        )
         out.append(
             SwarmCaseResult(
                 solver="monte_carlo",
                 case_id=case_id,
                 e_over_n_Td=float(e_over_n_Td),
                 mean_energy_eV=mean_energy,
-                drift_velocity_m_s=drift_velocity,
-                mobility_m2_V_s=mobility,
-                reduced_mobility_m2_V_s_m3=mobility * density,
-                diffusion_L_m2_s=diffusion_l,
-                diffusion_T_m2_s=diffusion_t,
-                reduced_diffusion_L_m2_s_m3=diffusion_l * density,
-                reduced_diffusion_T_m2_s_m3=diffusion_t * density,
                 net_ionization_frequency_s=net_freq,
                 effective_townsend_m2=effective_townsend,
+                transport=transport,
                 energy_eV=energy,
                 eedf=eedf,
-                eepf=eedf / np.sqrt(np.maximum(energy, 1.0e-30)),
                 energy_widths_eV=widths,
                 eedf_counts=counts.astype(int),
                 eedf_effective_counts=effective_counts,
@@ -825,3 +826,27 @@ def run_internal_monte_carlo(
             )
         )
     return out
+
+
+class MonteCarloSolver(SwarmSolver):
+    name = "monte_carlo"
+
+    def __init__(
+        self,
+        config: SwarmConfig,
+        cross_sections: CrossSectionSet,
+        solver_config: MonteCarloAdapterConfig,
+    ) -> None:
+        super().__init__(config, cross_sections)
+        self.solver_config = solver_config
+
+    def solve_all(self) -> list[SwarmCaseResult]:
+        return run_internal_monte_carlo(
+            self.config,
+            self.cross_sections,
+            self.solver_config,
+            collect_audit=self.solver_config.collect_audit,
+        )
+
+    def solve_case(self, e_over_n_Td: float, case_id: str) -> SwarmCaseResult:
+        raise NotImplementedError("monte_carlo executes through solve_all()")

@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import yaml
 
@@ -12,15 +17,15 @@ from electron_swarm.core.config import (
     SwarmConfig,
     _load_config_from_raw,
 )
-from electron_swarm.diagnostics.eedf_compare import compare_eedf_cases
-from electron_swarm.references import load_reference_cases
-from electron_swarm.references.common import (
+from tools.eedf_compare import compare_eedf_cases
+from tools.references import load_reference_cases
+from tools.references.common import (
     ExternalReferenceConfig,
     ReferenceCaseResult,
     parse_external_reference_configs,
     reference_comparison_metrics,
 )
-from electron_swarm.references.runner import run_external_reference_command
+from tools.references.runner import run_external_reference_command
 from tools.benchmark_common import variant_config, write_csv
 
 
@@ -826,7 +831,7 @@ def run_benchmark(
             for bolsig_case in bolsig_cases:
                 if abs(mcig_case.e_over_n_Td - bolsig_case.e_over_n_Td) > 1.0e-9:
                     continue
-                from electron_swarm.references.common import reference_to_swarm_case
+                from tools.references.common import reference_to_swarm_case
 
                 bolsig_as_case = reference_to_swarm_case(bolsig_case)
                 metrics = reference_comparison_metrics(mcig_case, bolsig_as_case)

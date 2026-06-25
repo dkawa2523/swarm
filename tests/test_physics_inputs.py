@@ -400,7 +400,7 @@ def test_moment_table_expected_metadata(
 def test_monte_carlo_uses_shared_angular_model_config(tmp_path: Path) -> None:
     data = base_product_config(tmp_path, ["monte_carlo"])
     data["solvers"]["monte_carlo"] = {"angular_scattering": "isotropic"}
-    with pytest.raises(ValueError, match="internal product backend only"):
+    with pytest.raises(ValueError, match="Unsupported solvers.monte_carlo fields"):
         load_config(write_config(tmp_path, data))
 
 

@@ -13,6 +13,7 @@ from electron_swarm.core.cross_sections import (
     ProcessType,
 )
 from electron_swarm.core.results import RateResult, SwarmCaseResult
+from electron_swarm.core.transport import ElectronTransport
 from electron_swarm.diagnostics.tail import (
     attach_tail_metrics,
     rate_tail_fraction,
@@ -82,18 +83,18 @@ def test_tail_status_insufficient_for_cutoff_rate_contribution(tmp_path: Path) -
         case_id="tail",
         e_over_n_Td=100.0,
         mean_energy_eV=1.0,
-        drift_velocity_m_s=1.0,
-        mobility_m2_V_s=1.0,
-        reduced_mobility_m2_V_s_m3=1.0,
-        diffusion_L_m2_s=1.0,
-        diffusion_T_m2_s=1.0,
-        reduced_diffusion_L_m2_s_m3=1.0,
-        reduced_diffusion_T_m2_s_m3=1.0,
         net_ionization_frequency_s=1.0,
         effective_townsend_m2=1.0,
+        transport=ElectronTransport.from_actual(
+            definition="test",
+            gas_number_density_m3=1.0,
+            drift_velocity_m_s=1.0,
+            mobility_m2_V_s=1.0,
+            diffusion_L_m2_s=1.0,
+            diffusion_T_m2_s=1.0,
+        ),
         energy_eV=np.array([1.0, 2.0, 9.0, 10.0]),
         eedf=np.array([0.0, 0.0, 0.0, 1.0]),
-        eepf=np.array([0.0, 0.0, 0.0, 1.0]),
         rates=[
             RateResult(
                 solver="two_term",
@@ -104,7 +105,6 @@ def test_tail_status_insufficient_for_cutoff_rate_contribution(tmp_path: Path) -
                 process_type="ionization",
                 threshold_eV=2.0,
                 rate_coefficient_m3_s=1.0,
-                mixture_weighted_rate_m3_s=1.0,
             )
         ],
     )

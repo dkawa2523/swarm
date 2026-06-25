@@ -13,7 +13,6 @@ from electron_swarm.core.results import SwarmCaseResult
 from electron_swarm.core.numerics import widths_from_centers
 from electron_swarm.solvers.kinetic import (
     compute_rates_from_eedf,
-    eepf_from_eedf,
     gas_number_density,
 )
 
@@ -46,10 +45,6 @@ def _case_widths(case: SwarmCaseResult) -> np.ndarray:
         if widths.shape == np.asarray(case.energy_eV).shape and np.all(widths > 0.0):
             return widths
     return widths_from_centers(case.energy_eV)
-
-
-def _update_eepf(case: SwarmCaseResult) -> None:
-    case.eepf = eepf_from_eedf(case.energy_eV, case.eedf)
 
 
 def _recompute_rates(
@@ -137,7 +132,6 @@ def _apply_to_case(
 
     case.eedf = new
     case.mean_energy_eV = after
-    _update_eepf(case)
     _recompute_rates(case, config, cross_sections)
     case.diagnostics["electron_electron"] = operator_metadata
     case.metadata.update(

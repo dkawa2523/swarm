@@ -8,7 +8,7 @@ from scipy.sparse import linalg as spla
 
 from electron_swarm.core.cross_sections import ProcessType
 from electron_swarm.core.result_metadata import TRANSPORT_F0_GRADIENT_RECONSTRUCTION
-from electron_swarm.core.transport import FluxTransport, TransportMetadata, TransportSet
+from electron_swarm.core.transport import ElectronTransport
 from electron_swarm.physics.angular_scattering import build_angular_model
 from electron_swarm.solvers.kinetic import (
     EffectiveCollisionData,
@@ -283,7 +283,7 @@ def _transport_set_from_eedf(
     rates: RateSet,
     f0: np.ndarray,
     solver_name: str,
-) -> TransportSet:
+) -> ElectronTransport:
     transport = transport_from_eedf(
         case.config,
         case.cross_sections,
@@ -294,21 +294,13 @@ def _transport_set_from_eedf(
         case.e_over_n_Td,
         case.two_term_config,
     )
-    flux = FluxTransport.with_characteristic_energies(
-        transport.drift_velocity_m_s,
-        transport.mobility_m2_V_s,
-        diffusion_longitudinal_m2_s=transport.diffusion_L_m2_s,
-        diffusion_transverse_m2_s=transport.diffusion_T_m2_s,
-    )
-    return TransportSet.from_flux_only(
-        flux,
-        rates.ionization_frequency_s_inv,
-        rates.attachment_frequency_s_inv,
-        TransportMetadata(
-            solver=solver_name,
-            coefficient_definition=TRANSPORT_F0_GRADIENT_RECONSTRUCTION,
-            swarm_condition="local_flux",
-        ),
+    return ElectronTransport(
+        definition=TRANSPORT_F0_GRADIENT_RECONSTRUCTION,
+        gas_number_density_m3=transport.gas_number_density_m3,
+        drift_velocity_m_s=transport.drift_velocity_m_s,
+        reduced_mobility_m2_V_s_m3=transport.reduced_mobility_m2_V_s_m3,
+        reduced_diffusion_L_m2_s_m3=transport.reduced_diffusion_L_m2_s_m3,
+        reduced_diffusion_T_m2_s_m3=transport.reduced_diffusion_T_m2_s_m3,
     )
 
 
@@ -436,7 +428,6 @@ def _solve_direct_higher_l(
         f0,
         rates,
         transport_set,
-        None,
         diagnostics,
         method_used=method_used,
         metadata=metadata,
@@ -583,7 +574,6 @@ def solve_direct_lmax1(
         f0,
         rates,
         transport_set,
-        None,
         diagnostics,
         method_used=method_used,
         metadata=metadata,

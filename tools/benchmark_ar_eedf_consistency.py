@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from electron_swarm import run
 from electron_swarm.core.config import SwarmConfig
-from electron_swarm.diagnostics.eedf_compare import compare_eedf_cases
-from electron_swarm.references import load_reference_cases
-from electron_swarm.references.common import (
+from tools.eedf_compare import compare_eedf_cases
+from tools.references import load_reference_cases
+from tools.references.common import (
     ExternalReferenceConfig,
     reference_comparison_metrics,
 )

@@ -17,7 +17,6 @@ from electron_swarm.core.solver_configs import (
 )
 from electron_swarm.solvers.base import SwarmSolver
 from electron_swarm.solvers.kinetic import (
-    eepf_from_eedf,
     gas_number_density,
     weighted_integral,
 )
@@ -116,26 +115,16 @@ class MultiTermSolver(SwarmSolver):
         run_time_s: float,
     ) -> SwarmCaseResult:
         transport = solution.transport
-        flux = transport.flux
         number_density = case.gas_number_density_m3
-        diffusion_l = (
-            flux.diffusion_longitudinal_m2_s
-            if flux.diffusion_longitudinal_m2_s is not None
-            else float("nan")
-        )
-        diffusion_t = (
-            flux.diffusion_transverse_m2_s
-            if flux.diffusion_transverse_m2_s is not None
-            else diffusion_l
-        )
+        diffusion_l = transport.diffusion_L_m2_s
+        diffusion_t = transport.diffusion_T_m2_s
         eedf = np.asarray(solution.eedf_eV_inv, dtype=float)
         rates = solution.rates
         mean_energy = float(solution.diagnostics.mean_energy_eV)
         net_freq = rates.effective_growth_frequency_s_inv
         effective_townsend = net_freq / max(
-            abs(flux.drift_velocity_m_s) * number_density, 1.0e-300
+            abs(transport.drift_velocity_m_s) * number_density, 1.0e-300
         )
-        eepf = eepf_from_eedf(solution.energy_eV, eedf)
         energy_grid = case.multi_term_config.energy_grid
         diagnostics = {
             "backend": case.config.solvers.multi_term.method,
@@ -184,7 +173,7 @@ class MultiTermSolver(SwarmSolver):
             "convolution_net_ionization_frequency_s-1": float(net_freq),
             "net_ionization_frequency_model": "convolution_effective_rate",
             "effective_townsend_1_m": float(
-                net_freq / max(abs(flux.drift_velocity_m_s), 1.0e-300)
+                net_freq / max(abs(transport.drift_velocity_m_s), 1.0e-300)
             ),
         }
         diagnostics.update(solution.metadata)
@@ -208,23 +197,15 @@ class MultiTermSolver(SwarmSolver):
             case_id=case_id,
             e_over_n_Td=case.e_over_n_Td,
             mean_energy_eV=mean_energy,
-            drift_velocity_m_s=flux.drift_velocity_m_s,
-            mobility_m2_V_s=flux.mobility_m2_V_s,
-            reduced_mobility_m2_V_s_m3=flux.mobility_m2_V_s * number_density,
-            diffusion_L_m2_s=diffusion_l,
-            diffusion_T_m2_s=diffusion_t,
-            reduced_diffusion_L_m2_s_m3=diffusion_l * number_density,
-            reduced_diffusion_T_m2_s_m3=diffusion_t * number_density,
             net_ionization_frequency_s=net_freq,
             effective_townsend_m2=effective_townsend,
+            transport=transport,
             energy_eV=solution.energy_eV,
             eedf=eedf,
-            eepf=eepf,
             energy_widths_eV=solution.widths_eV,
             rates=list(rates.rates),
             metadata=metadata,
             diagnostics={"multi_term": diagnostics},
-            transport=transport,
         )
 
 

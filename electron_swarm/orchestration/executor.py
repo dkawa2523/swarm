@@ -13,8 +13,9 @@ from electron_swarm.core.solver_configs import InternalSolverConfigs
 from electron_swarm.core.solver_registry import solver_method
 from electron_swarm.orchestration.plan import SolverPlanItem
 from electron_swarm.physics.angular_scattering import expected_angular_metadata
+from electron_swarm.solvers.base import SwarmSolver
+from electron_swarm.solvers.internal_monte_carlo import MonteCarloSolver
 from electron_swarm.solvers.two_term import TwoTermSolver
-from electron_swarm.solvers.monte_carlo_adapter import MonteCarloAdapter
 from electron_swarm.solvers.multi_term import MultiTermSolver
 
 
@@ -23,19 +24,21 @@ def _build_solver(
     cross_sections: CrossSectionSet,
     internal: InternalSolverConfigs,
     solver: str,
-) -> TwoTermSolver | MultiTermSolver | MonteCarloAdapter:
-    if solver == "two_term":
-        return TwoTermSolver(config, cross_sections, internal.two_term)
-    if solver == "multi_term":
-        return MultiTermSolver(
-            config,
-            cross_sections,
-            internal.multi_term,
-            internal.two_term,
-        )
-    if solver == "monte_carlo":
-        return MonteCarloAdapter(config, cross_sections, internal.monte_carlo)
-    raise ValueError(f"Unsupported solver id: {solver}")
+) -> SwarmSolver:
+    match solver:
+        case "two_term":
+            return TwoTermSolver(config, cross_sections, internal.two_term)
+        case "multi_term":
+            return MultiTermSolver(
+                config,
+                cross_sections,
+                internal.multi_term,
+                internal.two_term,
+            )
+        case "monte_carlo":
+            return MonteCarloSolver(config, cross_sections, internal.monte_carlo)
+        case _:
+            raise ValueError(f"Unsupported solver id: {solver}")
 
 
 def _transport_definition(
@@ -50,8 +53,8 @@ def _transport_definition(
                 TRANSPORT_MC_FIXED_POPULATION,
             )
         )
-    if case.transport is not None and case.transport.metadata is not None:
-        return str(case.transport.metadata.coefficient_definition)
+    if case.transport is not None:
+        return case.transport.definition
     return TRANSPORT_FLUX
 
 

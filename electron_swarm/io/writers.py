@@ -7,9 +7,9 @@ from pathlib import Path
 import pandas as pd
 
 from electron_swarm.core.config import ComparisonConfig, OutputConfig
+from electron_swarm.core.numerics import eepf_from_eedf, widths_from_centers
 from electron_swarm.core.result_metadata import SUMMARY_METADATA_KEYS
 from electron_swarm.core.results import SwarmCaseResult, SwarmRunResult
-from electron_swarm.core.numerics import widths_from_centers
 
 
 SUMMARY_COLUMNS = [
@@ -20,8 +20,13 @@ SUMMARY_COLUMNS = [
     "mean_energy_eV",
     "drift_velocity_m_s",
     "mobility_m2_V_s",
+    "reduced_mobility_m2_V_s_m3",
     "diffusion_L_m2_s",
     "diffusion_T_m2_s",
+    "reduced_diffusion_L_m2_s_m3",
+    "reduced_diffusion_T_m2_s_m3",
+    "reduced_electron_energy_mobility_eV_m2_V_s_m3",
+    "reduced_electron_energy_diffusion_eV_m2_s_m3",
     "net_ionization_frequency_s",
     "effective_townsend_m2",
 ]
@@ -37,6 +42,9 @@ RATES_COLUMNS = [
     "process_type",
     "threshold_eV",
     "rate_coefficient_m3_s",
+    "target_species_fraction",
+    "energy_loss_eV",
+    "energy_loss_rate_coefficient_eV_m3_s",
     "mixture_weighted_rate_m3_s",
     "frequency_s_inv",
     "power_loss_eV_s",
@@ -111,8 +119,17 @@ def _summary_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
             "mean_energy_eV": case.mean_energy_eV,
             "drift_velocity_m_s": case.drift_velocity_m_s,
             "mobility_m2_V_s": case.mobility_m2_V_s,
+            "reduced_mobility_m2_V_s_m3": case.reduced_mobility_m2_V_s_m3,
             "diffusion_L_m2_s": case.diffusion_L_m2_s,
             "diffusion_T_m2_s": case.diffusion_T_m2_s,
+            "reduced_diffusion_L_m2_s_m3": case.reduced_diffusion_L_m2_s_m3,
+            "reduced_diffusion_T_m2_s_m3": case.reduced_diffusion_T_m2_s_m3,
+            "reduced_electron_energy_mobility_eV_m2_V_s_m3": (
+                case.reduced_electron_energy_mobility_eV_m2_V_s_m3
+            ),
+            "reduced_electron_energy_diffusion_eV_m2_s_m3": (
+                case.reduced_electron_energy_diffusion_eV_m2_s_m3
+            ),
             "net_ionization_frequency_s": case.net_ionization_frequency_s,
             "effective_townsend_m2": case.effective_townsend_m2,
         }
@@ -131,9 +148,10 @@ def _eedf_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
         widths = case.energy_widths_eV
         if widths is None or len(widths) != len(case.energy_eV):
             widths = widths_from_centers(case.energy_eV)
-        for index, (energy, eedf, eepf) in enumerate(zip(
-            case.energy_eV, case.eedf, case.eepf, strict=False
-        )):
+        eepf = eepf_from_eedf(case.energy_eV, case.eedf)
+        for index, (energy, eedf, eepf_value) in enumerate(
+            zip(case.energy_eV, case.eedf, eepf, strict=False)
+        ):
             width = (
                 float(widths[index])
                 if widths is not None
@@ -164,7 +182,7 @@ def _eedf_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
                     "energy_eV": energy,
                     "energy_width_eV": width,
                     "eedf": eedf,
-                    "eepf": eepf,
+                    "eepf": eepf_value,
                     "sample_count": count,
                     "effective_sample_count": effective_count,
                     "relative_standard_error": relative_error,
@@ -187,6 +205,11 @@ def _rates_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
                     "process_type": rate.process_type,
                     "threshold_eV": rate.threshold_eV,
                     "rate_coefficient_m3_s": rate.rate_coefficient_m3_s,
+                    "target_species_fraction": rate.target_species_fraction,
+                    "energy_loss_eV": rate.energy_loss_eV,
+                    "energy_loss_rate_coefficient_eV_m3_s": (
+                        rate.energy_loss_rate_coefficient_eV_m3_s
+                    ),
                     "mixture_weighted_rate_m3_s": rate.mixture_weighted_rate_m3_s,
                     "frequency_s_inv": rate.frequency_s_inv,
                     "power_loss_eV_s": rate.power_loss_eV_s,

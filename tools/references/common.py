@@ -15,7 +15,8 @@ import pandas as pd
 import yaml
 
 from electron_swarm.core.results import RateResult, SwarmCaseResult
-from electron_swarm.diagnostics.eedf_compare import (
+from electron_swarm.core.transport import ElectronTransport
+from tools.eedf_compare import (
     cell_widths_from_centers,
     compare_eedf_cases,
     normalize_eedf,
@@ -315,7 +316,6 @@ def reference_cases_from_frame(
 def reference_to_swarm_case(reference: ReferenceCaseResult) -> SwarmCaseResult:
     energy = reference.energy_eV
     eedf = reference.eedf_eV_inv
-    eepf = eedf / np.sqrt(np.maximum(energy, 1.0e-300))
     scalar = reference.scalars
     widths = cell_widths_from_centers(energy)
     mean_energy = scalar.get("mean_energy_eV")
@@ -333,7 +333,6 @@ def reference_to_swarm_case(reference: ReferenceCaseResult) -> SwarmCaseResult:
             process_type="reference",
             threshold_eV=None,
             rate_coefficient_m3_s=value,
-            mixture_weighted_rate_m3_s=value,
         )
         for name, value in reference.rates.items()
     ]
@@ -342,18 +341,18 @@ def reference_to_swarm_case(reference: ReferenceCaseResult) -> SwarmCaseResult:
         case_id=reference.case_id,
         e_over_n_Td=reference.e_over_n_Td,
         mean_energy_eV=float(mean_energy),
-        drift_velocity_m_s=scalar.get("drift_velocity_m_s", 0.0),
-        mobility_m2_V_s=scalar.get("mobility_m2_V_s", 0.0),
-        reduced_mobility_m2_V_s_m3=0.0,
-        diffusion_L_m2_s=scalar.get("diffusion_L_m2_s", 0.0),
-        diffusion_T_m2_s=scalar.get("diffusion_T_m2_s", 0.0),
-        reduced_diffusion_L_m2_s_m3=0.0,
-        reduced_diffusion_T_m2_s_m3=0.0,
         net_ionization_frequency_s=scalar.get("net_ionization_frequency_s", 0.0),
         effective_townsend_m2=0.0,
+        transport=ElectronTransport.from_actual(
+            definition="external_reference",
+            gas_number_density_m3=1.0,
+            drift_velocity_m_s=scalar.get("drift_velocity_m_s", 0.0),
+            mobility_m2_V_s=scalar.get("mobility_m2_V_s", 0.0),
+            diffusion_L_m2_s=scalar.get("diffusion_L_m2_s", 0.0),
+            diffusion_T_m2_s=scalar.get("diffusion_T_m2_s", 0.0),
+        ),
         energy_eV=energy,
         eedf=eedf,
-        eepf=eepf,
         energy_widths_eV=widths,
         rates=rates,
         metadata={

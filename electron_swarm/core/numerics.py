@@ -18,3 +18,19 @@ def widths_from_centers(energy_eV: np.ndarray) -> np.ndarray:
     edges[0] = max(0.0, energy[0] - 0.5 * (energy[1] - energy[0]))
     edges[-1] = energy[-1] + 0.5 * (energy[-1] - energy[-2])
     return np.diff(edges)
+
+
+def eepf_from_eedf(energy_eV: np.ndarray, eedf: np.ndarray) -> np.ndarray:
+    return np.asarray(eedf, dtype=float) / np.sqrt(
+        np.maximum(np.asarray(energy_eV, dtype=float), 1.0e-30)
+    )
+
+
+def f0_from_eedf(energy_eV: np.ndarray, eedf: np.ndarray) -> np.ndarray:
+    return eepf_from_eedf(energy_eV, eedf)
+
+
+def eedf_from_f0(energy_eV: np.ndarray, f0: np.ndarray) -> np.ndarray:
+    return np.asarray(f0, dtype=float) * np.sqrt(
+        np.maximum(np.asarray(energy_eV, dtype=float), 1.0e-30)
+    )

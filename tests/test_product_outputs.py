@@ -48,12 +48,13 @@ def test_canonical_outputs_and_comparison_summary(tmp_path: Path) -> None:
         "comparison_summary_csv",
     }
 
-    assert not (tmp_path / "prod_comparison_rates.csv").exists()
-    assert not (tmp_path / "prod_comparison_capabilities.csv").exists()
-    assert not list(tmp_path.glob("prod_*.png"))
-    assert not (tmp_path / "summary.csv").exists()
-    assert not (tmp_path / "summary_boltzmann.csv").exists()
-    assert not (tmp_path / "summary_multiterm.csv").exists()
+    assert {path.name for path in tmp_path.glob("prod_*")} == {
+        "prod_summary.csv",
+        "prod_rates.csv",
+        "prod_eedf.csv",
+        "prod_solver_plan.csv",
+        "prod_comparison_summary.csv",
+    }
 
     summary = pd.read_csv(tmp_path / "prod_summary.csv")
     expected_meta_columns = {
@@ -72,7 +73,16 @@ def test_canonical_outputs_and_comparison_summary(tmp_path: Path) -> None:
     }
     for column in expected_meta_columns:
         assert column in summary.columns
+    assert list(summary.columns) == _expected_summary_columns()
     assert {c for c in summary.columns if c.startswith("meta_")} == expected_meta_columns
+    two_term = summary[summary["solver"] == "two_term"].iloc[0]
+    for column in [
+        "reduced_mobility_m2_V_s_m3",
+        "reduced_diffusion_L_m2_s_m3",
+        "reduced_electron_energy_mobility_eV_m2_V_s_m3",
+        "reduced_electron_energy_diffusion_eV_m2_s_m3",
+    ]:
+        assert pd.notna(two_term[column])
     eedf = pd.read_csv(tmp_path / "prod_eedf.csv")
     assert "energy_width_eV" in eedf.columns
     assert "sample_count" in eedf.columns
@@ -83,36 +93,11 @@ def test_canonical_outputs_and_comparison_summary(tmp_path: Path) -> None:
         assert float((group["eedf"] * group["energy_width_eV"]).sum()) == pytest.approx(
             1.0
         )
-    assert not any(col.startswith("meta_capability_") for col in summary.columns)
     mt = summary[summary["solver"] == "multi_term"].iloc[0]
     assert mt["meta_angular_moment_source"] == "isotropic_closure"
     assert bool(mt["meta_exact_dcs_based"]) is False
     assert bool(mt["meta_ordinary_integral_xs_closure"]) is True
     assert mt["meta_transport_definition"] == "f0_gradient_reconstruction"
-    assert not any(col.startswith("meta_multiterm_") for col in summary.columns)
-    assert not any(col.startswith("meta_bulk_") for col in summary.columns)
-    assert not any(col.startswith("meta_estimated_bulk_") for col in summary.columns)
-    for removed in [
-        "meta_pn_residual",
-        "meta_negative_mass_fraction",
-        "meta_lmax1_regression_target",
-        "meta_effective_angular_scattering",
-        "meta_hydrodynamic",
-        "meta_field_integrator",
-        "meta_tail_rate_fraction_max",
-        "meta_mc_seed",
-        "meta_mc_particles",
-        "meta_mc_population_model",
-        "meta_mc_histogram_samples",
-        "meta_mc_tail_uncertainty_status",
-        "meta_mc_tail_comparison_status",
-        "meta_mc_energy_balance_status",
-    ]:
-        assert removed not in summary.columns
-    assert "schema_version" not in summary.columns
-    assert "reduced_mobility_m2_V_s_m3" not in summary.columns
-    assert "reduced_diffusion_L_m2_s_m3" not in summary.columns
-    assert "reduced_diffusion_T_m2_s_m3" not in summary.columns
 
     comparison = pd.read_csv(tmp_path / "prod_comparison_summary.csv")
     assert list(comparison["candidate_solver"]) == ["multi_term"]
@@ -121,12 +106,15 @@ def test_canonical_outputs_and_comparison_summary(tmp_path: Path) -> None:
 
     rates = pd.read_csv(tmp_path / "prod_rates.csv")
     assert "tail_fraction" in rates.columns
+    for column in [
+        "target_species_fraction",
+        "energy_loss_eV",
+        "energy_loss_rate_coefficient_eV_m3_s",
+    ]:
+        assert column in rates.columns
 
     plan = pd.read_csv(tmp_path / "prod_solver_plan.csv")
-    assert "effective_ionization_source" in plan.columns
-    assert "effective_finite_k" in plan.columns
-    assert not any(col.startswith("capability_") for col in plan.columns)
-    assert "effective_rf_field" in plan.columns
+    assert list(plan.columns) == SOLVER_PLAN_COLUMNS
 
 
 def test_all_solvers_skipped_writes_canonical_empty_summary(tmp_path: Path) -> None:
@@ -242,13 +230,7 @@ def test_internal_mc_magnetic_summary_output(tmp_path: Path) -> None:
     [row] = summary.to_dict("records")
     assert row["meta_magnetic_field_treatment"] == "boris_lorentz_push"
     assert row["meta_transport_definition"] == "mc_flux_particle_tracking_fixed_population"
-    assert "meta_mc_seed" not in summary.columns
-    assert "meta_field_integrator" not in summary.columns
-    assert "meta_mc_orbit_substeps" not in summary.columns
-    assert "mc_run" not in case.metadata
-    assert "mc_tail_audit" not in case.metadata
-    assert "_dev_internal_monte_carlo_audit" not in case.metadata
-    assert "internal_monte_carlo_audit" not in case.diagnostics
+    assert set(case.metadata) <= PRODUCT_CASE_METADATA_KEYS
 
     eedf = pd.read_csv(tmp_path / "prod_eedf.csv")
     assert "energy_width_eV" in eedf.columns
@@ -283,8 +265,7 @@ def test_internal_mc_weighted_branching_summary_metadata(tmp_path: Path) -> None
         row["meta_transport_definition"]
         == "mc_flux_particle_tracking_weighted_growth_population"
     )
-    assert "_dev_internal_monte_carlo_audit" not in case.metadata
-    assert "internal_monte_carlo_audit" not in case.diagnostics
+    assert set(case.metadata) <= PRODUCT_CASE_METADATA_KEYS
 
 
 def test_matching_angular_pn_mc_comparison_summary(tmp_path: Path) -> None:

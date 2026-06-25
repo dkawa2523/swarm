@@ -1,5 +1,5 @@
 from .two_term import TwoTermSolver
 from .multi_term import MultiTermSolver
-from .monte_carlo_adapter import MonteCarloAdapter
+from .internal_monte_carlo import MonteCarloSolver
 
-__all__ = ["TwoTermSolver", "MultiTermSolver", "MonteCarloAdapter"]
+__all__ = ["TwoTermSolver", "MultiTermSolver", "MonteCarloSolver"]

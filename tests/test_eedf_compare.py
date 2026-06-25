@@ -3,11 +3,23 @@ from __future__ import annotations
 import numpy as np
 
 from electron_swarm.core.results import SwarmCaseResult
-from electron_swarm.diagnostics.eedf_compare import (
+from electron_swarm.core.transport import ElectronTransport
+from tools.eedf_compare import (
     FAILURE_CATEGORIES,
     classify_eedf_failure,
     compare_eedf_cases,
 )
+
+
+def _transport(drift_velocity_m_s: float = 1.0) -> ElectronTransport:
+    return ElectronTransport.from_actual(
+        definition="test",
+        gas_number_density_m3=1.0,
+        drift_velocity_m_s=drift_velocity_m_s,
+        mobility_m2_V_s=1.0,
+        diffusion_L_m2_s=1.0,
+        diffusion_T_m2_s=1.0,
+    )
 
 
 def _case(
@@ -23,18 +35,11 @@ def _case(
         case_id="case_0000",
         e_over_n_Td=50.0,
         mean_energy_eV=float(np.sum(energy * eedf)),
-        drift_velocity_m_s=1.0,
-        mobility_m2_V_s=1.0,
-        reduced_mobility_m2_V_s_m3=1.0,
-        diffusion_L_m2_s=1.0,
-        diffusion_T_m2_s=1.0,
-        reduced_diffusion_L_m2_s_m3=1.0,
-        reduced_diffusion_T_m2_s_m3=1.0,
         net_ionization_frequency_s=0.0,
         effective_townsend_m2=0.0,
+        transport=_transport(),
         energy_eV=energy,
         eedf=eedf,
-        eepf=eedf / np.sqrt(energy),
         rates=[],
         metadata=metadata or {},
     )
@@ -65,7 +70,7 @@ def test_eedf_compare_classifies_higher_l_direct_mismatch() -> None:
             "negative_mass_fraction": 2.0e-7,
         },
     )
-    cand.drift_velocity_m_s = 10.0
+    cand.transport = _transport(drift_velocity_m_s=10.0)
     comparison = compare_eedf_cases(ref, cand)
     categories = {row["category"] for row in comparison.failures}
     assert "expected_physics_difference" in categories
@@ -79,7 +84,7 @@ def test_eedf_compare_classifies_higher_l_direct_mismatch() -> None:
 def test_eedf_compare_suppresses_secondary_mismatch_when_mc_uncertain() -> None:
     ref = _case("two_term", np.array([0.7, 0.2, 0.08, 0.02]))
     cand = _case("monte_carlo", np.array([0.2, 0.2, 0.2, 0.4]))
-    cand.drift_velocity_m_s = 10.0
+    cand.transport = _transport(drift_velocity_m_s=10.0)
     comparison = compare_eedf_cases(ref, cand)
     categories = {row["category"] for row in comparison.failures}
     assert categories == {"MC_statistical_uncertainty"}
@@ -103,18 +108,11 @@ def test_eedf_compare_uses_result_widths_when_available() -> None:
         case_id="case_0000",
         e_over_n_Td=50.0,
         mean_energy_eV=float(np.sum(energy * eedf * widths)),
-        drift_velocity_m_s=1.0,
-        mobility_m2_V_s=1.0,
-        reduced_mobility_m2_V_s_m3=1.0,
-        diffusion_L_m2_s=1.0,
-        diffusion_T_m2_s=1.0,
-        reduced_diffusion_L_m2_s_m3=1.0,
-        reduced_diffusion_T_m2_s_m3=1.0,
         net_ionization_frequency_s=0.0,
         effective_townsend_m2=0.0,
+        transport=_transport(),
         energy_eV=energy,
         eedf=eedf,
-        eepf=eedf / np.sqrt(energy),
         energy_widths_eV=widths,
         rates=[],
         metadata={},

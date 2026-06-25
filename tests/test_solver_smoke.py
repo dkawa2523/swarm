@@ -6,18 +6,25 @@ import numpy as np
 import pytest
 
 from electron_swarm import load_config, run
+from electron_swarm.core.numerics import eedf_from_f0, f0_from_eedf
 from electron_swarm.core.cross_sections import ProcessType, load_cross_sections
+from electron_swarm.core.results import RateResult
+from electron_swarm.core.result_metadata import PRODUCT_CASE_METADATA_KEYS
 from electron_swarm.core.solver_configs import build_internal_solver_configs
-from electron_swarm.diagnostics.eedf_compare import compare_eedf_cases
+from tools.eedf_compare import compare_eedf_cases
 from electron_swarm.solvers.kinetic import (
     assemble_native_operator_blocks,
+    build_effective_collision_data,
     cell_edges_from_centers,
     compute_rates_from_eedf,
     eepf_from_eedf,
+    f0_reduced_transport_from_eedf,
+    gas_number_density,
     make_two_term_energy_grid,
     mean_energy_from_eedf,
     negative_mass_fraction,
     normalize_eedf,
+    particle_reduced_transport_from_eedf,
 )
 from electron_swarm.solvers.multi_term.direct import build_higher_l_collision_damping
 from electron_swarm.solvers.internal_monte_carlo import (
@@ -45,6 +52,40 @@ from electron_swarm.physics.angular_scattering import build_angular_model
 from electron_swarm.solvers.two_term import TwoTermSolver
 
 from product_helpers import ROOT, base_product_config, write_config, write_moment_table
+
+
+def _assert_canonical_transport(case) -> None:
+    transport = case.transport
+    density = transport.gas_number_density_m3
+    assert density > 0.0
+    assert case.mobility_m2_V_s == pytest.approx(
+        case.reduced_mobility_m2_V_s_m3 / density
+    )
+    assert case.diffusion_L_m2_s == pytest.approx(
+        case.reduced_diffusion_L_m2_s_m3 / density
+    )
+    assert case.diffusion_T_m2_s == pytest.approx(
+        case.reduced_diffusion_T_m2_s_m3 / density
+    )
+    if case.solver == "two_term":
+        assert case.reduced_electron_energy_mobility_eV_m2_V_s_m3 is not None
+        assert case.reduced_electron_energy_diffusion_eV_m2_s_m3 is not None
+        assert case.electron_energy_mobility_eV_m2_V_s == pytest.approx(
+            case.reduced_electron_energy_mobility_eV_m2_V_s_m3 / density
+        )
+        assert case.electron_energy_diffusion_eV_m2_s == pytest.approx(
+            case.reduced_electron_energy_diffusion_eV_m2_s_m3 / density
+        )
+    else:
+        assert transport.electron_energy_mobility_eV_m2_V_s is None
+        assert transport.electron_energy_diffusion_eV_m2_s is None
+
+
+def _assert_eedf_normalized(case) -> None:
+    widths = case.energy_widths_eV
+    if widths is None:
+        widths = cell_edges_from_centers(case.energy_eV)[1]
+    assert float(np.sum(case.eedf * widths)) == pytest.approx(1.0)
 
 
 def _write_total_momentum_xs(
@@ -77,6 +118,8 @@ def test_two_term_smoke_run(tmp_path: Path) -> None:
     assert tail["energy_grid_tail_status"] in {"ok", "warning", "insufficient"}
     assert tail["tail_probability"] >= 0.0
     assert np.all(np.isfinite(case.eedf))
+    _assert_eedf_normalized(case)
+    _assert_canonical_transport(case)
 
 
 def test_multi_term_default_direct_smoke_and_minimum_metadata(tmp_path: Path) -> None:
@@ -94,6 +137,8 @@ def test_multi_term_default_direct_smoke_and_minimum_metadata(tmp_path: Path) ->
     tail = case.diagnostics["tail_metrics"]
     assert tail["energy_grid_tail_status"] in {"ok", "warning", "insufficient"}
     assert case.mean_energy_eV > 0.0
+    _assert_eedf_normalized(case)
+    _assert_canonical_transport(case)
 
 
 def test_multi_term_pn_closure_direct_lmax1_regresses_to_two_term(
@@ -112,8 +157,7 @@ def test_multi_term_pn_closure_direct_lmax1_regresses_to_two_term(
     direct_diag = direct.diagnostics["multi_term"]
     assert direct_diag["lmax1_regression_target"] == "two_term"
     assert direct_diag["negative_mass_fraction"] < 1.0e-8
-    assert "direct_pn_iterations" not in direct.metadata
-    assert "direct_pn_growth_frequency_s-1" not in direct.metadata
+    assert set(direct.metadata) <= PRODUCT_CASE_METADATA_KEYS
     assert np.all(np.isfinite(direct.eedf))
     widths = np.diff(
         np.r_[
@@ -226,12 +270,49 @@ def test_shared_kinetic_eedf_helpers_and_rate_convolution(tmp_path: Path) -> Non
     assert float(np.sum(eedf * widths)) == pytest.approx(1.0)
     assert mean_energy_from_eedf(energy, widths, eedf) == pytest.approx(1.5)
     assert np.all(np.isfinite(eepf_from_eedf(energy, eedf)))
+    f0 = f0_from_eedf(energy, eedf)
+    assert float(np.sum(np.sqrt(energy) * f0 * widths)) == pytest.approx(1.0)
+    assert np.allclose(eedf_from_f0(energy, f0), eedf)
     assert negative_mass_fraction(np.array([-0.1, 1.1, 0.0]), widths) > 0.0
 
     cfg = load_config(write_config(tmp_path, base_product_config(tmp_path, ["two_term"])))
     case = run(cfg, write=False).cases[0]
     case_widths = cell_edges_from_centers(case.energy_eV)[1]
     cross_sections = load_cross_sections(cfg.cross_sections, cfg.conditions)
+    internal = build_internal_solver_configs(cfg.solvers, cfg.physics)
+    density = gas_number_density(cfg)
+    collisions = build_effective_collision_data(
+        cfg,
+        cross_sections,
+        case.energy_eV,
+        density,
+        internal.two_term,
+    )
+    particle_muN, particle_diffN = particle_reduced_transport_from_eedf(
+        case.energy_eV,
+        case_widths,
+        case.eedf,
+        collisions.sigma_m,
+    )
+    f0_muN, f0_diffN, energy_muN, energy_diffN = (
+        f0_reduced_transport_from_eedf(
+            case.energy_eV,
+            case_widths,
+            case.eedf,
+            collisions.sigma_m,
+        )
+    )
+    assert f0_muN == pytest.approx(particle_muN, rel=2.0e-2)
+    assert f0_diffN == pytest.approx(particle_diffN, rel=1.0e-12)
+    assert case.reduced_mobility_m2_V_s_m3 == pytest.approx(f0_muN)
+    assert case.reduced_diffusion_L_m2_s_m3 == pytest.approx(f0_diffN)
+    assert case.reduced_electron_energy_mobility_eV_m2_V_s_m3 == pytest.approx(
+        energy_muN
+    )
+    assert case.reduced_electron_energy_diffusion_eV_m2_s_m3 == pytest.approx(
+        energy_diffN
+    )
+    assert all(np.isfinite(v) for v in (f0_muN, f0_diffN, energy_muN, energy_diffN))
     rates = compute_rates_from_eedf(
         cfg,
         cross_sections,
@@ -254,6 +335,65 @@ def test_shared_kinetic_eedf_helpers_and_rate_convolution(tmp_path: Path) -> Non
     assert actual.keys() == expected.keys()
     for key, value in expected.items():
         assert actual[key] == pytest.approx(value)
+
+
+def test_two_term_energy_transport_density_scaling(tmp_path: Path) -> None:
+    cases = []
+    for index, density in enumerate((1.0e21, 2.0e21)):
+        data = base_product_config(tmp_path, ["two_term"])
+        data["conditions"].pop("pressure_Pa")
+        data["conditions"]["gas_number_density_m3"] = density
+        cfg = load_config(write_config(tmp_path, data, name=f"density_{index}.yaml"))
+        cases.append(run(cfg, write=False).cases[0])
+
+    low, high = cases
+    for attr in (
+        "reduced_mobility_m2_V_s_m3",
+        "reduced_diffusion_L_m2_s_m3",
+        "reduced_electron_energy_mobility_eV_m2_V_s_m3",
+        "reduced_electron_energy_diffusion_eV_m2_s_m3",
+    ):
+        assert getattr(high, attr) == pytest.approx(getattr(low, attr), rel=1.0e-6)
+    assert high.mobility_m2_V_s == pytest.approx(low.mobility_m2_V_s / 2.0, rel=1.0e-6)
+    assert high.diffusion_L_m2_s == pytest.approx(
+        low.diffusion_L_m2_s / 2.0, rel=1.0e-6
+    )
+    assert high.electron_energy_mobility_eV_m2_V_s == pytest.approx(
+        low.electron_energy_mobility_eV_m2_V_s / 2.0, rel=1.0e-6
+    )
+    assert high.electron_energy_diffusion_eV_m2_s == pytest.approx(
+        low.electron_energy_diffusion_eV_m2_s / 2.0, rel=1.0e-6
+    )
+
+
+def test_rate_result_energy_loss_signs_and_derived_values() -> None:
+    base = {
+        "solver": "two_term",
+        "case_id": "case",
+        "e_over_n_Td": 10.0,
+        "species": "Ar",
+        "rate_coefficient_m3_s": 2.0,
+        "target_species_fraction": 0.25,
+        "gas_number_density_m3": 3.0,
+    }
+    expected_losses = {
+        "excitation": 4.0,
+        "ionization": 4.0,
+        "attachment": 0.0,
+        "superelastic": -4.0,
+    }
+    for process_type, loss in expected_losses.items():
+        rate = RateResult(
+            **base,
+            process=process_type,
+            process_type=process_type,
+            threshold_eV=4.0,
+        )
+        assert rate.energy_loss_eV == pytest.approx(loss)
+        assert rate.mixture_weighted_rate_m3_s == pytest.approx(0.5)
+        assert rate.frequency_s_inv == pytest.approx(1.5)
+        assert rate.energy_loss_rate_coefficient_eV_m3_s == pytest.approx(2.0 * loss)
+        assert rate.power_loss_eV_s == pytest.approx(1.5 * loss)
 
 
 def test_internal_monte_carlo_ionization_energy_sharing_modes(
@@ -642,7 +782,7 @@ def test_multi_term_pn_dcs_with_moment_table_runs(
     assert case.metadata["exact_dcs_based"] is True
     assert case.metadata["ordinary_integral_xs_closure"] is False
     assert case.metadata["direct_pn_operator"] is True
-    assert "higher_l_collision_model" not in case.metadata
+    assert set(case.metadata) <= PRODUCT_CASE_METADATA_KEYS
     assert np.all(np.isfinite(case.eedf))
     assert case.mean_energy_eV > 0.0
 
@@ -802,6 +942,8 @@ def test_monte_carlo_same_as_physics_validates_reported_angular_metadata(
     assert case.metadata["angular_model"] == "isotropic"
     assert case.metadata["angular_moment_source"] == "isotropic_closure"
     assert case.metadata["ordinary_integral_xs_closure"] is True
+    _assert_eedf_normalized(case)
+    _assert_canonical_transport(case)
 
 
 @pytest.mark.mc
@@ -826,10 +968,7 @@ def test_internal_monte_carlo_magnetic_smoke_run(tmp_path: Path) -> None:
     assert np.all(np.isfinite(case.eedf))
     assert case.metadata["magnetic_field_treatment"] == "boris_lorentz_push"
     assert case.metadata["ionization_source_treatment"] == "equal"
-    assert "mc_run" not in case.metadata
-    assert "mc_energy_audit" not in case.metadata
-    assert "mc_tail_audit" not in case.metadata
-    assert "_dev_internal_monte_carlo_audit" not in case.metadata
+    assert set(case.metadata) <= PRODUCT_CASE_METADATA_KEYS
     assert "internal_monte_carlo_audit" not in case.diagnostics
     assert case.eedf_counts is not None
     assert int(np.sum(case.eedf_counts)) > 0
@@ -852,7 +991,7 @@ def test_internal_monte_carlo_weighted_branching_metadata(tmp_path: Path) -> Non
     cfg = load_config(write_config(tmp_path, data))
     [case] = run(cfg, write=False, collect_diagnostics=True).cases
 
-    assert "_dev_internal_monte_carlo_audit" not in case.metadata
+    assert set(case.metadata) <= PRODUCT_CASE_METADATA_KEYS
     dev_audit = case.diagnostics["internal_monte_carlo_audit"]
     run_meta = dev_audit["mc_run"]
     energy_meta = dev_audit["mc_energy_audit"]
@@ -929,5 +1068,5 @@ def test_external_monte_carlo_product_fields_are_rejected(tmp_path: Path) -> Non
     data["solvers"]["monte_carlo"] = {
         "python_api": "product_helpers:fake_mc_missing",
     }
-    with pytest.raises(ValueError, match="internal product backend only"):
+    with pytest.raises(ValueError, match="Unsupported solvers.monte_carlo fields"):
         load_config(write_config(tmp_path, data))

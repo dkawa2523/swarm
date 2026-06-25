@@ -12,11 +12,16 @@ from electron_swarm.core.capabilities import (
     get_solver_capabilities,
 )
 from electron_swarm.core.config import CANONICAL_SOLVER_IDS
+from electron_swarm.core.result_metadata import PRODUCT_CASE_METADATA_KEYS
 from electron_swarm.core.solver_configs import build_internal_solver_configs
-from electron_swarm.orchestration.plan import build_solve_plan
+from electron_swarm.orchestration.plan import build_solve_plan, solver_plan_metadata
 import electron_swarm.orchestration.plan as plan_module
 
 from product_helpers import ROOT, base_product_config, write_config, write_moment_table
+
+
+def _plan_row(item: object) -> dict[str, object]:
+    return solver_plan_metadata([item])[0]
 
 
 def test_schema_v2_valid_config_and_canonical_solver_ids(tmp_path: Path) -> None:
@@ -28,41 +33,17 @@ def test_schema_v2_valid_config_and_canonical_solver_ids(tmp_path: Path) -> None
         "multi_term",
         "monte_carlo",
     ]
-    assert not hasattr(cfg, "boltzmann_two_term")
-    assert not hasattr(cfg, "multiterm_boltzmann")
-    assert not hasattr(cfg, "monte_carlo")
-    assert not hasattr(cfg, "internal")
     internal = build_internal_solver_configs(cfg.solvers, cfg.physics)
     assert internal.two_term.backend
     assert internal.multi_term.product_method == "pn_closure_direct"
     assert cfg.solvers.monte_carlo.population_model == "fixed_particle_single_daughter"
     assert cfg.feature_policy.degraded == "record"
-    assert not hasattr(cfg.feature_policy, "allow_unsupported_fallback")
-    assert not hasattr(cfg, "references")
 
 
-@pytest.mark.parametrize(
-    "removed_field",
-    [
-        "backend",
-        "angular_scattering",
-        "command",
-        "python_api",
-        "working_directory",
-        "environment",
-        "timeout_s",
-        "output_summary_csv",
-        "output_eedf_csv",
-        "passthrough",
-    ],
-)
-def test_monte_carlo_removed_product_fields_are_migration_errors(
-    tmp_path: Path,
-    removed_field: str,
-) -> None:
+def test_monte_carlo_rejects_unknown_product_fields(tmp_path: Path) -> None:
     data = base_product_config(tmp_path, ["monte_carlo"])
-    data["solvers"]["monte_carlo"] = {removed_field: "x"}
-    with pytest.raises(ValueError, match="internal product backend only"):
+    data["solvers"]["monte_carlo"] = {"command": "run external mc"}
+    with pytest.raises(ValueError, match="Unsupported solvers.monte_carlo fields"):
         load_config(write_config(tmp_path, data))
 
 
@@ -122,14 +103,11 @@ def test_monte_carlo_same_as_physics_sampler_policy(tmp_path: Path) -> None:
     data["solvers"]["monte_carlo"] = {}
     cfg = load_config(write_config(tmp_path, data))
     [item] = build_solve_plan(cfg)
+    row = _plan_row(item)
     assert item.runnable
-    assert (
-        item.effective_physics["angular_scattering"]
-        == "same_as_physics:isotropic:sampler_supported"
+    assert row["effective_angular_scattering"] == (
+        "same_as_physics:isotropic:sampler_supported"
     )
-    treatment = item.feature_treatments["angular_scattering"]
-    assert treatment.requested is True
-    assert treatment.treatment == item.effective_physics["angular_scattering"]
 
     data["physics"]["angular_scattering"] = {
         "model": "momentum_power",
@@ -141,9 +119,10 @@ def test_monte_carlo_same_as_physics_sampler_policy(tmp_path: Path) -> None:
     data["feature_policy"]["unsupported"] = "skip_solver"
     cfg = load_config(write_config(tmp_path, data))
     [item] = build_solve_plan(cfg)
+    row = _plan_row(item)
     assert item.skipped
-    assert item.effective_physics["angular_scattering"].endswith("unsupported_sampler")
-    assert item.feature_treatments["angular_scattering"].reason is not None
+    assert str(row["effective_angular_scattering"]).endswith("unsupported_sampler")
+    assert item.skip_reason is not None
 
     data["feature_policy"]["unsupported"] = "approximate"
     with pytest.raises(ValueError, match="feature_policy.unsupported"):
@@ -332,29 +311,24 @@ def test_schema_v2_rejects_old_public_fields(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="schema v2 is required"):
         load_config(write_config(tmp_path, data))
 
-    for old_id in ["both", "all", "boltzmann_two_term", "multiterm_boltzmann"]:
-        data = base_product_config(tmp_path, [old_id])
-        with pytest.raises(ValueError, match="obsolete solver id"):
-            load_config(write_config(tmp_path, data))
-
     data = base_product_config(tmp_path)
-    data["solvers"]["boltzmann_two_term"] = {}
+    data["run"]["solvers"] = [{"id": "boltzmann_two_term"}]
     with pytest.raises(ValueError, match="obsolete solver id"):
         load_config(write_config(tmp_path, data))
 
     data = base_product_config(tmp_path)
-    data["solvers"]["multiterm_boltzmann"] = {}
-    with pytest.raises(ValueError, match="obsolete solver id"):
+    data["unexpected"] = True
+    with pytest.raises(ValueError, match="Unsupported top-level fields"):
         load_config(write_config(tmp_path, data))
 
     data = base_product_config(tmp_path)
     data["output"]["write_plots"] = False
-    with pytest.raises(ValueError, match="fixed canonical outputs"):
+    with pytest.raises(ValueError, match="Unsupported output fields"):
         load_config(write_config(tmp_path, data))
 
     data = base_product_config(tmp_path)
     data["references"] = {"external": []}
-    with pytest.raises(ValueError, match="references.external is benchmark-only"):
+    with pytest.raises(ValueError, match="Unsupported top-level fields"):
         load_config(write_config(tmp_path, data))
 
 
@@ -387,7 +361,7 @@ def test_multi_term_product_method_validation(tmp_path: Path) -> None:
     assert case.metadata["solver_method"] == "pn_closure_direct"
     assert case.metadata["lmax"] == 2
     assert case.metadata["transport_definition"] == "f0_gradient_reconstruction"
-    assert "higher_l_inelastic_model" not in case.metadata
+    assert set(case.metadata) <= PRODUCT_CASE_METADATA_KEYS
 
     data = base_product_config(tmp_path, ["multi_term"])
     data["solvers"]["multi_term"]["method"] = "pn_dcs"
@@ -498,7 +472,10 @@ def test_magnetic_policy_skips_unsupported_pn_but_runs_internal_mc(
     assert by_solver["multi_term"].skipped
     assert by_solver["monte_carlo"].runnable
     assert by_solver["monte_carlo"].degraded
-    assert by_solver["monte_carlo"].effective_physics["magnetic_field"] == "boris_lorentz_push"
+    assert (
+        _plan_row(by_solver["monte_carlo"])["effective_magnetic_field"]
+        == "boris_lorentz_push"
+    )
 
 
 def test_magnetic_field_schema_validation(tmp_path: Path) -> None:
@@ -533,7 +510,9 @@ def test_finite_k_is_schema_validated_and_policy_handled(tmp_path: Path) -> None
     cfg = load_config(write_config(tmp_path, data))
     plan = build_solve_plan(cfg)
     assert all(item.skipped for item in plan)
-    assert {item.effective_physics["finite_k"] for item in plan} == {"unsupported"}
+    assert {
+        row["effective_finite_k"] for row in solver_plan_metadata(plan)
+    } == {"unsupported"}
     result = run(cfg, write=False)
     assert result.cases == []
     assert all(row["effective_finite_k"] == "unsupported" for row in result.metadata["solver_plan"])
@@ -599,7 +578,7 @@ def test_electron_electron_unsupported_solver_policy(tmp_path: Path) -> None:
     cfg = load_config(write_config(tmp_path, data))
     [item] = build_solve_plan(cfg)
     assert item.skipped
-    assert item.effective_physics["electron_electron"] == "unsupported"
+    assert _plan_row(item)["effective_electron_electron"] == "unsupported"
 
     data = base_product_config(tmp_path, ["monte_carlo"])
     data["solvers"]["monte_carlo"] = {}
@@ -615,7 +594,7 @@ def test_electron_electron_unsupported_solver_policy(tmp_path: Path) -> None:
     cfg = load_config(write_config(tmp_path, data))
     [item] = build_solve_plan(cfg)
     assert item.skipped
-    assert item.effective_physics["electron_electron"] == "unsupported"
+    assert _plan_row(item)["effective_electron_electron"] == "unsupported"
 
 
 def test_ionization_source_model_policy_and_metadata(tmp_path: Path) -> None:
@@ -627,7 +606,7 @@ def test_ionization_source_model_policy_and_metadata(tmp_path: Path) -> None:
     cfg = load_config(write_config(tmp_path, data))
     [item] = build_solve_plan(cfg)
     assert item.runnable
-    assert item.effective_physics["ionization_source"] == "primary_secondary"
+    assert _plan_row(item)["effective_ionization_source"] == "primary_secondary"
     result = run(cfg, write=False)
     [case] = result.cases
     assert case.metadata["ionization_source_model"] == "primary_secondary"
@@ -646,7 +625,7 @@ def test_ionization_source_model_policy_and_metadata(tmp_path: Path) -> None:
     cfg = load_config(write_config(tmp_path, data))
     [item] = build_solve_plan(cfg)
     assert item.skipped
-    assert item.effective_physics["ionization_source"] == "unsupported"
+    assert _plan_row(item)["effective_ionization_source"] == "unsupported"
 
 
 def test_ionization_secondary_energy_validation(tmp_path: Path) -> None:

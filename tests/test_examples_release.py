@@ -8,6 +8,7 @@ import pytest
 
 import electron_swarm
 from electron_swarm import load_config, run
+from electron_swarm.core.result_metadata import PRODUCT_CASE_METADATA_KEYS
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -78,8 +79,7 @@ def test_direct_lmax4_example_runs_in_limited_product_scope() -> None:
     assert case.metadata["solver_method"] == "pn_closure_direct"
     assert case.metadata["lmax"] == 4
     assert case.metadata["transport_definition"] == "f0_gradient_reconstruction"
-    assert "higher_l_collision_model" not in case.metadata
-    assert "higher_l_inelastic_model" not in case.metadata
+    assert set(case.metadata) <= PRODUCT_CASE_METADATA_KEYS
     assert case.metadata["exact_dcs_based"] is False
 
 
@@ -97,13 +97,15 @@ def test_release_metadata_is_product_shaped() -> None:
     assert project["version"] == electron_swarm.__version__
     assert project["readme"] == "README.md"
     assert project["scripts"]["electron-swarm"] == "electron_swarm.runner:main"
+    assert project["scripts"]["swarm-workflow"] == "swarm_workflow.cli:main"
 
     dependencies = set(project["dependencies"])
     assert {"json5", "molmass", "matplotlib"}.isdisjoint(dependencies)
     assert "matplotlib" in set(project["optional-dependencies"]["plot"])
     assert "pytest" in set(project["optional-dependencies"]["dev"])
     assert pyproject["tool"]["setuptools"]["packages"]["find"]["include"] == [
-        "electron_swarm*"
+        "electron_swarm*",
+        "swarm_workflow*",
     ]
 
 
