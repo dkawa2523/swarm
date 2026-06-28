@@ -23,13 +23,6 @@ def _mc_energy_edges(max_energy_eV: float) -> np.ndarray:
         edges = np.append(edges, max_energy)
     return edges
 
-def _mc_bin_relative_standard_error(counts: np.ndarray) -> np.ndarray:
-    values = np.asarray(counts, dtype=float)
-    out = np.full_like(values, np.nan, dtype=float)
-    mask = values > 0.0
-    out[mask] = 1.0 / np.sqrt(values[mask])
-    return out
-
 def _mc_effective_bin_counts(
     weighted_sum: np.ndarray,
     weighted_square_sum: np.ndarray,
@@ -68,45 +61,6 @@ def _build_eedf_histogram(
         eedf[0] = 1.0 / widths[0]
     eedf = eedf / max(float(np.sum(eedf * widths)), 1.0e-300)
     return energy, widths, eedf, raw_counts, effective_counts
-
-def _mc_tail_uncertainty_metadata(
-    energy_eV: np.ndarray,
-    counts: np.ndarray,
-    threshold_eV: float,
-    *,
-    min_count: int = 20,
-    max_weak_tail_fraction: float = 0.05,
-) -> dict[str, float | int | str]:
-    energy = np.asarray(energy_eV, dtype=float)
-    values = np.asarray(counts, dtype=int)
-    tail = energy >= float(threshold_eV)
-    nonzero_tail = tail & (values > 0)
-    if np.any(values >= min_count):
-        max_resolved = float(np.max(energy[values >= min_count]))
-    else:
-        max_resolved = 0.0
-    if not np.any(nonzero_tail):
-        min_tail_count = 0
-        status = "insufficient"
-        weak_fraction = 1.0
-    else:
-        min_tail_count = int(np.min(values[nonzero_tail]))
-        tail_total = float(np.sum(values[tail]))
-        weak_total = float(np.sum(values[tail & (values < min_count)]))
-        weak_fraction = weak_total / max(tail_total, 1.0e-300)
-        status = (
-            "ok"
-            if min_tail_count >= min_count
-            or weak_fraction <= max_weak_tail_fraction
-            else "insufficient"
-        )
-    return {
-        "mc_tail_uncertainty_status": status,
-        "mc_min_tail_bin_count": min_tail_count,
-        "mc_tail_effective_sample_count_min": float(min_tail_count),
-        "mc_tail_weak_probability_fraction": float(weak_fraction),
-        "mc_max_resolved_energy_eV": max_resolved,
-    }
 
 def _mc_tail_uncertainty_metadata_from_effective_counts(
     energy_eV: np.ndarray,

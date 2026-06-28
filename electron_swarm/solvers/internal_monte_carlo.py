@@ -194,6 +194,34 @@ class _EnergyAudit:
         }
 
 
+class _NullEnergyAudit:
+    tracked_particle_initial_energy_eV = 0.0
+    tracked_particle_final_energy_eV = 0.0
+
+    def record_field_push(
+        self, before_eV: float, after_eV: float, weight: float = 1.0
+    ) -> None:
+        return None
+
+    def record_trial_ratio(self, ratio: float) -> None:
+        return None
+
+    def record_elastic_collision(
+        self, before_eV: float, after_eV: float, weight: float = 1.0
+    ) -> None:
+        return None
+
+    def record_reaction(
+        self, outcome: _PostReactionOutcome, weight: float = 1.0
+    ) -> None:
+        return None
+
+    def record_population_resampling(
+        self, before_eV: float, after_eV: float
+    ) -> None:
+        return None
+
+
 @dataclass(slots=True)
 class _MonteCarloRunAudit:
     seed: int | None
@@ -314,6 +342,34 @@ class _MonteCarloRunAudit:
             ),
             "mc_population_weight_cv": float(self.population_weight_cv),
         }
+
+
+class _NullMonteCarloRunAudit:
+    def record_energy_sample(self, energy_eV: float) -> None:
+        return None
+
+    def record_histogram_sample(self, energy_eV: float) -> None:
+        return None
+
+    def record_null_collision(self) -> None:
+        return None
+
+    def record_orbit_substep(self) -> None:
+        return None
+
+    def record_collision(self, process_type: ProcessType) -> None:
+        return None
+
+    def record_secondary_electron(self) -> None:
+        return None
+
+    def record_branching_resample(self) -> None:
+        return None
+
+    def set_population_state(
+        self, weights: np.ndarray, elapsed_time_s: float
+    ) -> None:
+        return None
 
 
 @dataclass(slots=True)
@@ -552,16 +608,20 @@ def run_internal_monte_carlo(
         case_id = f"{config.run.case_prefix}_{i:04d}"
         E_scalar = float(e_over_n_Td) * TOWNSEND * density
         E = np.array([0.0, 0.0, E_scalar], dtype=float)
-        audit = _EnergyAudit()
-        run_audit = _MonteCarloRunAudit(
-            seed=cfg.seed,
-            particles=particles,
-            population_model=population_model,
-            warmup_collisions=warmup_collisions,
-            production_collisions=collisions,
-            trial_collision_frequency_s_inv=trial_frequency,
-            max_cross_section_energy_eV=max_cross_section_energy,
-            tail_threshold_eV=tail_threshold,
+        audit = _EnergyAudit() if collect_audit else _NullEnergyAudit()
+        run_audit = (
+            _MonteCarloRunAudit(
+                seed=cfg.seed,
+                particles=particles,
+                population_model=population_model,
+                warmup_collisions=warmup_collisions,
+                production_collisions=collisions,
+                trial_collision_frequency_s_inv=trial_frequency,
+                max_cross_section_energy_eV=max_cross_section_energy,
+                tail_threshold_eV=tail_threshold,
+            )
+            if collect_audit
+            else _NullMonteCarloRunAudit()
         )
         initial_speed = _speed_from_energy(1.0)
         ensemble = _ParticleEnsemble.initialize(particles, initial_speed, rng)
@@ -582,7 +642,7 @@ def run_internal_monte_carlo(
                 ensemble.times[:] = 0.0
                 if branching_active:
                     ensemble.normalize_total_weight(float(particles))
-                    audit = _EnergyAudit()
+                    audit = _EnergyAudit() if collect_audit else _NullEnergyAudit()
                     audit.tracked_particle_initial_energy_eV = (
                         ensemble.total_weighted_energy_eV()
                     )
@@ -718,27 +778,14 @@ def run_internal_monte_carlo(
         max_nonzero_energy = (
             float(np.max(energy[nonzero_bins])) if np.any(nonzero_bins) else 0.0
         )
-        tail_uncertainty = _mc_tail_uncertainty_metadata_from_effective_counts(
-            energy,
-            effective_counts,
-            tail_threshold,
-            bin_probability=eedf * widths,
-        )
         mean_energy = float(np.sum(energy * eedf * widths))
         drift_velocity, mobility, diffusion_l, diffusion_t, mean_time = (
             _flux_transport_estimates(ensemble, E_scalar)
         )
-        run_audit.set_population_state(ensemble.weights, mean_time)
         rates, net_freq, net_rate = _rate_results(
             config, cross_sections, energy, eedf, widths, case_id, float(e_over_n_Td)
         )
         effective_townsend = net_freq / max(abs(drift_velocity) * density, 1.0e-300)
-        audit_metadata = audit.as_metadata()
-        run_audit_metadata = run_audit.as_metadata()
-        tail_comparison_status = _mc_tail_comparison_status(
-            energy_balance_status=str(audit_metadata["mc_energy_balance_status"]),
-            tail_uncertainty_status=str(tail_uncertainty["mc_tail_uncertainty_status"]),
-        )
         population_metadata = _population_metadata(config, population_model)
         mc_run_details = {
             "adapter": "internal_monte_carlo",
@@ -761,6 +808,21 @@ def run_internal_monte_carlo(
         }
         diagnostics = {}
         if collect_audit:
+            run_audit.set_population_state(ensemble.weights, mean_time)
+            audit_metadata = audit.as_metadata()
+            run_audit_metadata = run_audit.as_metadata()
+            tail_uncertainty = _mc_tail_uncertainty_metadata_from_effective_counts(
+                energy,
+                effective_counts,
+                tail_threshold,
+                bin_probability=eedf * widths,
+            )
+            tail_comparison_status = _mc_tail_comparison_status(
+                energy_balance_status=str(audit_metadata["mc_energy_balance_status"]),
+                tail_uncertainty_status=str(
+                    tail_uncertainty["mc_tail_uncertainty_status"]
+                ),
+            )
             diagnostics["internal_monte_carlo_audit"] = {
                 "mc_run": {
                     **run_audit_metadata,
@@ -776,6 +838,33 @@ def run_internal_monte_carlo(
                     "mc_tail_comparison_status": tail_comparison_status,
                 },
             }
+            logger.info(
+                "internal MC case %s: seed=%s particles=%d samples=%d "
+                "mean_energy_eV=%.6g max_sampled_energy_eV=%.6g "
+                "xs_above_fraction=%.3g",
+                case_id,
+                cfg.seed,
+                particles,
+                int(run_audit_metadata["mc_histogram_samples"] or 0),
+                mean_energy,
+                float(run_audit_metadata["mc_max_sampled_energy_eV"] or 0.0),
+                float(
+                    run_audit_metadata[
+                        "mc_energy_samples_above_xs_max_fraction"
+                    ]
+                    or 0.0
+                ),
+            )
+        else:
+            logger.info(
+                "internal MC case %s: seed=%s particles=%d samples=%d "
+                "mean_energy_eV=%.6g",
+                case_id,
+                cfg.seed,
+                particles,
+                int(np.sum(counts)),
+                mean_energy,
+            )
         metadata = {
             "magnetic_field_treatment": (
                 "boris_lorentz_push" if magnetic.enabled else "none"
@@ -787,17 +876,6 @@ def run_internal_monte_carlo(
             "transport_definition": population_metadata["transport_definition"],
             **expected_angular_metadata(config),
         }
-        logger.info(
-            "internal MC case %s: seed=%s particles=%d samples=%d "
-            "mean_energy_eV=%.6g max_sampled_energy_eV=%.6g xs_above_fraction=%.3g",
-            case_id,
-            cfg.seed,
-            particles,
-            int(run_audit_metadata["mc_histogram_samples"] or 0),
-            mean_energy,
-            float(run_audit_metadata["mc_max_sampled_energy_eV"] or 0.0),
-            float(run_audit_metadata["mc_energy_samples_above_xs_max_fraction"] or 0.0),
-        )
         transport = ElectronTransport.from_actual(
             definition=str(population_metadata["transport_definition"]),
             gas_number_density_m3=density,

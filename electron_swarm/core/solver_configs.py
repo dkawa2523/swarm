@@ -6,7 +6,7 @@ from dataclasses import dataclass, field as dc_field
 from typing import Literal
 
 
-InternalBoltzmannBackend = Literal["auto", "native_bolsig", "internal", "bolos"]
+InternalBoltzmannBackend = Literal["native_bolsig"]
 
 
 @dataclass(slots=True)
@@ -83,13 +83,7 @@ class MultiTermInternalConfig:
     enabled: bool = True
     lmax: int = 4
     method: Literal["moment_closure"] = "moment_closure"
-    hydrodynamic: bool = False
-    dense_threshold: int = 280
-    eedf_shape: Literal["maxwellian", "druyvesteyn"] = "maxwellian"
-    lmax_convergence_tolerance: float = 0.03
-    field_coupling_scale: float = 1.0
     product_method: Literal["pn_closure_direct", "pn_dcs"] = "pn_closure_direct"
-    formulation: Literal["PN"] = "PN"
     energy_grid: MultiTermEnergyGridConfig = dc_field(
         default_factory=MultiTermEnergyGridConfig
     )
@@ -129,13 +123,9 @@ def build_internal_solver_configs(solvers: object, physics: object) -> InternalS
         max_max_eV=physics.energy_grid_policy.max_eV_limit,
         tail_probability=physics.energy_grid_policy.tail_probability_target,
     )
-    public_backend = solvers.two_term.backend
-    internal_backend: InternalBoltzmannBackend = (
-        "native_bolsig" if public_backend == "native_sg" else public_backend
-    )
     return InternalSolverConfigs(
         two_term=TwoTermInternalConfig(
-            backend=internal_backend,
+            backend="native_bolsig",
             energy_grid=EnergyGridConfig(refine=refine),
             adaptive_grid=adaptive,
             nonconservative_model=solvers.two_term.nonconservative_model,
@@ -150,14 +140,7 @@ def build_internal_solver_configs(solvers: object, physics: object) -> InternalS
         multi_term=MultiTermInternalConfig(
             lmax=solvers.multi_term.lmax,
             method="moment_closure",
-            hydrodynamic=False,
-            dense_threshold=solvers.multi_term.dense_threshold,
-            lmax_convergence_tolerance=(
-                solvers.multi_term.lmax_convergence_tolerance
-            ),
-            field_coupling_scale=solvers.multi_term.field_coupling_scale,
             product_method=solvers.multi_term.method,
-            formulation=solvers.multi_term.formulation,
             energy_grid=MultiTermEnergyGridConfig(refine=refine),
         ),
         monte_carlo=MonteCarloAdapterConfig(

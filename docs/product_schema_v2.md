@@ -10,6 +10,13 @@ Canonical solver ids:
 - `multi_term`
 - `monte_carlo`
 
+Product solver configuration is intentionally small. `two_term` accepts only
+`backend: native_sg` plus nonconservative and minimum momentum-cross-section
+controls. `multi_term` accepts only `method` and `lmax`. `monte_carlo` accepts
+only population/sampling controls listed below. Experimental backend selectors,
+PN formulation knobs, and convergence heuristics are development details, not
+public YAML fields.
+
 ## Multi-Term Methods
 
 - `pn_closure_direct`: runnable for `lmax: 1` as the direct SG-reduction

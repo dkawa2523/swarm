@@ -590,41 +590,6 @@ def negative_mass_fraction(eedf: np.ndarray, widths: np.ndarray) -> float:
     return negative / max(mass, 1.0e-300)
 
 
-def transport_from_reduced(
-    e_over_n_Td: float,
-    gas_number_density_m3: float,
-    muN: float,
-    diffN: float,
-) -> ElectronTransport:
-    EN = e_over_n_Td * TOWNSEND
-    drift = muN * EN
-    return ElectronTransport(
-        definition="flux",
-        gas_number_density_m3=gas_number_density_m3,
-        drift_velocity_m_s=drift,
-        reduced_mobility_m2_V_s_m3=muN,
-        reduced_diffusion_L_m2_s_m3=diffN,
-        reduced_diffusion_T_m2_s_m3=diffN,
-    )
-
-
-def particle_reduced_transport_from_eedf(
-    energy: np.ndarray,
-    widths: np.ndarray,
-    eedf: np.ndarray,
-    sigma_m_m2: np.ndarray,
-) -> tuple[float, float]:
-    speed = electron_speed_m_s(energy)
-    nuN = np.maximum(np.asarray(sigma_m_m2, dtype=float) * speed, 1.0e-80)
-    dF = nonuniform_center_gradient(eedf, energy)
-    mobility_integrand = (2.0 * energy / nuN) * dF - eedf / nuN
-    muN = -E_CHARGE_C / (3.0 * ELECTRON_MASS_KG) * weighted_integral(
-        mobility_integrand, widths
-    )
-    diffN = (1.0 / 3.0) * weighted_integral((speed * speed / nuN) * eedf, widths)
-    return float(muN), float(diffN)
-
-
 def f0_reduced_transport_from_eedf(
     energy: np.ndarray,
     widths: np.ndarray,

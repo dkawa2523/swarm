@@ -337,7 +337,6 @@ def _solve_direct_higher_l(
     *,
     method_used: str = "pn_closure_direct",
     metadata_override: dict[str, object] | None = None,
-    angular_moments: np.ndarray | None = None,
     allow_moment_table: bool = False,
 ) -> MultiTermSolution:
     block = assemble_coefficient_pn_operator(
@@ -431,7 +430,6 @@ def _solve_direct_higher_l(
         diagnostics,
         method_used=method_used,
         metadata=metadata,
-        angular_moments=angular_moments,
     )
 
 
@@ -443,7 +441,6 @@ def solve_direct_lmax1(
     native_override: KineticOperatorBlock | None = None,
     method_used: str = "pn_closure_direct",
     metadata_override: dict[str, object] | None = None,
-    angular_moments: np.ndarray | None = None,
     allow_moment_table: bool = False,
 ) -> MultiTermSolution:
     """Solve the lmax=1 direct PN reduction without using two-term f0/rates."""
@@ -471,7 +468,6 @@ def solve_direct_lmax1(
             lmax,
             method_used=method_used,
             metadata_override=metadata_override,
-            angular_moments=angular_moments,
             allow_moment_table=allow_moment_table,
         )
 
@@ -577,7 +573,6 @@ def solve_direct_lmax1(
         diagnostics,
         method_used=method_used,
         metadata=metadata,
-        angular_moments=angular_moments,
     )
 
 
@@ -628,6 +623,5 @@ def solve_pn_dcs(
         native_override=native,
         method_used="pn_dcs",
         metadata_override=metadata_override,
-        angular_moments=moments[: lmax + 1],
         allow_moment_table=True,
     )

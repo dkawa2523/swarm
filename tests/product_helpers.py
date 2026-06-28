@@ -45,7 +45,6 @@ def base_product_config(tmp_path: Path, solvers: list[str] | None = None) -> dic
                 "adaptive": True,
                 "threshold_refinement": False,
                 "tail_probability_target": 1.0e-8,
-                "tail_rate_fraction_target": 1.0e-3,
                 "tail_metrics": True,
                 "tail_threshold_eV": None,
                 "tail_rate_warning_fraction": 0.05,
@@ -55,7 +54,6 @@ def base_product_config(tmp_path: Path, solvers: list[str] | None = None) -> dic
         "solvers": {
             "two_term": {"backend": "native_sg"},
             "multi_term": {
-                "formulation": "PN",
                 "method": "pn_closure_direct",
                 "lmax": 3,
             },

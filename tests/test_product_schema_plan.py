@@ -17,7 +17,7 @@ from electron_swarm.core.solver_configs import build_internal_solver_configs
 from electron_swarm.orchestration.plan import build_solve_plan, solver_plan_metadata
 import electron_swarm.orchestration.plan as plan_module
 
-from product_helpers import ROOT, base_product_config, write_config, write_moment_table
+from product_helpers import base_product_config, write_config, write_moment_table
 
 
 def _plan_row(item: object) -> dict[str, object]:
@@ -96,6 +96,14 @@ def test_monte_carlo_internal_schema(tmp_path: Path) -> None:
     }
     with pytest.raises(ValueError, match="warmup_collisions"):
         load_config(write_config(tmp_path, data))
+
+
+def test_two_term_product_backend_is_native_sg_only(tmp_path: Path) -> None:
+    for backend in ("auto", "native_bolsig", "internal", "bolos"):
+        data = base_product_config(tmp_path, ["two_term"])
+        data["solvers"]["two_term"]["backend"] = backend
+        with pytest.raises(ValueError, match="solvers.two_term.backend"):
+            load_config(write_config(tmp_path, data, name=f"{backend}.yaml"))
 
 
 def test_monte_carlo_same_as_physics_sampler_policy(tmp_path: Path) -> None:
@@ -231,6 +239,11 @@ def test_tail_metrics_schema_validation(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="Unsupported physics.energy_grid_policy fields"):
         load_config(write_config(tmp_path, data))
 
+    data = base_product_config(tmp_path)
+    data["physics"]["energy_grid_policy"]["tail_rate_fraction_target"] = 1.0e-3
+    with pytest.raises(ValueError, match="Unsupported physics.energy_grid_policy fields"):
+        load_config(write_config(tmp_path, data))
+
 
 def test_schema_v2_rejects_non_boolean_and_nested_unknown_fields(tmp_path: Path) -> None:
     data = base_product_config(tmp_path)
@@ -344,6 +357,17 @@ def test_multi_term_product_method_validation(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="Unsupported solvers.multi_term fields"):
         load_config(write_config(tmp_path, data))
 
+    for field, value in {
+        "formulation": "PN",
+        "lmax_convergence_tolerance": 0.03,
+        "field_coupling_scale": 1.0,
+        "dense_threshold": 280,
+    }.items():
+        data = base_product_config(tmp_path, ["multi_term"])
+        data["solvers"]["multi_term"][field] = value
+        with pytest.raises(ValueError, match="Unsupported solvers.multi_term fields"):
+            load_config(write_config(tmp_path, data, name=f"{field}.yaml"))
+
     data = base_product_config(tmp_path, ["multi_term"])
     data["solvers"]["multi_term"]["method"] = "pn_closure_direct"
     data["solvers"]["multi_term"]["lmax"] = 1
@@ -369,36 +393,6 @@ def test_multi_term_product_method_validation(tmp_path: Path) -> None:
     assert cfg.solvers.multi_term.method == "pn_dcs"
     with pytest.raises(NotImplementedError, match="model=moment_table"):
         run(cfg, write=False)
-
-
-def test_direct_pn_roadmap_records_implementation_gate() -> None:
-    roadmap = ROOT / "docs" / "dev" / "direct_pn_closure_operator.md"
-    text = roadmap.read_text(encoding="utf-8")
-    higher_l_gate = (
-        ROOT / "docs" / "dev" / "direct_pn_lmax_gt1_gate.md"
-    ).read_text(encoding="utf-8")
-    required = [
-        "Unknown Vector Layout",
-        "Current lmax=1 Equation",
-        "lmax>1 Coefficient-Space Scope",
-        "lmax=1 Regression Condition",
-        "Required Tests",
-        "SG energy-flux auxiliary",
-        "physical Legendre coefficient",
-        "no post-hoc `G1` construction",
-        "`ell>=2` damping",
-        "sink-only",
-        "Ar/BOLSIG lmax=1 two-term SG regression harness",
-    ]
-    for phrase in required:
-        assert phrase in text
-    for phrase in [
-        "Implemented Model",
-        "energy-flux auxiliary",
-        "`ell>=2` damping",
-        "Fail-Fast Conditions",
-    ]:
-        assert phrase in higher_l_gate
 
 
 def test_capability_matrix_is_canonical_and_minimal() -> None:

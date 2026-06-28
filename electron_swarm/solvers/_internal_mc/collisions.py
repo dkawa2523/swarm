@@ -282,17 +282,6 @@ def _energy_loss_eV(process_type: ProcessType, threshold_eV: float | None) -> fl
         return -abs(float(threshold_eV or 0.0))
     return 0.0
 
-def _post_reaction_energy(
-    config: SwarmConfig,
-    process_type: ProcessType,
-    threshold_eV: float | None,
-    energy_eV: float,
-    rng: np.random.Generator,
-) -> float:
-    return _post_reaction_outcome(
-        config, process_type, threshold_eV, energy_eV, rng
-    ).tracked_energy_eV
-
 def _ionization_daughters(
     config: SwarmConfig,
     threshold_eV: float | None,

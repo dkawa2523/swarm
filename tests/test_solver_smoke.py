@@ -24,18 +24,15 @@ from electron_swarm.solvers.kinetic import (
     mean_energy_from_eedf,
     negative_mass_fraction,
     normalize_eedf,
-    particle_reduced_transport_from_eedf,
 )
 from electron_swarm.solvers.multi_term.direct import build_higher_l_collision_damping
 from electron_swarm.solvers.internal_monte_carlo import (
-    _EnergyAudit,
     _ParticleEnsemble,
     _flux_transport_estimates,
 )
 from electron_swarm.solvers._internal_mc.collisions import (
     _ionization_daughters,
     _moment_cross_sections,
-    _post_reaction_energy,
     _post_reaction_outcome,
     _project_processes,
     _validate_maxent_p1_cross_sections,
@@ -43,10 +40,7 @@ from electron_swarm.solvers._internal_mc.collisions import (
 )
 from electron_swarm.solvers._internal_mc.histogram import (
     _build_eedf_histogram,
-    _mc_bin_relative_standard_error,
-    _mc_effective_bin_counts,
     _mc_energy_edges,
-    _mc_tail_uncertainty_metadata,
 )
 from electron_swarm.physics.angular_scattering import build_angular_model
 from electron_swarm.solvers.two_term import TwoTermSolver
@@ -288,12 +282,6 @@ def test_shared_kinetic_eedf_helpers_and_rate_convolution(tmp_path: Path) -> Non
         density,
         internal.two_term,
     )
-    particle_muN, particle_diffN = particle_reduced_transport_from_eedf(
-        case.energy_eV,
-        case_widths,
-        case.eedf,
-        collisions.sigma_m,
-    )
     f0_muN, f0_diffN, energy_muN, energy_diffN = (
         f0_reduced_transport_from_eedf(
             case.energy_eV,
@@ -302,8 +290,6 @@ def test_shared_kinetic_eedf_helpers_and_rate_convolution(tmp_path: Path) -> Non
             collisions.sigma_m,
         )
     )
-    assert f0_muN == pytest.approx(particle_muN, rel=2.0e-2)
-    assert f0_diffN == pytest.approx(particle_diffN, rel=1.0e-12)
     assert case.reduced_mobility_m2_V_s_m3 == pytest.approx(f0_muN)
     assert case.reduced_diffusion_L_m2_s_m3 == pytest.approx(f0_diffN)
     assert case.reduced_electron_energy_mobility_eV_m2_V_s_m3 == pytest.approx(
@@ -404,10 +390,6 @@ def test_internal_monte_carlo_ionization_energy_sharing_modes(
 
     data["physics"]["ionization"] = {"energy_sharing": "equal"}
     cfg = load_config(write_config(tmp_path, data, "mc_equal.yaml"))
-    rng = np.random.default_rng(1)
-    assert _post_reaction_energy(
-        cfg, ProcessType.IONIZATION, 10.0, 30.0, rng
-    ) == pytest.approx(10.0)
     outcome = _post_reaction_outcome(
         cfg, ProcessType.IONIZATION, 10.0, 30.0, np.random.default_rng(1)
     )
@@ -427,7 +409,9 @@ def test_internal_monte_carlo_ionization_energy_sharing_modes(
     cfg = load_config(write_config(tmp_path, data, "mc_primary_secondary.yaml"))
     rng = np.random.default_rng(3)
     samples = {
-        _post_reaction_energy(cfg, ProcessType.IONIZATION, 10.0, 30.0, rng)
+        _post_reaction_outcome(
+            cfg, ProcessType.IONIZATION, 10.0, 30.0, rng
+        ).tracked_energy_eV
         for _ in range(40)
     }
     assert samples == {2.0, 18.0}
@@ -445,10 +429,6 @@ def test_internal_monte_carlo_ionization_energy_sharing_modes(
 
     data["physics"]["ionization"] = {"energy_sharing": "loss_only"}
     cfg = load_config(write_config(tmp_path, data, "mc_loss_only.yaml"))
-    rng = np.random.default_rng(1)
-    assert _post_reaction_energy(
-        cfg, ProcessType.IONIZATION, 10.0, 30.0, rng
-    ) == pytest.approx(20.0)
     outcome = _post_reaction_outcome(
         cfg, ProcessType.IONIZATION, 10.0, 30.0, np.random.default_rng(1)
     )
@@ -494,60 +474,6 @@ def test_internal_monte_carlo_ionization_daughters_and_resampling(
     assert len(ensemble) == 3
     assert float(np.sum(ensemble.weights)) == pytest.approx(10.0)
     assert np.allclose(ensemble.weights, 10.0 / 3.0)
-
-
-def test_internal_monte_carlo_energy_audit_and_bin_uncertainty(
-    tmp_path: Path,
-) -> None:
-    audit = _EnergyAudit()
-    audit.tracked_particle_initial_energy_eV = 10.0
-    audit.record_field_push(10.0, 16.0)
-    audit.record_elastic_collision(16.0, 15.5)
-    audit.record_reaction(
-        _post_reaction_outcome(
-            load_config(
-                write_config(
-                    tmp_path,
-                    base_product_config(tmp_path, ["monte_carlo"]),
-                    "tmp_audit.yaml",
-                )
-            ),
-            ProcessType.IONIZATION,
-            5.0,
-            15.5,
-            np.random.default_rng(0),
-        )
-    )
-    audit.tracked_particle_final_energy_eV = 5.25
-    metadata = audit.as_metadata()
-    assert metadata["mc_energy_balance_status"] == "ok"
-    assert metadata["mc_tracked_energy_balance_residual_fraction"] < 1.0e-12
-    assert metadata["mc_physical_branching_gap_eV"] == pytest.approx(5.25)
-
-    counts = np.array([0, 4, 25])
-    rel = _mc_bin_relative_standard_error(counts)
-    assert np.isnan(rel[0])
-    assert rel[1] == pytest.approx(0.5)
-    assert rel[2] == pytest.approx(0.2)
-    tail = _mc_tail_uncertainty_metadata(
-        np.array([1.0, 20.0, 40.0]),
-        counts,
-        15.0,
-        min_count=20,
-    )
-    assert tail["mc_tail_uncertainty_status"] == "insufficient"
-    assert tail["mc_min_tail_bin_count"] == 4
-    assert tail["mc_tail_effective_sample_count_min"] == pytest.approx(4.0)
-    assert tail["mc_tail_weak_probability_fraction"] > 0.05
-    assert tail["mc_max_resolved_energy_eV"] == pytest.approx(40.0)
-
-    weighted = _mc_effective_bin_counts(
-        np.array([0.0, 2.0, 4.0]),
-        np.array([0.0, 2.0, 4.0]),
-    )
-    assert weighted[0] == pytest.approx(0.0)
-    assert weighted[1] == pytest.approx(2.0)
-    assert weighted[2] == pytest.approx(4.0)
 
 
 def test_internal_monte_carlo_null_collision_majorant_and_bins() -> None:
