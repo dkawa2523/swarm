@@ -1,0 +1,61 @@
+schema_version: 2
+
+run:
+  solvers:
+    - id: two_term
+  e_over_n_Td: [100.0]
+  case_prefix: ar_comsol_extended
+
+conditions:
+  gas_temperature_K: 300.0
+  pressure_Pa: 13.3
+  gas_mixture:
+    - species: Ar
+      fraction: 1.0
+      mass_amu: 39.948
+
+cross_sections:
+  format: csv
+  high_energy_extrapolation: zero
+  files:
+    - path: cross_sections/argon_application_library.csv
+      species: Ar
+      format: csv
+
+physics:
+  field:
+    type: dc
+    magnetic_field:
+      enabled: false
+      B_T: 0.0
+      angle_EB_deg: 0.0
+  angular_scattering:
+    model: isotropic
+    higher_moment_closure: zero
+  electron_electron:
+    enabled: false
+    model: none
+  ionization:
+    energy_sharing: equal
+  energy_grid_policy:
+    adaptive: true
+    threshold_refinement: true
+    tail_probability_target: 1.0e-9
+    tail_metrics: true
+    tail_rate_warning_fraction: 0.05
+    max_eV_limit: 1000.0
+
+solvers:
+  two_term:
+    backend: native_sg
+
+comparison:
+  enabled: false
+
+feature_policy:
+  unsupported: fail
+  degraded: record
+
+output:
+  directory: ../outputs/argon_comsol_extended
+  base_name: argon_comsol_extended

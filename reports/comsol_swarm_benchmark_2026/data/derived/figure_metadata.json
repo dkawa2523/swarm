@@ -1,0 +1,434 @@
+[
+  {
+    "figure_id": "fig01_workflow_boundary",
+    "outputs": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig01_workflow_boundary.png",
+        "bytes": 313111,
+        "sha256": "e934b7a3c837ba3390f926a9c49207f99f13b78365b729f58234ed9c05bb4363"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig01_workflow_boundary.pdf",
+        "bytes": 37100,
+        "sha256": "e086c0fd84498d726a1e3f591c0cf4b4f32c93dbe6c7ba543aa7e0760aefea6a"
+      }
+    ],
+    "chart_contract": {
+      "analytical_question": "Which physics is supplied by Swarm and which remains in COMSOL?",
+      "takeaway": "Seven lookup quantities (seven X-Y pairs, 14 COMSOL arrays) cross a selected-channel hybrid interface; the active subset is formulation-dependent and the archived path is LEA.",
+      "family": "process flow",
+      "variant": "responsibility-boundary diagram",
+      "fields": [
+        "mean energy",
+        "reduced mobility",
+        "longitudinal reduced diffusion",
+        "energy mobility",
+        "energy diffusion",
+        "excitation Townsend",
+        "ionization Townsend"
+      ],
+      "palette": "blue for Swarm, charcoal for COMSOL; labels retain meaning in grayscale",
+      "output_footprint": "320-dpi PNG and vector PDF",
+      "data_sufficiency": "Rendered from every available row; missing formal repetitions or raw mesh profiles remain explicitly labelled."
+    },
+    "source_metadata": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/repro/analysis_inputs.json",
+        "sha256": "a6ba8bd2843f86bcfc5cf1f1c873084d05c7567d20abc6ce0bd4f4b15130fc8f"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/formal_swarm_bundle_solver_qa_20keV/manifest.json",
+        "sha256": "cc5be10636e1c1885f97a55088793b31754e1ad4832d3580b7f40b84ad5bb55f"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/repro/benchmark_analysis.py",
+        "sha256": "9d614f1ea30298bd6a790f3d8695eb688abbf663ca1d2d692d205913fd54d1b8"
+      }
+    ],
+    "evidence_status": "implementation_schema_v2_2026-07-31",
+    "data_vintages": {
+      "implementation": "implementation_schema_v2_2026-07-31"
+    }
+  },
+  {
+    "figure_id": "fig02_lookup_domain",
+    "outputs": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig02_lookup_domain.png",
+        "bytes": 770636,
+        "sha256": "1bddceca296686c079a6f452f9c78d5dad9a48ad458ca1a8af36589cc95a3612"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig02_lookup_domain.pdf",
+        "bytes": 39220,
+        "sha256": "6c8e66004b3f7422e0afb8b07f7bc0bdcde54b8c4553ba23e582b7948831b1e4"
+      }
+    ],
+    "chart_contract": {
+      "analytical_question": "Do the formulation-specific lookup arguments used by COMSOL remain inside computed Swarm support or rely on an explicit boundary policy?",
+      "takeaway": "The inactive LEA E/N relation has 0.070% below its computed field floor, whereas the active LEA tables query mean energies below computed support over 1.509% of domain length.",
+      "family": "ordered relationship",
+      "variant": "one LFA-axis panel and five LEA-axis log-log lookup panels with computed-support and boundary-policy bands",
+      "fields": [
+        "mean_energy_eV",
+        "reduced_mobility_m2_V_s_m3",
+        "reduced_diffusion_L_m2_s_m3",
+        "reduced_electron_energy_mobility_m2_V_s_m3",
+        "reduced_electron_energy_diffusion_m2_s_m3",
+        "excitation reduced Townsend",
+        "ionization reduced Townsend"
+      ],
+      "palette": "single blue root, charcoal comparison, gold constant-policy region, pale-gold transition",
+      "data_vintages": {
+        "lookup_tables": "schema_v2_tail_grid_pass_solver_gate_incomplete_2026-07-31",
+        "COMSOL_used_range": "provisional_profile_comparison_2026-07-14"
+      },
+      "output_footprint": "320-dpi PNG and vector PDF",
+      "data_sufficiency": "Rendered from every available row; missing formal repetitions or raw mesh profiles remain explicitly labelled."
+    },
+    "source_metadata": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/formal_swarm_bundle_solver_qa_20keV/transport_vs_en.csv",
+        "sha256": "e7315c9c29d23abcdc8bf054ea1afba8a34325b44bc6cd508fba3d5c1816da4b"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/formal_swarm_bundle_solver_qa_20keV/rates_vs_en.csv",
+        "sha256": "8008fdc9f70dc948a8c7f904a55020d900eec49cfdfae71ba02a990f8c41c448"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/positive_column_results.csv",
+        "sha256": "b632cd3edf7e1a9383608332dae39cb5adfc637b49c9a3f916169df8dc7d7c58"
+      }
+    ],
+    "evidence_status": "provisional_2026-07-14",
+    "data_vintages": {
+      "lookup_tables": "schema_v2_tail_grid_pass_solver_gate_incomplete_2026-07-31",
+      "COMSOL_used_range": "provisional_profile_comparison_2026-07-14"
+    }
+  },
+  {
+    "figure_id": "fig03_profile_state",
+    "outputs": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig03_profile_state.png",
+        "bytes": 407500,
+        "sha256": "73d9a6702fefb4c1838a6ade5cf884e6e317b83f716c2dc58de3d47363af61d3"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig03_profile_state.pdf",
+        "bytes": 33952,
+        "sha256": "93007367df01696194911da1951b31137cc5079d4743d0cc58d4a6d9c20fb6b5"
+      }
+    ],
+    "chart_contract": {
+      "analytical_question": "Where do state and field profiles agree or differ?",
+      "takeaway": "Profile shape and integrated magnitude must be read separately; the same 200 V source setting does not produce the same terminal gap voltage because ballast feedback differs.",
+      "family": "ordered relationship",
+      "variant": "four aligned two-series line panels",
+      "fields": [
+        "electron_density",
+        "mean_electron_energy",
+        "electric_potential",
+        "E_over_N"
+      ],
+      "palette": "blue solid external; charcoal dashed reference",
+      "output_footprint": "320-dpi PNG and vector PDF",
+      "data_sufficiency": "Rendered from every available row; missing formal repetitions or raw mesh profiles remain explicitly labelled."
+    },
+    "source_metadata": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/positive_column_results.csv",
+        "sha256": "b632cd3edf7e1a9383608332dae39cb5adfc637b49c9a3f916169df8dc7d7c58"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/builtin_200V_fresh.csv",
+        "sha256": "1f3eb1461ec08f70a590d60a8802d207126fbc0ca8c00326a77ce30d9a3db49c"
+      }
+    ],
+    "evidence_status": "provisional_2026-07-14",
+    "data_vintages": {
+      "profile_and_runtime_evidence": "provisional_profile_comparison_2026-07-14"
+    }
+  },
+  {
+    "figure_id": "fig04_sources_currents_mesh",
+    "outputs": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig04_sources_currents_mesh.png",
+        "bytes": 661034,
+        "sha256": "7921629af637a305a91fe97fc8df959b2e13cefd42ea2f4f7d4bea5642af6847"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig04_sources_currents_mesh.pdf",
+        "bytes": 47220,
+        "sha256": "7fd4d5930a218c4d10b8c9a8d790bd99d571d489ac83ae9b702fe70c241d990d"
+      }
+    ],
+    "chart_contract": {
+      "analytical_question": "How do direct-source and conductive-current profiles differ, and how sensitive is current constancy to path, geometric window, and mesh?",
+      "takeaway": "External and reference exact piecewise-linear RSD are compared in full and central-80% geometric windows; the saved evidence cannot support a weighted 200/400 comparison, and electron plus Ar+ conduction is not a complete terminal-current or displacement-current audit.",
+      "family": "ordered relationship and grouped comparison",
+      "variant": "four line panels, one raw exact-piecewise-linear RSD panel, and one separate legacy unweighted mesh-summary panel",
+      "fields": [
+        "excitation_source",
+        "ionization_source",
+        "electron_current_density",
+        "total_current_density",
+        "mesh_elements",
+        "domain",
+        "relative_standard_deviation",
+        "metric_definition"
+      ],
+      "palette": "blue external, charcoal reference, gold/blue legacy domains",
+      "output_footprint": "320-dpi PNG and vector PDF",
+      "data_sufficiency": "Rendered from every available row; missing formal repetitions or raw mesh profiles remain explicitly labelled."
+    },
+    "source_metadata": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/positive_column_results.csv",
+        "sha256": "b632cd3edf7e1a9383608332dae39cb5adfc637b49c9a3f916169df8dc7d7c58"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/builtin_200V_fresh.csv",
+        "sha256": "1f3eb1461ec08f70a590d60a8802d207126fbc0ca8c00326a77ce30d9a3db49c"
+      }
+    ],
+    "evidence_status": "provisional_2026-07-14",
+    "data_vintages": {
+      "profile_and_runtime_evidence": "provisional_profile_comparison_2026-07-14"
+    }
+  },
+  {
+    "figure_id": "fig05_metric_summary",
+    "outputs": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig05_metric_summary.png",
+        "bytes": 250220,
+        "sha256": "7538521e76f150d1507c148e0eed52f930815e1b9dfb9e38f26e1ae0ddfbf525"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig05_metric_summary.pdf",
+        "bytes": 29948,
+        "sha256": "cccae1c10bf9d333f0787c87fcb12253cf823feec96c540b1476c204db7974ac"
+      }
+    ],
+    "chart_contract": {
+      "analytical_question": "Which quantities differ in pointwise shape/magnitude and spatial integral?",
+      "takeaway": "Exact piecewise-linear L2 and signed integral ratio answer different questions and are shown in separate panels.",
+      "family": "comparison and benchmark",
+      "variant": "horizontal bars plus dot-to-unity plot",
+      "fields": [
+        "relative_L2_spatial_weighted",
+        "signed_integral_ratio_external_over_reference"
+      ],
+      "palette": "single blue root with charcoal unity reference",
+      "output_footprint": "320-dpi PNG and vector PDF",
+      "data_sufficiency": "Rendered from every available row; missing formal repetitions or raw mesh profiles remain explicitly labelled."
+    },
+    "source_metadata": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/positive_column_results.csv",
+        "sha256": "b632cd3edf7e1a9383608332dae39cb5adfc637b49c9a3f916169df8dc7d7c58"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/builtin_200V_fresh.csv",
+        "sha256": "1f3eb1461ec08f70a590d60a8802d207126fbc0ca8c00326a77ce30d9a3db49c"
+      }
+    ],
+    "evidence_status": "provisional_2026-07-14",
+    "data_vintages": {
+      "profile_and_runtime_evidence": "provisional_profile_comparison_2026-07-14"
+    }
+  },
+  {
+    "figure_id": "fig06_runtime_breakdown",
+    "outputs": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig06_runtime_breakdown.png",
+        "bytes": 254569,
+        "sha256": "2e8f1294a42105882b52e09ada4f6d7a3751502178a202d99c698165352eab40"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig06_runtime_breakdown.pdf",
+        "bytes": 26048,
+        "sha256": "0d12da65e06d3f7bd45a5cfd2f27af8f21ced6e1a3856fdde93fe8d9161c1f51"
+      }
+    ],
+    "chart_contract": {
+      "analytical_question": "Is the historical timing difference present in run-stage and complete-workflow scopes?",
+      "takeaway": "Runtime distributions require n>=3; this dataset has minimum n=1, and the two paths do not match DOF, energy-space dimension, or continuation sequence.",
+      "family": "uncertainty and benchmark",
+      "variant": "single-observation dots and stage dots",
+      "fields": [
+        "scope",
+        "path",
+        "seconds",
+        "repetition"
+      ],
+      "palette": "blue external, charcoal reference, ordered blue stage shades",
+      "output_footprint": "320-dpi PNG and vector PDF",
+      "data_sufficiency": "Rendered from every available row; missing formal repetitions or raw mesh profiles remain explicitly labelled."
+    },
+    "source_metadata": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/provisional_runtime.csv",
+        "sha256": "d0386c1c47bf21e7c9a3bed9d483873e6c7ae0e2d1466fa810880ae30fc39855"
+      }
+    ],
+    "evidence_status": "provisional_2026-07-14",
+    "data_vintages": {
+      "profile_and_runtime_evidence": "provisional_profile_comparison_2026-07-14"
+    }
+  },
+  {
+    "figure_id": "fig07_spatial_robustness",
+    "outputs": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig07_spatial_robustness.png",
+        "bytes": 409328,
+        "sha256": "776c1fe4f255f7cec33b3169fdadf1a50ea0c184e0a205c3bed702f84f36c56c"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig07_spatial_robustness.pdf",
+        "bytes": 39043,
+        "sha256": "f806d9b0bd8284f92d85023f05badcc0197114af1ce9b8f4af1eee8be34c613e"
+      }
+    ],
+    "chart_contract": {
+      "analytical_question": "Where does profile error accumulate, and is conductive-current RSD robust to the geometric central-window choice?",
+      "takeaway": "Different quantities concentrate error in different regions; current RSD changes sharply only when edge regions enter the window.",
+      "family": "composition and sensitivity",
+      "variant": "100% stacked horizontal bars plus highlighted two-series line",
+      "fields": [
+        "quantity",
+        "region",
+        "squared_error_share",
+        "central_retained_percent",
+        "piecewise_linear_exact_relative_standard_deviation"
+      ],
+      "palette": "gold cathode-side, blue central geometric window, pink anode-side; blue external and charcoal reference",
+      "output_footprint": "320-dpi PNG and vector PDF",
+      "data_sufficiency": "Rendered from every available row; missing formal repetitions or raw mesh profiles remain explicitly labelled."
+    },
+    "source_metadata": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/positive_column_results.csv",
+        "sha256": "b632cd3edf7e1a9383608332dae39cb5adfc637b49c9a3f916169df8dc7d7c58"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/builtin_200V_fresh.csv",
+        "sha256": "1f3eb1461ec08f70a590d60a8802d207126fbc0ca8c00326a77ce30d9a3db49c"
+      }
+    ],
+    "evidence_status": "provisional_2026-07-14",
+    "data_vintages": {
+      "profile_and_runtime_evidence": "provisional_profile_comparison_2026-07-14"
+    }
+  },
+  {
+    "figure_id": "fig08_activation_regime",
+    "outputs": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig08_activation_regime.png",
+        "bytes": 433713,
+        "sha256": "be37dde3a84c098c5ba99a64b49ecf442da0e98958fb833dd5a02fd8fe8f5697"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig08_activation_regime.pdf",
+        "bytes": 30647,
+        "sha256": "ea5adf433b166852ca6acaf66a8d13b2d210fdb5212d179c175817a628942536"
+      }
+    ],
+    "chart_contract": {
+      "analytical_question": "Do archived exports numerically match the intended historical tables, and which spatial integrals are concentrated above 500 Td?",
+      "takeaway": "Some archived quantities are numerically consistent with the intended tables, but only mobility and eir2/eir4 have active-channel profile evidence; stale-class provenance prevents activation proof.",
+      "family": "uncertainty and regime comparison",
+      "variant": "log-scale median/P95/max error ranges plus paired log-scale absolute-integral-share dots",
+      "fields": [
+        "relative_error_median",
+        "relative_error_p95",
+        "relative_error_max",
+        "points_above_1_percent",
+        "absolute_integral_share"
+      ],
+      "palette": "blue intended/export audit and external; charcoal reference; gold threshold",
+      "output_footprint": "320-dpi PNG and vector PDF",
+      "data_sufficiency": "Rendered from every available row; missing formal repetitions or raw mesh profiles remain explicitly labelled."
+    },
+    "source_metadata": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/positive_column_results.csv",
+        "sha256": "b632cd3edf7e1a9383608332dae39cb5adfc637b49c9a3f916169df8dc7d7c58"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/builtin_200V_fresh.csv",
+        "sha256": "1f3eb1461ec08f70a590d60a8802d207126fbc0ca8c00326a77ce30d9a3db49c"
+      },
+      {
+        "path": "outputs/validation/188_low_mean_energy_floor_bundle/mixture_0000/mean_energy_vs_en.csv",
+        "sha256": "adea0acad0abe086146f9cafbebaaa0298a5d4770be598bc14e07157bdc7e3d3"
+      },
+      {
+        "path": "outputs/validation/188_low_mean_energy_floor_bundle/mixture_0000/transport_vs_mean_energy.csv",
+        "sha256": "50b52d55b6baa670e8456513bb1906773fd3f92063741b4f6c7b63e64677888c"
+      },
+      {
+        "path": "outputs/validation/188_low_mean_energy_floor_bundle/mixture_0000/rates_vs_mean_energy.csv",
+        "sha256": "bdd0c628f8da834769aeb7eaf25ad181668e4a37f74b5ea55304d4954fe180a8"
+      }
+    ],
+    "evidence_status": "provisional_2026-07-14",
+    "data_vintages": {
+      "profile_and_runtime_evidence": "provisional_profile_comparison_2026-07-14"
+    }
+  },
+  {
+    "figure_id": "fig09_fluid_applicability",
+    "outputs": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig09_fluid_applicability.png",
+        "bytes": 362832,
+        "sha256": "dfe8b31f4b9dd5745877f8bbf2e69eb901d4a7fe1e00c609d0bb4d985757e972"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig09_fluid_applicability.pdf",
+        "bytes": 41989,
+        "sha256": "293e6b1274ccb1fdd411360896f6152d6bc6fef4a84e9f518391ffb21487ce90"
+      }
+    ],
+    "chart_contract": {
+      "analytical_question": "Which drift-diffusion premises can be checked directly from the archived profiles, and where does net flux cease to be small relative to the energy-equivalent electron speed?",
+      "takeaway": "Electron fractions are below 6e-6, supporting weak ionization, while the heuristic net-flux ratio becomes order unity only in short boundary regions for both paths.",
+      "family": "physical applicability diagnostic",
+      "variant": "two-panel log-scale axial profiles",
+      "fields": [
+        "electron_density",
+        "electron_current_density",
+        "mean_electron_energy",
+        "gas_temperature_K",
+        "pressure_Pa"
+      ],
+      "palette": "blue external, charcoal reference, gold operational guide",
+      "annotations": [
+        "external_swarm: max(nₑ/N)=2.5e-06",
+        "builtin_reference: max(nₑ/N)=5.34e-06"
+      ],
+      "output_footprint": "320-dpi PNG and vector PDF",
+      "data_sufficiency": "Rendered from every available row; missing formal repetitions or raw mesh profiles remain explicitly labelled."
+    },
+    "source_metadata": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/positive_column_results.csv",
+        "sha256": "b632cd3edf7e1a9383608332dae39cb5adfc637b49c9a3f916169df8dc7d7c58"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/builtin_200V_fresh.csv",
+        "sha256": "1f3eb1461ec08f70a590d60a8802d207126fbc0ca8c00326a77ce30d9a3db49c"
+      }
+    ],
+    "evidence_status": "provisional_2026-07-14",
+    "data_vintages": {
+      "profile_and_runtime_evidence": "provisional_profile_comparison_2026-07-14"
+    }
+  }
+]

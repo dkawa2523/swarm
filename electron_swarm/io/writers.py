@@ -25,8 +25,8 @@ SUMMARY_COLUMNS = [
     "diffusion_T_m2_s",
     "reduced_diffusion_L_m2_s_m3",
     "reduced_diffusion_T_m2_s_m3",
-    "reduced_electron_energy_mobility_eV_m2_V_s_m3",
-    "reduced_electron_energy_diffusion_eV_m2_s_m3",
+    "reduced_electron_energy_mobility_m2_V_s_m3",
+    "reduced_electron_energy_diffusion_m2_s_m3",
     "net_ionization_frequency_s",
     "effective_townsend_m2",
 ]
@@ -124,11 +124,11 @@ def _summary_frame(cases: list[SwarmCaseResult]) -> pd.DataFrame:
             "diffusion_T_m2_s": case.diffusion_T_m2_s,
             "reduced_diffusion_L_m2_s_m3": case.reduced_diffusion_L_m2_s_m3,
             "reduced_diffusion_T_m2_s_m3": case.reduced_diffusion_T_m2_s_m3,
-            "reduced_electron_energy_mobility_eV_m2_V_s_m3": (
-                case.reduced_electron_energy_mobility_eV_m2_V_s_m3
+            "reduced_electron_energy_mobility_m2_V_s_m3": (
+                case.reduced_electron_energy_mobility_m2_V_s_m3
             ),
-            "reduced_electron_energy_diffusion_eV_m2_s_m3": (
-                case.reduced_electron_energy_diffusion_eV_m2_s_m3
+            "reduced_electron_energy_diffusion_m2_s_m3": (
+                case.reduced_electron_energy_diffusion_m2_s_m3
             ),
             "net_ionization_frequency_s": case.net_ionization_frequency_s,
             "effective_townsend_m2": case.effective_townsend_m2,

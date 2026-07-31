@@ -1,0 +1,12 @@
+base_config: argon_comsol_base.yaml
+database: ../outputs/argon_comsol/swarm.sqlite
+e_over_n_Td: [1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 1000.0]
+mixtures:
+  - Ar: 1.0
+mc:
+  replicas: 1
+  base_seed: 12345
+quality:
+  mobility_rse: 0.2
+  diffusion_rse: 0.3
+  major_rate_rse: 0.5

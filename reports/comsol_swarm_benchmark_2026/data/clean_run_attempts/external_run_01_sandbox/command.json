@@ -1,0 +1,33 @@
+{
+  "cwd": "C:\\Users\\user\\Desktop\\swarm_5",
+  "executable": "C:\\Program Files\\COMSOL\\COMSOL64\\Multiphysics_copy1\\bin\\win64\\comsolbatch.exe",
+  "executable_source": "cli",
+  "generated_java_path": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\apply_20260731_074235\\SwarmComsolApply.java",
+  "input_mph": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\positive_column_1d.mph",
+  "mapping_path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\comsol_positive_column\\positive_column_effective_mapping.yaml",
+  "operation": "apply",
+  "output_mph": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\work\\positive_column_external_applied.mph",
+  "source_java_path": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\apply_20260731_074235\\SwarmComsolApply.java",
+  "steps": [
+    {
+      "args": [
+        "C:\\Program Files\\COMSOL\\COMSOL64\\Multiphysics_copy1\\bin\\win64\\comsolcompile.exe",
+        "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\apply_20260731_074235\\SwarmComsolApply.java"
+      ],
+      "name": "compile",
+      "stderr": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\apply_20260731_074235\\compile_stderr.txt",
+      "stdout": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\apply_20260731_074235\\compile_stdout.txt"
+    },
+    {
+      "args": [
+        "C:\\Program Files\\COMSOL\\COMSOL64\\Multiphysics_copy1\\bin\\win64\\comsolbatch.exe",
+        "-inputfile",
+        "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\apply_20260731_074235\\SwarmComsolApply.class"
+      ],
+      "name": "apply",
+      "stderr": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\apply_20260731_074235\\apply_stderr.txt",
+      "stdout": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\apply_20260731_074235\\apply_stdout.txt"
+    }
+  ],
+  "study": "std1"
+}

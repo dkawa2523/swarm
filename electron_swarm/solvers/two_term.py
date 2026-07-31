@@ -199,9 +199,13 @@ class TwoTermSolver(SwarmSolver):
             "residual_L1": last_diag.residual,
             "growth_frequency_s-1": last_diag.growth_frequency_s,
             "tail_probability": last_diag.tail_probability,
+            "tail_probability_target": cfg.adaptive_grid.tail_probability,
             "edge_to_peak": last_diag.edge_to_peak,
+            "edge_to_peak_target": cfg.adaptive_grid.edge_to_peak,
             "grid_max_eV": last_diag.grid_max_eV,
+            "grid_max_limit_eV": cfg.adaptive_grid.max_max_eV,
             "adaptive_cycles": last_diag.regrid_cycles,
+            "residual_tolerance": cfg.convergence.residual_tolerance,
             "transport_model": "two_term_flux_integral",
             "discretization": "finite_volume_scharfetter_gummel",
             "cross_section_high_energy_extrapolation": (
@@ -399,7 +403,7 @@ class TwoTermSolver(SwarmSolver):
         transport = transport_override or self._transport_from_eedf(
             energy, widths, eedf, N, e_over_n_Td
         )
-        if transport.reduced_electron_energy_mobility_eV_m2_V_s_m3 is None:
+        if transport.reduced_electron_energy_mobility_m2_V_s_m3 is None:
             energy_transport = self._transport_from_eedf(
                 energy, widths, eedf, N, e_over_n_Td
             )
@@ -410,11 +414,11 @@ class TwoTermSolver(SwarmSolver):
                 reduced_mobility_m2_V_s_m3=transport.reduced_mobility_m2_V_s_m3,
                 reduced_diffusion_L_m2_s_m3=transport.reduced_diffusion_L_m2_s_m3,
                 reduced_diffusion_T_m2_s_m3=transport.reduced_diffusion_T_m2_s_m3,
-                reduced_electron_energy_mobility_eV_m2_V_s_m3=(
-                    energy_transport.reduced_electron_energy_mobility_eV_m2_V_s_m3
+                reduced_electron_energy_mobility_m2_V_s_m3=(
+                    energy_transport.reduced_electron_energy_mobility_m2_V_s_m3
                 ),
-                reduced_electron_energy_diffusion_eV_m2_s_m3=(
-                    energy_transport.reduced_electron_energy_diffusion_eV_m2_s_m3
+                reduced_electron_energy_diffusion_m2_s_m3=(
+                    energy_transport.reduced_electron_energy_diffusion_m2_s_m3
                 ),
             )
         mean_energy = self._mean_energy(energy, eedf, widths)

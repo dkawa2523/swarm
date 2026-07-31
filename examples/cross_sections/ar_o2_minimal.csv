@@ -1,0 +1,25 @@
+species,process,type,threshold_eV,mass_amu,energy_eV,cross_section_m2
+Ar,Ar momentum,momentum,0.0,39.948,0.0,1.0e-20
+Ar,Ar momentum,momentum,0.0,39.948,1.0,1.2e-20
+Ar,Ar momentum,momentum,0.0,39.948,10.0,1.5e-20
+Ar,Ar momentum,momentum,0.0,39.948,100.0,1.1e-20
+Ar,Ar excitation,excitation,11.55,39.948,0.0,0.0
+Ar,Ar excitation,excitation,11.55,39.948,10.0,0.0
+Ar,Ar excitation,excitation,11.55,39.948,20.0,2.0e-21
+Ar,Ar excitation,excitation,11.55,39.948,100.0,1.0e-21
+Ar,Ar ionization,ionization,15.76,39.948,0.0,0.0
+Ar,Ar ionization,ionization,15.76,39.948,15.0,0.0
+Ar,Ar ionization,ionization,15.76,39.948,30.0,1.5e-21
+Ar,Ar ionization,ionization,15.76,39.948,100.0,1.0e-21
+O2,O2 momentum,momentum,0.0,31.998,0.0,1.4e-20
+O2,O2 momentum,momentum,0.0,31.998,1.0,1.6e-20
+O2,O2 momentum,momentum,0.0,31.998,10.0,2.0e-20
+O2,O2 momentum,momentum,0.0,31.998,100.0,1.2e-20
+O2,O2 excitation,excitation,8.4,31.998,0.0,0.0
+O2,O2 excitation,excitation,8.4,31.998,8.0,0.0
+O2,O2 excitation,excitation,8.4,31.998,15.0,2.0e-21
+O2,O2 excitation,excitation,8.4,31.998,100.0,1.0e-21
+O2,O2 attachment,attachment,0.0,31.998,0.0,0.0
+O2,O2 attachment,attachment,0.0,31.998,1.0,5.0e-22
+O2,O2 attachment,attachment,0.0,31.998,10.0,1.0e-22
+O2,O2 attachment,attachment,0.0,31.998,100.0,0.0

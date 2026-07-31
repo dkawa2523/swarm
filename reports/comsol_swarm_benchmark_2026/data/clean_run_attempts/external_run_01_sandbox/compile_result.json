@@ -1,0 +1,20 @@
+{
+  "args": [
+    "C:\\Program Files\\COMSOL\\COMSOL64\\Multiphysics_copy1\\bin\\win64\\comsolcompile.exe",
+    "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\apply_20260731_074235\\SwarmComsolApply.java"
+  ],
+  "compiled_class": {
+    "exists": true,
+    "modified_at_utc": "2026-07-30T22:42:39.608311Z",
+    "path": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\apply_20260731_074235\\SwarmComsolApply.class",
+    "sha256": "a1243f5c402758be543f2f9d5d8f3d9e240692281b13627d5915723cc7722369",
+    "size_bytes": 10504
+  },
+  "cwd": "C:\\Users\\user\\Desktop\\swarm_5",
+  "duration_s": 4.555260100169107,
+  "name": "compile",
+  "return_code": 0,
+  "status": "ok",
+  "stderr": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\apply_20260731_074235\\compile_stderr.txt",
+  "stdout": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\apply_20260731_074235\\compile_stdout.txt"
+}

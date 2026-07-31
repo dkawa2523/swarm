@@ -1,0 +1,9 @@
+evidence_status,scope,path,repetitions,median_seconds,min_seconds,max_seconds,scope_interpretation
+provisional_2026-07-14,apply,external_swarm,1,13.7795908,13.7795908,13.7795908,external table apply stage
+provisional_2026-07-14,end_to_end,builtin_reference,1,379.0,379.0,379.0,historical complete-path observation
+provisional_2026-07-14,end_to_end,external_swarm,1,80.1195902,80.1195902,80.1195902,historical complete-path observation
+provisional_2026-07-14,export,external_swarm,1,12.5879988,12.5879988,12.5879988,external result export stage
+provisional_2026-07-14,solve,external_swarm,1,42.9143645,42.9143645,42.9143645,external COMSOL run stage
+provisional_2026-07-14,solve_only,builtin_reference,1,370.0,370.0,370.0,historical COMSOL run-stage timing; not isolated nonlinear-solver time
+provisional_2026-07-14,solve_only,external_swarm,1,42.9143645,42.9143645,42.9143645,historical COMSOL run-stage timing; not isolated nonlinear-solver time
+provisional_2026-07-14,verify,external_swarm,1,10.8376361,10.8376361,10.8376361,external table verification stage

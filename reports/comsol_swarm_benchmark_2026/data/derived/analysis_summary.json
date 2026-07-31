@@ -1,0 +1,335 @@
+{
+  "analysis_version": 2,
+  "generated_at": "2026-07-31T14:33:44.407292+09:00",
+  "evidence_status": "provisional_2026-07-14",
+  "data_vintages": {
+    "profile_comparison": "provisional_profile_comparison_2026-07-14",
+    "runtime_and_mesh": "provisional_profile_comparison_2026-07-14",
+    "lookup_tables": "schema_v2_tail_grid_pass_solver_gate_incomplete_2026-07-31",
+    "lookup_range_overlay": "lookup curves: schema_v2_tail_grid_pass_solver_gate_incomplete_2026-07-31; COMSOL-used field range: provisional_profile_comparison_2026-07-14",
+    "historical_activation_audit": "intended historical bundle versus archived export; stale-class provenance unresolved"
+  },
+  "config": "reports/comsol_swarm_benchmark_2026/repro/analysis_inputs.json",
+  "method_definitions": {
+    "relative_L2_spatial_weighted": "sqrt(integral((external-reference)^2 dx) / integral(reference^2 dx)); exact integral of the product of union-grid piecewise-linear reconstructions",
+    "relative_L2_trapezoidal_of_squared_samples_sensitivity": "legacy sensitivity calculation that applies the trapezoidal rule to squared nodal samples",
+    "signed_integral_ratio_external_over_reference": "signed integral(external dx) / signed integral(reference dx); piecewise-linear integrals on the same grid",
+    "shape_correlation_spatial_weighted": "Pearson correlation from exact means, variances, and covariance of union-grid piecewise-linear reconstructions",
+    "current_RSD": "exact piecewise-linear spatial population standard deviation divided by absolute piecewise-linear spatial mean",
+    "central_80_percent": "geometric window after excluding 10% of physical length at each boundary; it is not asserted to be a bulk/sheath boundary",
+    "regional_error_attribution": "exact squared-error share, region-normalized L2, reference-norm share, and signed integral ratio for cathode-side 10%, central 80%, and anode-side 10% geometric regions",
+    "high_field_regime": "absolute-integral shares where E/N exceeds 500 Td; 500 Td is typical COMSOL drift-diffusion guidance, not a hard validity cutoff",
+    "fluid_applicability_diagnostics": "max(n_e/N) plus exact spatial support of |J_e|/[e n_e sqrt(2 e mean_energy/m_e)] above operational guides; the latter includes drift, diffusion, and boundary flux and is not a hard validity test",
+    "operating_point_diagnostics": "source voltage, endpoint gap voltage, ballast drop/current, internal potential maximum, and absolute axial potential variation derived from final-time profiles",
+    "townsend_source_representation_audit": "archived Townsend-flux source compared with N n_e k(mean_energy) as a postprocess counterfactual; not a matched COMSOL rerun",
+    "partial_electron_energy_audit": "signed integral J_e E dx and threshold-weighted eir2/eir4 losses only; all other volume, boundary, flux, and transient energy terms are omitted",
+    "tail_convergence_audit": "per-case workflow-database diagnostics; every formal point must report solver convergence, tail probability <=1e-9, edge/peak <=1e-10, and no 20 keV grid-limit hit",
+    "historical_activation_audit": "intended historical bundle interpolated at archived export arguments; this is not activation verification because stale-class provenance is unresolved and mean-energy(E/N) is inactive in LEA"
+  },
+  "comparison": {
+    "external_profile": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/positive_column_results.csv",
+    "reference_profile": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/builtin_200V_fresh.csv",
+    "quantities": 8
+  },
+  "condition_audit": {
+    "historical_external_swarm": {
+      "gas_temperature_K": 300.0,
+      "pressure_Pa": 13.3,
+      "evidence_path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/historical_swarm_source_config.yaml",
+      "source_config_sha256": "c1a6d641524916a49c1cbbf901447a169821be68d474e23d77aaf78dee8719f1",
+      "source_bundle_manifest_sha256": "a1605a0eb76f1d2d82e783e2b6b8f6845c5c8c2237ee8472fb157277099b7456"
+    },
+    "historical_comsol_profiles": {
+      "gas_temperature_K": 293.15,
+      "pressure_Pa": 13.3322
+    },
+    "historical_closure_gas_conditions_match": false,
+    "formal_swarm": {
+      "gas_temperature_K": 293.15,
+      "pressure_Pa": 13.3322,
+      "executed_config_path": "reports/comsol_swarm_benchmark_2026/data/formal_swarm_bundle_solver_qa_20keV/executed_argon_comsol_benchmark_2026.yaml",
+      "executed_config_sha256": "143eba56e2590cb64d72cf976e6243ea6efaeeea7da3b52ad907dd27913aa040",
+      "portable_repro_config_path": "reports/comsol_swarm_benchmark_2026/repro/argon_comsol_benchmark_2026.yaml",
+      "portable_repro_config_sha256": "143eba56e2590cb64d72cf976e6243ea6efaeeea7da3b52ad907dd27913aa040",
+      "database_path": "reports/comsol_swarm_benchmark_2026/data/formal_swarm_database_solver_qa_20keV.sqlite",
+      "database_sha256": "637490605208355b114752c4116ad4b5d3a66ee78f6a9bde3dc788c6aed7a654"
+    },
+    "formal_comsol_target": {
+      "gas_temperature_K": 293.15,
+      "pressure_Pa": 13.3322
+    },
+    "formal_target_conditions_configured_to_match": true,
+    "formal_run_conditions_verified": false
+  },
+  "historical_activation_audit": {
+    "intended_bundle": "outputs/validation/188_low_mean_energy_floor_bundle/mixture_0000",
+    "archived_export": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/positive_column_results.csv",
+    "comsol_formulation": "LocalEnergyApproximationE",
+    "relative_error_threshold": 0.01,
+    "provenance_verified": false,
+    "interpretation": "intended historical bundle versus archived export only; stale-class provenance prevents activation verification; mean-energy(E/N) is inactive in the archived LEA formulation"
+  },
+  "clamp_context": {
+    "table_E_over_N_min_Td": 0.0444,
+    "table_E_over_N_max_Td": 5000.0,
+    "profile_E_over_N_min_Td": 0.019019043997226336,
+    "profile_E_over_N_max_Td": 4631.247678783141,
+    "computed_mean_energy_min_eV": 0.5479128233835585,
+    "computed_mean_energy_max_eV": 100.1433764775097,
+    "lookup_mean_energy_min_eV": 0.0,
+    "lookup_mean_energy_max_eV": 100.1433764775097,
+    "boundary_policy_constant_max_mean_energy_eV": 0.3499999999999999,
+    "profile_mean_energy_min_eV": 0.0772450722127745,
+    "profile_mean_energy_max_eV": 24.711606363493352,
+    "domain_length_m": 0.368
+  },
+  "regime_context": {
+    "threshold_Td": 500.0,
+    "gas_temperature_K": 293.15,
+    "pressure_Pa": 13.3322,
+    "neutral_number_density_m3": 3.294038257340864e+21,
+    "equivalent_electric_field_threshold_V_m": 1647.0191286704319
+  },
+  "low_E_over_N_clamp_spatial_fraction": 0.0006979944071494438,
+  "qa": {
+    "data_quality_status": "share_with_caveats",
+    "checks": 34,
+    "passed_checks": 25,
+    "failed_checks": 9,
+    "blocking_failures": [
+      "historical_closure_gas_conditions_match",
+      "historical_activation_provenance_verified",
+      "formal_run_conditions_verified",
+      "solve_only_external_swarm_repetitions",
+      "solve_only_builtin_reference_repetitions",
+      "end_to_end_external_swarm_repetitions",
+      "end_to_end_builtin_reference_repetitions",
+      "raw_mesh_profiles_available",
+      "formal_swarm_tail_convergence"
+    ],
+    "raw_profile_files": 2,
+    "runtime_rows": 8,
+    "current_summary_rows": 8,
+    "historical_activation_audit_rows": 4
+  },
+  "formal_gates": {
+    "runtime_repetition_gate_met": false,
+    "formal_swarm_tail_convergence_gate_met": true,
+    "formal_swarm_solver_convergence_gate_met": false,
+    "formal_swarm_all_case_gates_met": false,
+    "raw_mesh_200_400_gate_met": false,
+    "profile_voltage_pressure_match": true,
+    "historical_closure_gas_conditions_match": false,
+    "formal_target_conditions_configured_to_match": true,
+    "formal_run_conditions_verified": false,
+    "historical_activation_provenance_verified": false,
+    "profile_numeric_QA_passed": true
+  },
+  "derived_tables": {
+    "comparison_metrics": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/comparison_metrics.csv",
+      "rows": 8,
+      "sha256": "dcecbba23907388eca69d67d76b40d07018316188b478f03771b160540021f42"
+    },
+    "aligned_profiles_long": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/aligned_profiles_long.csv",
+      "rows": 6408,
+      "sha256": "8e3b243347cf4641374e7fde7c98c7a6bf17a947765c16f10522ff62edb1727a"
+    },
+    "regional_error_attribution": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/regional_error_attribution.csv",
+      "rows": 24,
+      "sha256": "dce3ac4bbb72a14e2adec42a0923876948bbcc5f3224834f13c86b0899bc07b2"
+    },
+    "current_uniformity": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/current_uniformity.csv",
+      "rows": 8,
+      "sha256": "2bc290459b214a99ef7047e82db577040d59df3f19847c340209beff3fdbd5e3"
+    },
+    "current_rsd_sensitivity": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/current_rsd_sensitivity.csv",
+      "rows": 16,
+      "sha256": "c8485f0de78bc181551818c6f4652906e30b848aa539715f491931e3c6b55e95"
+    },
+    "runtime_summary": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/runtime_summary.csv",
+      "rows": 8,
+      "sha256": "e9e7e4d6721c1b8c6d4c0a3a2458a24f7ecf932eb519dcfaf1b085ae67573be7"
+    },
+    "runtime_speedup": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/runtime_speedup.csv",
+      "rows": 2,
+      "sha256": "d53d6d75bdbdc445a6a50a9fb0e2e9abec37250a41bc0c726f0207b68fdc1868"
+    },
+    "clamp_metrics": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/clamp_metrics.csv",
+      "rows": 7,
+      "sha256": "eb12a51fa3b089824d067c491cb025f123149a1b7c58519dfd5d01b189af3f0d"
+    },
+    "clamp_impact": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/clamp_impact.csv",
+      "rows": 24,
+      "sha256": "2ee22044b328f441f9212f51d9a3a18334b985b47d40e439715c9c47e1e68052"
+    },
+    "regime_metrics": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/regime_metrics.csv",
+      "rows": 2,
+      "sha256": "ad460d5c43ade5afc12be105d52f95eab7feb822a9e2cbc354fda74f3946b61b"
+    },
+    "regime_impact": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/regime_impact.csv",
+      "rows": 16,
+      "sha256": "666dae95aae277380302547c267cb71fcd05efdbee9a3f6bfb3d9cf36a47ffe7"
+    },
+    "fluid_applicability_diagnostics": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/fluid_applicability_diagnostics.csv",
+      "rows": 2,
+      "sha256": "576228bf752dbdbd66aa18d914fa3a7e537930150fe96b8b470ef3dac13a3976"
+    },
+    "operating_point_diagnostics": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/operating_point_diagnostics.csv",
+      "rows": 2,
+      "sha256": "d1ab70574e351041239e4eac08654017bae179a212d54c192e6eb3de1c7460ab"
+    },
+    "townsend_source_representation_audit": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/townsend_source_representation_audit.csv",
+      "rows": 2,
+      "sha256": "96462c01350a34c9e32a63ea41a581d2fd659d07f6e1d92ed2cedeafa323ae5a"
+    },
+    "partial_electron_energy_audit": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/partial_electron_energy_audit.csv",
+      "rows": 2,
+      "sha256": "1b04653cf47989ad21415dcc0424a31150123139e7a8b95baf45885d82fa0807"
+    },
+    "tail_convergence_audit": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/tail_convergence_audit.csv",
+      "rows": 34,
+      "sha256": "92a68eba3a0596c8739eb9c252b48d84972a0929d3c0958f8414e1899d8a9ab1"
+    },
+    "historical_activation_audit": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/historical_activation_audit.csv",
+      "rows": 4,
+      "sha256": "c6ec133b607cc3ac2675d96152e770847401cce06898876e967527f89e3b6541"
+    },
+    "qa_summary": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/qa_summary.csv",
+      "rows": 34,
+      "sha256": "f93519dc2fd3b40fec3e157b6c4aae9e5f98a71c5f70498b6ea81ea980ed1e1e"
+    },
+    "source_hashes": {
+      "path": "reports/comsol_swarm_benchmark_2026/data/derived/source_hashes.csv",
+      "rows": 18,
+      "sha256": "0921853cf2af658920d98857522ba906fdeb5c62c405e7064cd7bad2c3e24a19"
+    }
+  },
+  "figures": {
+    "fig01_workflow_boundary": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig01_workflow_boundary.png",
+        "bytes": 313111,
+        "sha256": "e934b7a3c837ba3390f926a9c49207f99f13b78365b729f58234ed9c05bb4363"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig01_workflow_boundary.pdf",
+        "bytes": 37100,
+        "sha256": "e086c0fd84498d726a1e3f591c0cf4b4f32c93dbe6c7ba543aa7e0760aefea6a"
+      }
+    ],
+    "fig02_lookup_domain": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig02_lookup_domain.png",
+        "bytes": 770636,
+        "sha256": "1bddceca296686c079a6f452f9c78d5dad9a48ad458ca1a8af36589cc95a3612"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig02_lookup_domain.pdf",
+        "bytes": 39220,
+        "sha256": "6c8e66004b3f7422e0afb8b07f7bc0bdcde54b8c4553ba23e582b7948831b1e4"
+      }
+    ],
+    "fig03_profile_state": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig03_profile_state.png",
+        "bytes": 407500,
+        "sha256": "73d9a6702fefb4c1838a6ade5cf884e6e317b83f716c2dc58de3d47363af61d3"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig03_profile_state.pdf",
+        "bytes": 33952,
+        "sha256": "93007367df01696194911da1951b31137cc5079d4743d0cc58d4a6d9c20fb6b5"
+      }
+    ],
+    "fig04_sources_currents_mesh": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig04_sources_currents_mesh.png",
+        "bytes": 661034,
+        "sha256": "7921629af637a305a91fe97fc8df959b2e13cefd42ea2f4f7d4bea5642af6847"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig04_sources_currents_mesh.pdf",
+        "bytes": 47220,
+        "sha256": "7fd4d5930a218c4d10b8c9a8d790bd99d571d489ac83ae9b702fe70c241d990d"
+      }
+    ],
+    "fig05_metric_summary": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig05_metric_summary.png",
+        "bytes": 250220,
+        "sha256": "7538521e76f150d1507c148e0eed52f930815e1b9dfb9e38f26e1ae0ddfbf525"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig05_metric_summary.pdf",
+        "bytes": 29948,
+        "sha256": "cccae1c10bf9d333f0787c87fcb12253cf823feec96c540b1476c204db7974ac"
+      }
+    ],
+    "fig06_runtime_breakdown": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig06_runtime_breakdown.png",
+        "bytes": 254569,
+        "sha256": "2e8f1294a42105882b52e09ada4f6d7a3751502178a202d99c698165352eab40"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig06_runtime_breakdown.pdf",
+        "bytes": 26048,
+        "sha256": "0d12da65e06d3f7bd45a5cfd2f27af8f21ced6e1a3856fdde93fe8d9161c1f51"
+      }
+    ],
+    "fig07_spatial_robustness": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig07_spatial_robustness.png",
+        "bytes": 409328,
+        "sha256": "776c1fe4f255f7cec33b3169fdadf1a50ea0c184e0a205c3bed702f84f36c56c"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig07_spatial_robustness.pdf",
+        "bytes": 39043,
+        "sha256": "f806d9b0bd8284f92d85023f05badcc0197114af1ce9b8f4af1eee8be34c613e"
+      }
+    ],
+    "fig08_activation_regime": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig08_activation_regime.png",
+        "bytes": 433713,
+        "sha256": "be37dde3a84c098c5ba99a64b49ecf442da0e98958fb833dd5a02fd8fe8f5697"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig08_activation_regime.pdf",
+        "bytes": 30647,
+        "sha256": "ea5adf433b166852ca6acaf66a8d13b2d210fdb5212d179c175817a628942536"
+      }
+    ],
+    "fig09_fluid_applicability": [
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig09_fluid_applicability.png",
+        "bytes": 362832,
+        "sha256": "dfe8b31f4b9dd5745877f8bbf2e69eb901d4a7fe1e00c609d0bb4d985757e972"
+      },
+      {
+        "path": "reports/comsol_swarm_benchmark_2026/figures/fig09_fluid_applicability.pdf",
+        "bytes": 41989,
+        "sha256": "293e6b1274ccb1fdd411360896f6152d6bc6fef4a84e9f518391ffb21487ce90"
+      }
+    ]
+  }
+}

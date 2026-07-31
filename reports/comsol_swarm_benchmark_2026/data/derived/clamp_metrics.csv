@@ -1,0 +1,8 @@
+evidence_status,metric,predicate,threshold,threshold_unit,spatial_length_m,spatial_fraction,node_fraction
+provisional_2026-07-14,E_over_N_below_table,below,0.0444,Td,0.0002568619418309953,0.0006979944071494438,0.0012484394506866417
+provisional_2026-07-14,E_over_N_above_table,above,5000.0,Td,0.0,0.0,0.0
+provisional_2026-07-14,mean_energy_below_computed_domain,below,0.5479128233835585,eV,0.005553815864450737,0.015091890936007437,0.10736579275905118
+provisional_2026-07-14,mean_energy_above_computed_domain,above,100.1433764775097,eV,0.0,0.0,0.0
+provisional_2026-07-14,mean_energy_in_constant_boundary_policy_region,below,0.3499999999999999,eV,0.0032748556600558486,0.008899064293630023,0.07116104868913857
+provisional_2026-07-14,mean_energy_below_lookup_argument_domain,below,0.0,eV,0.0,0.0,0.0
+provisional_2026-07-14,mean_energy_above_lookup_argument_domain,above,100.1433764775097,eV,0.0,0.0,0.0

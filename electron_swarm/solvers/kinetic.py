@@ -611,6 +611,9 @@ def f0_reduced_transport_from_eedf(
     gamma = float(np.sqrt(2.0 * E_CHARGE_C / ELECTRON_MASS_KG))
     mobility = -gamma / 3.0 * weighted_integral((energy / sigma_m) * dF0, widths)
     diffusion = gamma / 3.0 * weighted_integral((energy / sigma_m) * f0, widths)
+    # Division by mean energy makes these energy-flux coefficients have the
+    # same dimensions as the corresponding particle mobility and diffusion.
+    # The coefficient names and units therefore must not carry an eV factor.
     energy_mobility = (
         -gamma
         / (3.0 * mean_energy)
@@ -656,8 +659,8 @@ def transport_from_eedf(
         reduced_mobility_m2_V_s_m3=float(muN),
         reduced_diffusion_L_m2_s_m3=float(diffN),
         reduced_diffusion_T_m2_s_m3=float(diffN),
-        reduced_electron_energy_mobility_eV_m2_V_s_m3=float(energy_muN),
-        reduced_electron_energy_diffusion_eV_m2_s_m3=float(energy_diffN),
+        reduced_electron_energy_mobility_m2_V_s_m3=float(energy_muN),
+        reduced_electron_energy_diffusion_m2_s_m3=float(energy_diffN),
     )
 
 

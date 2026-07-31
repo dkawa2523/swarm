@@ -1,3 +1,0 @@
-solver,requested,runnable,skipped,degraded,skip_reason,warnings,effective_angular_scattering,effective_ionization_source,effective_electron_electron,effective_magnetic_field,effective_rf_field,effective_tail_refinement,effective_finite_k
-two_term,True,True,False,True,,two_term handles requested angular_scattering as isotropic:zero:approximate; two_term handles requested tail_refinement as approximate,isotropic:zero:approximate,equal,none,none,none,approximate,none
-monte_carlo,True,True,False,True,,monte_carlo handles requested angular_scattering as same_as_physics:isotropic:sampler_supported; monte_carlo handles requested tail_refinement as approximate,same_as_physics:isotropic:sampler_supported,equal,none,none,none,approximate,none

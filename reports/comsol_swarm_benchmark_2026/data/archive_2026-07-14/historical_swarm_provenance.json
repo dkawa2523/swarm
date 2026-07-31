@@ -1,0 +1,19 @@
+{
+  "evidence_status": "provisional_2026-07-14",
+  "source_config": {
+    "archived_path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/historical_swarm_source_config.yaml",
+    "original_path": "outputs/validation/060_positive_column_external_extended/argon_comsol_extended_base.yaml",
+    "sha256": "c1a6d641524916a49c1cbbf901447a169821be68d474e23d77aaf78dee8719f1",
+    "gas_temperature_K": 300.0,
+    "pressure_Pa": 13.3
+  },
+  "source_bundle_manifest": {
+    "original_path": "outputs/validation/060_positive_column_external_extended/bundle_manifest.json",
+    "sha256": "a1605a0eb76f1d2d82e783e2b6b8f6845c5c8c2237ee8472fb157277099b7456",
+    "embedded_base_config_sha256": "c1a6d641524916a49c1cbbf901447a169821be68d474e23d77aaf78dee8719f1",
+    "embedded_cross_sections_sha256": "a70cd71afa33710fbb4189b82fb61612f75f492ba1dc7e626789e759f70ea921",
+    "quality_points": 33,
+    "quality_passed": true
+  },
+  "note": "The archived YAML is byte-identical to the original source config. The original bundle manifest remains in the repository at the recorded path and is bound here by SHA-256."
+}

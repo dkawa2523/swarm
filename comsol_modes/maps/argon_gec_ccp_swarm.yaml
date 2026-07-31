@@ -1,0 +1,45 @@
+schema_version: 2
+
+model:
+  input_mph: ../argon_gec_ccp.mph
+  baseline_output_mph: ../work/argon_gec_ccp_builtin_druyvesteyn.mph
+  external_output_mph: ../work/argon_gec_ccp_swarm_tables.mph
+  component: comp1
+  physics: ptp
+  plasma_feature: pes1
+  time_periodic_study: std1
+  conversion_study: std2
+  expected_original_eedf: Druyvesteyn
+
+bundle:
+  path: ../../outputs/argon_gec_ccp/comsol_bundle/mixture_0000
+
+reactions:
+  - name: elastic
+    feature: eir1
+    process_type: elastic
+  - name: excitation
+    feature: eir2
+    process_type: excitation
+  - name: ionization
+    feature: eir3
+    process_type: ionization
+
+run:
+  power_parameter: P0
+  power_W: 1.0
+  # The baseline median mean energy is 5.34691 eV.  Scaling its log-energy
+  # solution by 1.21687 gives the refined-table ionization-rate match.
+  # matches the baseline's characteristic ionization rate.
+  initial_mean_energy_scale: 1.216872309669
+  axis_dataset: cln1
+  radial_dataset: cln2
+  period_dataset: dset1
+  phase_dataset: dset3
+  waveform_dataset: dset2
+
+results:
+  output_directory: ../../outputs/argon_gec_ccp/comsol
+
+logs:
+  path: ../../outputs/argon_gec_ccp/comsol_logs

@@ -79,8 +79,8 @@ def test_canonical_outputs_and_comparison_summary(tmp_path: Path) -> None:
     for column in [
         "reduced_mobility_m2_V_s_m3",
         "reduced_diffusion_L_m2_s_m3",
-        "reduced_electron_energy_mobility_eV_m2_V_s_m3",
-        "reduced_electron_energy_diffusion_eV_m2_s_m3",
+        "reduced_electron_energy_mobility_m2_V_s_m3",
+        "reduced_electron_energy_diffusion_m2_s_m3",
     ]:
         assert pd.notna(two_term[column])
     eedf = pd.read_csv(tmp_path / "prod_eedf.csv")

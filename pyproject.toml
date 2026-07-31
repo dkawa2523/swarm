@@ -32,4 +32,5 @@ markers = [
   "slow: tests that are too heavy for the default CI path",
   "mc: Monte Carlo backend or stochastic integration tests",
   "regression: lightweight numerical regression checks",
+  "comsol: tests that require a local COMSOL executable",
 ]

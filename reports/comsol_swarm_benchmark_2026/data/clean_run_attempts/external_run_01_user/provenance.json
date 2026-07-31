@@ -1,0 +1,91 @@
+{
+  "comsol": {
+    "build": null,
+    "executable": "C:\\Program Files\\COMSOL\\COMSOL64\\Multiphysics_copy1\\bin\\win64\\comsolbatch.exe",
+    "executable_source": "cli",
+    "progress_version": null,
+    "version": null
+  },
+  "configured_voltage_sequence_V": [
+    20.0,
+    50.0,
+    100.0,
+    200.0
+  ],
+  "executed_voltage_sequence_V": null,
+  "format_version": 1,
+  "generated_artifacts": {
+    "compiled_class": {
+      "exists": true,
+      "modified_at_utc": "2026-07-30T22:43:07.967016Z",
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\apply_20260731_074305\\SwarmComsolApply.class",
+      "sha256": "a1243f5c402758be543f2f9d5d8f3d9e240692281b13627d5915723cc7722369",
+      "size_bytes": 10504
+    },
+    "output_mph": {
+      "exists": true,
+      "modified_at_utc": "2026-07-13T16:35:31.316233Z",
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\work\\positive_column_external_applied.mph",
+      "sha256": "7cb8c860aef9176c73f955a27767d5dcf98a0438b926ce7f2ccc1fc8d1dde139",
+      "size_bytes": 5013462
+    },
+    "source_origin": {
+      "exists": true,
+      "modified_at_utc": "2026-07-30T22:43:05.337750Z",
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\apply_20260731_074305\\SwarmComsolApply.java",
+      "sha256": "60b29f5d847b3ebf561a3219443aedee7ac0fb0c02331555cd4f47e5f3710a34",
+      "size_bytes": 17556
+    },
+    "staged_java": {
+      "exists": true,
+      "modified_at_utc": "2026-07-30T22:43:05.337750Z",
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\apply_20260731_074305\\SwarmComsolApply.java",
+      "sha256": "60b29f5d847b3ebf561a3219443aedee7ac0fb0c02331555cd4f47e5f3710a34",
+      "size_bytes": 17556
+    }
+  },
+  "inputs": {
+    "bundle_manifest": {
+      "exists": true,
+      "modified_at_utc": "2026-07-30T22:42:04.231605Z",
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\comsol_swarm_benchmark_2026\\bundle_low_energy\\manifest.json",
+      "sha256": "d52960c68bd2b501b07100ffa72d58807db15167e1f2bf78bcf0ec207ee9facb",
+      "size_bytes": 9155
+    },
+    "input_mph": {
+      "exists": true,
+      "modified_at_utc": "2026-06-28T07:35:25.662508Z",
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\positive_column_1d.mph",
+      "sha256": "294af1b3615a59e1e8a7a900666e911d6445eaeb58be92e7b173075894e96369",
+      "size_bytes": 4905198
+    },
+    "mapping": {
+      "exists": true,
+      "modified_at_utc": "2026-07-30T22:43:05.312442Z",
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\comsol_positive_column\\positive_column_effective_mapping.yaml",
+      "sha256": "f908b020c6cf3e053d767ddbacfb85db053e5575328af0207e07d6d2994edb6c",
+      "size_bytes": 3047
+    }
+  },
+  "operation": "apply",
+  "recorded_at_utc": "2026-07-30T22:43:10.972421Z",
+  "started_at_utc": "2026-07-30T22:43:05.337749Z",
+  "status": "failed",
+  "steps": [
+    {
+      "detected_comsol_error": null,
+      "name": "compile",
+      "return_code": 0,
+      "status": "ok"
+    },
+    {
+      "detected_comsol_error": "comsol_error_block",
+      "name": "apply",
+      "return_code": 0,
+      "status": "failed"
+    }
+  ],
+  "study": "std1",
+  "total_time_s": 5.633715200005099,
+  "voltage_execution_mode": null
+}

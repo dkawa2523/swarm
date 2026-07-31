@@ -1,0 +1,117 @@
+model:
+  input_mph: Model/positive_column_1d.mph
+  output_mph: Model/work/positive_column_external_applied.mph
+  study: std1
+  component: comp1
+  physics: plas
+bundle:
+  path: C:\Users\user\Desktop\swarm_5\outputs\validation\188_low_mean_energy_floor_bundle\mixture_0000
+logs:
+  path: Model/logs
+verify:
+  output_path: outputs/comsol_verify
+  relative_tolerance: 1.0e-06
+  absolute_tolerance: 1.0e-12
+functions:
+  mean_energy:
+    tag: sw_meanE
+    file: comsol_functions/sw_meanE.csv
+    column: mean_energy_eV
+    nargs: 1
+    argunit: V*m^2
+    fununit: eV
+    interp: linear
+    extrap: const
+  mobility:
+    tag: sw_muN
+    file: comsol_functions/sw_muN.csv
+    column: reduced_mobility_m2_V_s_m3
+    nargs: 1
+    argunit: V*m^2
+    fununit: 1/(V*m*s)
+    interp: linear
+    extrap: const
+closure:
+  physics: plas
+  feature: pes1
+  mean_energy:
+    table: mean_energy_vs_en.csv
+    x_column: E_over_N_Td
+    y_column: mean_energy_eV
+reaction_lookups:
+  excitation:
+    physics: plas
+    feature: eir2
+    form: townsend
+    source_model: townsend_flux
+    table: rates_vs_mean_energy.csv
+    argument: mean_energy_eV
+    x_column: mean_energy_eV
+    y_column: reduced_townsend_m2
+    process_type: excitation
+  ionization:
+    physics: plas
+    feature: eir4
+    form: townsend
+    source_model: townsend_flux
+    table: rates_vs_mean_energy.csv
+    argument: mean_energy_eV
+    x_column: mean_energy_eV
+    y_column: reduced_townsend_m2
+    process_type: ionization
+run:
+  voltage_parameter: V0
+  voltage_feature: mct1
+  voltage_property: V0
+  voltages_V:
+  - 20
+  - 50
+  - 100
+  - 200
+results:
+  probes:
+  - name: x
+    expression: x
+    unit: m
+  - name: electron_density
+    expression: plas.ne
+    unit: 1/m^3
+  - name: mean_electron_energy
+    expression: plas.ebar/1[V/eV]
+    unit: eV
+  - name: electric_potential
+    expression: V
+    unit: V
+  - name: electron_current_density
+    expression: plas.Jelx
+    unit: A/m^2
+  - name: ion_current_density
+    expression: plas.Jix_wAr_1p
+    unit: A/m^2
+  - name: total_current_density
+    expression: plas.Jix_wAr_1p+plas.Jelx
+    unit: A/m^2
+  - name: excitation_source
+    expression: root.comp1.plas.eir2.alpha(plas.ebar)*(p0/(k_B_const*293.15[K]))*abs(plas.Jelx)/e_const
+    unit: 1/(m^3*s)
+  - name: ionization_source
+    expression: root.comp1.plas.eir4.alpha(plas.ebar)*(p0/(k_B_const*293.15[K]))*abs(plas.Jelx)/e_const
+    unit: 1/(m^3*s)
+  - name: E_over_N
+    expression: plas.Erd
+    unit: V*m^2
+  - name: reduced_mobility
+    expression: plas.muexx*plas.Nn
+    unit: 1/(V*m*s)
+  - name: excitation_townsend
+    expression: root.comp1.plas.eir2.alpha(plas.ebar)
+    unit: m^2
+  - name: ionization_townsend
+    expression: root.comp1.plas.eir4.alpha(plas.ebar)
+    unit: m^2
+  - name: applied_voltage
+    expression: V0
+    unit: V
+  - name: gas_pressure
+    expression: p0
+    unit: Pa

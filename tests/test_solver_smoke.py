@@ -11,7 +11,6 @@ from electron_swarm.core.cross_sections import ProcessType, load_cross_sections
 from electron_swarm.core.results import RateResult
 from electron_swarm.core.result_metadata import PRODUCT_CASE_METADATA_KEYS
 from electron_swarm.core.solver_configs import build_internal_solver_configs
-from tools.eedf_compare import compare_eedf_cases
 from electron_swarm.solvers.kinetic import (
     assemble_native_operator_blocks,
     build_effective_collision_data,
@@ -62,17 +61,17 @@ def _assert_canonical_transport(case) -> None:
         case.reduced_diffusion_T_m2_s_m3 / density
     )
     if case.solver == "two_term":
-        assert case.reduced_electron_energy_mobility_eV_m2_V_s_m3 is not None
-        assert case.reduced_electron_energy_diffusion_eV_m2_s_m3 is not None
-        assert case.electron_energy_mobility_eV_m2_V_s == pytest.approx(
-            case.reduced_electron_energy_mobility_eV_m2_V_s_m3 / density
+        assert case.reduced_electron_energy_mobility_m2_V_s_m3 is not None
+        assert case.reduced_electron_energy_diffusion_m2_s_m3 is not None
+        assert case.electron_energy_mobility_m2_V_s == pytest.approx(
+            case.reduced_electron_energy_mobility_m2_V_s_m3 / density
         )
-        assert case.electron_energy_diffusion_eV_m2_s == pytest.approx(
-            case.reduced_electron_energy_diffusion_eV_m2_s_m3 / density
+        assert case.electron_energy_diffusion_m2_s == pytest.approx(
+            case.reduced_electron_energy_diffusion_m2_s_m3 / density
         )
     else:
-        assert transport.electron_energy_mobility_eV_m2_V_s is None
-        assert transport.electron_energy_diffusion_eV_m2_s is None
+        assert transport.electron_energy_mobility_m2_V_s is None
+        assert transport.electron_energy_diffusion_m2_s is None
 
 
 def _assert_eedf_normalized(case) -> None:
@@ -80,6 +79,10 @@ def _assert_eedf_normalized(case) -> None:
     if widths is None:
         widths = cell_edges_from_centers(case.energy_eV)[1]
     assert float(np.sum(case.eedf * widths)) == pytest.approx(1.0)
+
+
+def _relative_difference(left: float, right: float) -> float:
+    return abs(left - right) / max(abs(left), abs(right), 1.0e-300)
 
 
 def _write_total_momentum_xs(
@@ -166,14 +169,21 @@ def test_multi_term_pn_closure_direct_lmax1_regresses_to_two_term(
         rel=1.0e-12,
     )
 
-    comparison = compare_eedf_cases(two_term, direct)
-    metrics = comparison.metrics
-    assert metrics["eedf_relative_l1"] < 0.01
-    assert metrics["mean_energy_relative_difference"] < 0.005
-    assert metrics["drift_velocity_relative_difference"] < 0.01
-    assert metrics["major_rate_relative_difference"] < 0.02
-    assert metrics["normalization_error_candidate"] < 1.0e-8
-    assert comparison.failures == []
+    assert np.allclose(two_term.energy_eV, direct.energy_eV)
+    assert float(np.sum(np.abs(two_term.eedf - direct.eedf) * widths)) < 0.01
+    assert _relative_difference(two_term.mean_energy_eV, direct.mean_energy_eV) < 0.005
+    assert _relative_difference(
+        two_term.drift_velocity_m_s,
+        direct.drift_velocity_m_s,
+    ) < 0.01
+    two_rates = {rate.process: rate.rate_coefficient_m3_s for rate in two_term.rates}
+    direct_rates = {rate.process: rate.rate_coefficient_m3_s for rate in direct.rates}
+    common_rates = set(two_rates) & set(direct_rates)
+    assert common_rates
+    assert max(
+        _relative_difference(two_rates[process], direct_rates[process])
+        for process in common_rates
+    ) < 0.02
 
 
 def test_direct_pn_uses_shared_kinetic_block_not_two_term_solver(
@@ -292,10 +302,10 @@ def test_shared_kinetic_eedf_helpers_and_rate_convolution(tmp_path: Path) -> Non
     )
     assert case.reduced_mobility_m2_V_s_m3 == pytest.approx(f0_muN)
     assert case.reduced_diffusion_L_m2_s_m3 == pytest.approx(f0_diffN)
-    assert case.reduced_electron_energy_mobility_eV_m2_V_s_m3 == pytest.approx(
+    assert case.reduced_electron_energy_mobility_m2_V_s_m3 == pytest.approx(
         energy_muN
     )
-    assert case.reduced_electron_energy_diffusion_eV_m2_s_m3 == pytest.approx(
+    assert case.reduced_electron_energy_diffusion_m2_s_m3 == pytest.approx(
         energy_diffN
     )
     assert all(np.isfinite(v) for v in (f0_muN, f0_diffN, energy_muN, energy_diffN))
@@ -336,19 +346,19 @@ def test_two_term_energy_transport_density_scaling(tmp_path: Path) -> None:
     for attr in (
         "reduced_mobility_m2_V_s_m3",
         "reduced_diffusion_L_m2_s_m3",
-        "reduced_electron_energy_mobility_eV_m2_V_s_m3",
-        "reduced_electron_energy_diffusion_eV_m2_s_m3",
+        "reduced_electron_energy_mobility_m2_V_s_m3",
+        "reduced_electron_energy_diffusion_m2_s_m3",
     ):
         assert getattr(high, attr) == pytest.approx(getattr(low, attr), rel=1.0e-6)
     assert high.mobility_m2_V_s == pytest.approx(low.mobility_m2_V_s / 2.0, rel=1.0e-6)
     assert high.diffusion_L_m2_s == pytest.approx(
         low.diffusion_L_m2_s / 2.0, rel=1.0e-6
     )
-    assert high.electron_energy_mobility_eV_m2_V_s == pytest.approx(
-        low.electron_energy_mobility_eV_m2_V_s / 2.0, rel=1.0e-6
+    assert high.electron_energy_mobility_m2_V_s == pytest.approx(
+        low.electron_energy_mobility_m2_V_s / 2.0, rel=1.0e-6
     )
-    assert high.electron_energy_diffusion_eV_m2_s == pytest.approx(
-        low.electron_energy_diffusion_eV_m2_s / 2.0, rel=1.0e-6
+    assert high.electron_energy_diffusion_m2_s == pytest.approx(
+        low.electron_energy_diffusion_m2_s / 2.0, rel=1.0e-6
     )
 
 

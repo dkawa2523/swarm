@@ -53,19 +53,12 @@ the canonical CSV format.  Missing files are reported as external-reference
 failures; no fake reference data is generated.
 
 Optional external execution is available through explicit command templates.
-The benchmark runs the command, verifies that the declared output file exists,
-then ingests that file exactly like a pre-generated reference:
+The benchmark verifies the declared output file before ingesting it:
 
 ```powershell
 py -3 tools\benchmark_ar_bolsig_mcig_triage.py --config configs\benchmarks\ar_bolsig_mcig_triage.yaml --run-bolsig '"C:\path\to\bolsig.exe" --input "{input}" --output "{output}"' --bolsig-input data\bolsig.in --bolsig-output data\references\ar_bolsig_plus_equivalence.csv --run-mcig '"C:\path\to\mcig.exe" --input "{input}" --output "{output}"' --mcig-input data\mcig.in --mcig-output data\references\ar_mcig_reference.csv --plot
 ```
 
 Supported placeholders are `{output}`, `{input}`, `{config}`, and
-`{reference_id}`.  The command must create a file in a supported ingest format;
-the repository does not fabricate reference curves or assume a vendor-specific
-CLI.
-
-BOLSIG+ is treated as a two-term reference.  MCIG is treated as a Monte Carlo
-swarm reference.  Angular scattering assumptions must still be checked: a
-reference comparison is not a same-angular validation unless the external
-metadata proves the angular model is equivalent.
+`{reference_id}`. The repository never fabricates reference curves. BOLSIG+ is
+treated as a two-term reference, and MCIG as a Monte Carlo swarm reference.

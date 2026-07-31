@@ -13,11 +13,16 @@ from electron_swarm.core.result_metadata import PRODUCT_CASE_METADATA_KEYS
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = sorted((ROOT / "examples").glob("*.yaml"))
+PRODUCT_EXAMPLES = [
+    path for path in EXAMPLES if not path.name.startswith("workflow_")
+]
 LIGHT_EXAMPLES = [
     ROOT / "examples" / "two_term.yaml",
     ROOT / "examples" / "multi_term_direct_lmax1.yaml",
     ROOT / "examples" / "multi_term_direct_lmax4.yaml",
     ROOT / "examples" / "pn_dcs_moment_table.yaml",
+    ROOT / "examples" / "ar_o2_base.yaml",
+    ROOT / "examples" / "argon_comsol_base.yaml",
 ]
 MC_EXAMPLES = [
     ROOT / "examples" / "compare_three_solvers.yaml",
@@ -26,15 +31,18 @@ MC_EXAMPLES = [
 
 
 def test_examples_are_schema_v2_configs() -> None:
-    assert {path.name for path in EXAMPLES} == {
+    required_examples = {
         "two_term.yaml",
         "multi_term_direct_lmax1.yaml",
         "multi_term_direct_lmax4.yaml",
         "compare_three_solvers.yaml",
         "magnetic_mc.yaml",
         "pn_dcs_moment_table.yaml",
+        "ar_o2_base.yaml",
+        "argon_comsol_base.yaml",
     }
-    for path in EXAMPLES:
+    assert required_examples <= {path.name for path in PRODUCT_EXAMPLES}
+    for path in PRODUCT_EXAMPLES:
         cfg = load_config(path)
         assert cfg.schema_version == 2
         assert cfg.run.solvers

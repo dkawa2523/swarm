@@ -1,0 +1,5 @@
+mesh_elements,domain,relative_standard_deviation,evidence_status,metric_definition,comparable_to_spatial_weighted
+200,full_domain,0.7696339718287027,provisional_2026-07-14,unweighted_discrete_population_RSD,false
+200,central_80_percent,0.005137137321508333,provisional_2026-07-14,unweighted_discrete_population_RSD,false
+400,full_domain,0.3536732923372607,provisional_2026-07-14,unweighted_discrete_population_RSD,false
+400,central_80_percent,0.0020360844020467566,provisional_2026-07-14,unweighted_discrete_population_RSD,false

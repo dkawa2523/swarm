@@ -114,20 +114,20 @@ class SwarmCaseResult:
         return self.transport.reduced_diffusion_T_m2_s_m3
 
     @property
-    def reduced_electron_energy_mobility_eV_m2_V_s_m3(self) -> float | None:
-        return self.transport.reduced_electron_energy_mobility_eV_m2_V_s_m3
+    def reduced_electron_energy_mobility_m2_V_s_m3(self) -> float | None:
+        return self.transport.reduced_electron_energy_mobility_m2_V_s_m3
 
     @property
-    def reduced_electron_energy_diffusion_eV_m2_s_m3(self) -> float | None:
-        return self.transport.reduced_electron_energy_diffusion_eV_m2_s_m3
+    def reduced_electron_energy_diffusion_m2_s_m3(self) -> float | None:
+        return self.transport.reduced_electron_energy_diffusion_m2_s_m3
 
     @property
-    def electron_energy_mobility_eV_m2_V_s(self) -> float | None:
-        return self.transport.electron_energy_mobility_eV_m2_V_s
+    def electron_energy_mobility_m2_V_s(self) -> float | None:
+        return self.transport.electron_energy_mobility_m2_V_s
 
     @property
-    def electron_energy_diffusion_eV_m2_s(self) -> float | None:
-        return self.transport.electron_energy_diffusion_eV_m2_s
+    def electron_energy_diffusion_m2_s(self) -> float | None:
+        return self.transport.electron_energy_diffusion_m2_s
 
     @property
     def eepf(self) -> np.ndarray:

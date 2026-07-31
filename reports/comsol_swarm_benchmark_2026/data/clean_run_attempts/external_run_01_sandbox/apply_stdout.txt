@@ -1,0 +1,12 @@
+
+/******************/
+/*****Error********/
+/******************/
+The license has expired.
+License error: -10
+Product has expired.
+
+ERROR: Failed to start COMSOL. For details, see the log file C:\Users\CodexSandboxOffline\.comsol\v64\logs\batch2.log
+ERROR: Additional information: The license has expired.
+License error: -10
+Product has expired.

@@ -1,0 +1,75 @@
+schema_version: 2
+
+run:
+  solvers:
+    - id: two_term
+    - id: multi_term
+    - id: monte_carlo
+  e_over_n_Td: [5, 7, 10, 15, 20, 30, 50]
+  case_prefix: argon_gec_ccp_audit
+
+conditions:
+  gas_temperature_K: 300.0
+  pressure_Pa: 13.3322
+  gas_mixture:
+    - species: Ar
+      fraction: 1.0
+      mass_amu: 39.948
+
+cross_sections:
+  format: csv
+  high_energy_extrapolation: zero
+  files:
+    - path: cross_sections/argon_application_library.csv
+      species: Ar
+      format: csv
+
+physics:
+  field:
+    type: dc
+    magnetic_field:
+      enabled: false
+      B_T: 0.0
+      angle_EB_deg: 0.0
+  angular_scattering:
+    model: isotropic
+    higher_moment_closure: zero
+  electron_electron:
+    enabled: false
+    model: none
+  ionization:
+    energy_sharing: equal
+  energy_grid_policy:
+    adaptive: true
+    threshold_refinement: true
+    tail_probability_target: 1.0e-9
+    tail_metrics: true
+    tail_rate_warning_fraction: 0.05
+    max_eV_limit: 1000.0
+
+solvers:
+  two_term:
+    backend: native_sg
+  multi_term:
+    method: pn_closure_direct
+    lmax: 4
+  monte_carlo:
+    particles: 512
+    warmup_collisions: 100
+    max_collisions: 500
+    seed: 20260731
+
+comparison:
+  enabled: true
+  reference_solver: two_term
+  candidate_solvers: [multi_term, monte_carlo]
+  compare_eedf: true
+  required: false
+
+feature_policy:
+  unsupported: fail
+  degraded: record
+
+output:
+  directory: ../outputs/argon_gec_ccp/solver_audit
+  base_name: argon_gec_ccp_solver_audit

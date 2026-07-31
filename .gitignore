@@ -5,3 +5,33 @@ __pycache__/
 *.egg-info/
 outputs/
 .DS_Store
+.tmp/
+
+# Local COMSOL Application Library models and generated artifacts.
+model/**/*.mph
+model/**/*.mphbin
+model/work/
+model/logs/
+model/generated/
+Model/**/*.mph
+Model/**/*.mphbin
+Model/work/
+Model/logs/
+Model/generated/
+!model/README.md
+!model/maps/
+!model/maps/*.yaml
+!Model/README.md
+!Model/maps/
+!Model/maps/*.yaml
+
+# Local GEC-CCP COMSOL models and compiled/generated artifacts.
+comsol_modes/**/*.mph
+comsol_modes/**/*.mphbin
+comsol_modes/**/*.class
+comsol_modes/**/*.class.status
+comsol_modes/**/*.lock
+comsol_modes/work/
+comsol_modes/generated/
+!comsol_modes/maps/
+!comsol_modes/maps/*.yaml

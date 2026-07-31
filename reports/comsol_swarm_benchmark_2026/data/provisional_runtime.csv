@@ -1,0 +1,9 @@
+scope,path,seconds,repetition,evidence_status
+solve_only,external_swarm,42.9143645,1,provisional_single_observation
+solve_only,builtin_reference,370.0,1,provisional_single_observation
+end_to_end,external_swarm,80.1195902,1,provisional_single_observation
+end_to_end,builtin_reference,379.0,1,provisional_single_observation
+apply,external_swarm,13.7795908,1,provisional_single_observation
+verify,external_swarm,10.8376361,1,provisional_single_observation
+solve,external_swarm,42.9143645,1,provisional_single_observation
+export,external_swarm,12.5879988,1,provisional_single_observation

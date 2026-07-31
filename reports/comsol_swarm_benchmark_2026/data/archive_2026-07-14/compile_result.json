@@ -1,0 +1,13 @@
+{
+  "args": [
+    "C:\\Program Files\\COMSOL\\COMSOL64\\Multiphysics_copy1\\bin\\win64\\comsolcompile.exe",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\comsol_positive_column\\SwarmPositiveColumnRun.java"
+  ],
+  "cwd": "C:\\Users\\user\\Desktop\\swarm_5",
+  "duration_s": 2.356742199999644,
+  "name": "compile",
+  "return_code": 0,
+  "status": "ok",
+  "stderr": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\positive_column_run_20260714_013448\\compile_stderr.txt",
+  "stdout": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\positive_column_run_20260714_013448\\compile_stdout.txt"
+}

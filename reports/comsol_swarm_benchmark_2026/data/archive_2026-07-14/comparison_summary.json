@@ -1,0 +1,70 @@
+{
+  "common_x_range_m": [
+    0.016,
+    0.384
+  ],
+  "current_conservation": {
+    "external": {
+      "bulk_central_80_percent": {
+        "max_A_per_m2": -0.8458640424818002,
+        "mean_A_per_m2": -0.8719599793541154,
+        "min_A_per_m2": -0.9024794057142334,
+        "relative_standard_deviation": 0.005137137321508333,
+        "standard_deviation_A_per_m2": 0.004479378152801662,
+        "x_range_m": [
+          0.0528,
+          0.3472
+        ]
+      },
+      "full_domain": {
+        "max_A_per_m2": 9.94883498583604,
+        "mean_A_per_m2": -0.8622149421557126,
+        "min_A_per_m2": -12.793009815417284,
+        "relative_standard_deviation": 0.7696339718287027,
+        "standard_deviation_A_per_m2": 0.6635899105013563
+      }
+    },
+    "reference": {
+      "bulk_central_80_percent": {
+        "max_A_per_m2": -1.0134050954843166,
+        "mean_A_per_m2": -1.0167985808630593,
+        "min_A_per_m2": -1.0186676909925223,
+        "relative_standard_deviation": 0.0010206445006364954,
+        "standard_deviation_A_per_m2": 0.0010377898798128744,
+        "x_range_m": [
+          0.0528,
+          0.3472
+        ]
+      },
+      "full_domain": {
+        "max_A_per_m2": -0.9688104282408512,
+        "mean_A_per_m2": -1.0165928564330726,
+        "min_A_per_m2": -1.0411145649122575,
+        "relative_standard_deviation": 0.0054014173610471335,
+        "standard_deviation_A_per_m2": 0.0054910423038540945
+      }
+    }
+  },
+  "external_csv": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\comsol_positive_column\\positive_column_results.csv",
+  "operating_conditions": {
+    "applied_voltage": 200.0,
+    "gas_pressure": 13.332199999999998
+  },
+  "profile_plot": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\comsol_comparison\\spatial_profile_comparison.png",
+  "quantities": [
+    "electron_density",
+    "mean_electron_energy",
+    "electric_potential",
+    "E_over_N",
+    "electron_current_density",
+    "total_current_density",
+    "excitation_source",
+    "ionization_source"
+  ],
+  "reference_csv": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\comsol_reference\\builtin_200V_fresh.csv",
+  "runtime": {
+    "external_s": 42.9143645,
+    "reference_s": 370.0,
+    "speedup_reference_over_external": 8.621821721256062
+  }
+}

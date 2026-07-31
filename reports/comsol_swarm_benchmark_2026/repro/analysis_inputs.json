@@ -1,0 +1,94 @@
+{
+  "evidence_status": "provisional_2026-07-14",
+  "profile_evidence_status": "provisional_profile_comparison_2026-07-14",
+  "lookup_evidence_status": "schema_v2_tail_grid_pass_solver_gate_incomplete_2026-07-31",
+  "comparison": {
+    "external": {
+      "label": "External Swarm tables (archived LEA)",
+      "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/positive_column_results.csv",
+      "mesh_elements": 200
+    },
+    "reference": {
+      "label": "COMSOL built-in Boltzmann reference",
+      "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/builtin_200V_fresh.csv",
+      "mesh_elements": 200
+    }
+  },
+  "mesh_profiles": [
+    {
+      "path_id": "external_swarm",
+      "label": "External Swarm tables (archived LEA)",
+      "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/positive_column_results.csv",
+      "mesh_elements": 200
+    },
+    {
+      "path_id": "builtin_reference",
+      "label": "COMSOL built-in Boltzmann reference",
+      "path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/builtin_200V_fresh.csv",
+      "mesh_elements": 200
+    }
+  ],
+  "mesh_summary_fallback": "reports/comsol_swarm_benchmark_2026/data/provisional_mesh_current.csv",
+  "runtime": "reports/comsol_swarm_benchmark_2026/data/provisional_runtime.csv",
+  "bundle": "reports/comsol_swarm_benchmark_2026/data/formal_swarm_bundle_solver_qa_20keV",
+  "formal_swarm_database": "reports/comsol_swarm_benchmark_2026/data/formal_swarm_database_solver_qa_20keV.sqlite",
+  "tail_convergence": {
+    "tail_probability_target": 1e-9,
+    "edge_to_peak_target": 1e-10,
+    "max_energy_limit_eV": 20000.0
+  },
+  "profile_units": {
+    "E_over_N": "V m^2"
+  },
+  "condition_audit": {
+    "historical_external_swarm": {
+      "gas_temperature_K": 300.0,
+      "pressure_Pa": 13.3,
+      "evidence_path": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/historical_swarm_source_config.yaml",
+      "source_config_sha256": "c1a6d641524916a49c1cbbf901447a169821be68d474e23d77aaf78dee8719f1",
+      "source_bundle_manifest_sha256": "a1605a0eb76f1d2d82e783e2b6b8f6845c5c8c2237ee8472fb157277099b7456"
+    },
+    "historical_comsol_profiles": {
+      "gas_temperature_K": 293.15,
+      "pressure_Pa": 13.3322
+    },
+    "historical_closure_gas_conditions_match": false,
+    "formal_swarm": {
+      "gas_temperature_K": 293.15,
+      "pressure_Pa": 13.3322,
+      "executed_config_path": "reports/comsol_swarm_benchmark_2026/data/formal_swarm_bundle_solver_qa_20keV/executed_argon_comsol_benchmark_2026.yaml",
+      "executed_config_sha256": "143eba56e2590cb64d72cf976e6243ea6efaeeea7da3b52ad907dd27913aa040",
+      "portable_repro_config_path": "reports/comsol_swarm_benchmark_2026/repro/argon_comsol_benchmark_2026.yaml",
+      "portable_repro_config_sha256": "143eba56e2590cb64d72cf976e6243ea6efaeeea7da3b52ad907dd27913aa040",
+      "database_path": "reports/comsol_swarm_benchmark_2026/data/formal_swarm_database_solver_qa_20keV.sqlite",
+      "database_sha256": "637490605208355b114752c4116ad4b5d3a66ee78f6a9bde3dc788c6aed7a654"
+    },
+    "formal_comsol_target": {
+      "gas_temperature_K": 293.15,
+      "pressure_Pa": 13.3322
+    },
+    "formal_target_conditions_configured_to_match": true,
+    "formal_run_conditions_verified": false
+  },
+  "historical_activation_audit": {
+    "intended_bundle": "outputs/validation/188_low_mean_energy_floor_bundle/mixture_0000",
+    "archived_export": "reports/comsol_swarm_benchmark_2026/data/archive_2026-07-14/positive_column_results.csv",
+    "comsol_formulation": "LocalEnergyApproximationE",
+    "relative_error_threshold": 0.01,
+    "provenance_verified": false,
+    "interpretation": "intended historical bundle versus archived export only; stale-class provenance prevents activation verification; mean-energy(E/N) is inactive in the archived LEA formulation"
+  },
+  "expected": {
+    "profile_rows": 801,
+    "runtime_repetitions_per_path": 3,
+    "mesh_elements": [
+      200,
+      400
+    ]
+  },
+  "outputs": {
+    "data_dir": "reports/comsol_swarm_benchmark_2026/data/derived",
+    "figure_dir": "reports/comsol_swarm_benchmark_2026/figures",
+    "notebook": "reports/comsol_swarm_benchmark_2026/benchmark_analysis_executed.ipynb"
+  }
+}

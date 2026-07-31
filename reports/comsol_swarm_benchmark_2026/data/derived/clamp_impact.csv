@@ -1,0 +1,25 @@
+evidence_status,quantity,quantity_label,quantity_unit,region,absolute_integral_share
+provisional_2026-07-14,electron_density,Electron density,m$^{-3}$,E_over_N_below_table,0.0010556178016578699
+provisional_2026-07-14,mean_electron_energy,Mean electron energy,eV,E_over_N_below_table,0.0008493704224220353
+provisional_2026-07-14,electric_potential,Electric potential,V,E_over_N_below_table,0.0007259173365035736
+provisional_2026-07-14,E_over_N,E/N,Td,E_over_N_below_table,2.0136095222156535e-07
+provisional_2026-07-14,electron_current_density,Electron current density,A m$^{-2}$,E_over_N_below_table,0.0007318024777377865
+provisional_2026-07-14,total_current_density,Electron + Ar$^+$ conductive current,A m$^{-2}$,E_over_N_below_table,0.0006882276614590815
+provisional_2026-07-14,excitation_source,Direct excitation source (eir2),m$^{-3}$ s$^{-1}$,E_over_N_below_table,0.0020112340220200995
+provisional_2026-07-14,ionization_source,Direct ionization source (eir4),m$^{-3}$ s$^{-1}$,E_over_N_below_table,3.6238967813194455e-05
+provisional_2026-07-14,electron_density,Electron density,m$^{-3}$,mean_energy_below_computed_domain,0.0009152363217754904
+provisional_2026-07-14,mean_electron_energy,Mean electron energy,eV,mean_energy_below_computed_domain,0.0010041097436184942
+provisional_2026-07-14,electric_potential,Electric potential,V,mean_energy_below_computed_domain,0.014312407456347062
+provisional_2026-07-14,E_over_N,E/N,Td,mean_energy_below_computed_domain,0.04786881589915063
+provisional_2026-07-14,electron_current_density,Electron current density,A m$^{-2}$,mean_energy_below_computed_domain,0.01964553534560162
+provisional_2026-07-14,total_current_density,Electron + Ar$^+$ conductive current,A m$^{-2}$,mean_energy_below_computed_domain,0.017138299847072627
+provisional_2026-07-14,excitation_source,Direct excitation source (eir2),m$^{-3}$ s$^{-1}$,mean_energy_below_computed_domain,5.693306856369194e-15
+provisional_2026-07-14,ionization_source,Direct ionization source (eir4),m$^{-3}$ s$^{-1}$,mean_energy_below_computed_domain,9.904116100882997e-15
+provisional_2026-07-14,electron_density,Electron density,m$^{-3}$,mean_energy_in_constant_boundary_policy_region,0.00033995952881252136
+provisional_2026-07-14,mean_electron_energy,Mean electron energy,eV,mean_energy_in_constant_boundary_policy_region,0.00042307852487262753
+provisional_2026-07-14,electric_potential,Electric potential,V,mean_energy_in_constant_boundary_policy_region,0.008404922148771194
+provisional_2026-07-14,E_over_N,E/N,Td,mean_energy_in_constant_boundary_policy_region,0.03382233195605615
+provisional_2026-07-14,electron_current_density,Electron current density,A m$^{-2}$,mean_energy_in_constant_boundary_policy_region,0.010753670843467315
+provisional_2026-07-14,total_current_density,Electron + Ar$^+$ conductive current,A m$^{-2}$,mean_energy_in_constant_boundary_policy_region,0.009392913212218228
+provisional_2026-07-14,excitation_source,Direct excitation source (eir2),m$^{-3}$ s$^{-1}$,mean_energy_in_constant_boundary_policy_region,8.136960254965983e-17
+provisional_2026-07-14,ionization_source,Direct ionization source (eir4),m$^{-3}$ s$^{-1}$,mean_energy_in_constant_boundary_policy_region,1.4048905102206396e-16

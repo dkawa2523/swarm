@@ -6,12 +6,55 @@ import json
 import math
 import sqlite3
 from pathlib import Path
-from typing import Any
-
 import numpy as np
 
-from electron_swarm.core.numerics import eepf_from_eedf, widths_from_centers
-from electron_swarm.core.results import SwarmCaseResult
+from electron_swarm import SwarmCaseResult, eepf_from_eedf, widths_from_centers
+
+
+LEGACY_ENERGY_TRANSPORT_COLUMNS = frozenset(
+    {
+        "reduced_electron_energy_mobility_eV_m2_V_s_m3",
+        "reduced_electron_energy_diffusion_eV_m2_s_m3",
+    }
+)
+CANONICAL_ENERGY_TRANSPORT_COLUMNS = frozenset(
+    {
+        "reduced_electron_energy_mobility_m2_V_s_m3",
+        "reduced_electron_energy_diffusion_m2_s_m3",
+    }
+)
+
+
+class WorkflowSchemaError(RuntimeError):
+    """Raised when an existing workflow database uses an incompatible schema."""
+
+
+def validate_workflow_schema(connection: sqlite3.Connection) -> None:
+    """Reject legacy energy-transport columns instead of silently reinterpreting them."""
+
+    exists = connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'cases'"
+    ).fetchone()
+    if exists is None:
+        return
+    columns = {
+        str(row[1])
+        for row in connection.execute("PRAGMA table_info(cases)").fetchall()
+    }
+    legacy = sorted(columns & LEGACY_ENERGY_TRANSPORT_COLUMNS)
+    if legacy:
+        raise WorkflowSchemaError(
+            "Existing workflow database uses obsolete energy-transport columns "
+            f"{legacy}. Their names incorrectly encode an eV factor. "
+            "Schema v2 does not silently reinterpret or alias these fields; "
+            "regenerate the database with the current workflow."
+        )
+    missing = sorted(CANONICAL_ENERGY_TRANSPORT_COLUMNS - columns)
+    if missing:
+        raise WorkflowSchemaError(
+            "Existing workflow database is missing canonical schema-v2 "
+            f"energy-transport columns {missing}; regenerate the database."
+        )
 
 
 def _json_default(value: object) -> object:
@@ -43,7 +86,12 @@ class WorkflowStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.connection = sqlite3.connect(self.path)
         self.connection.execute("PRAGMA foreign_keys = ON")
-        self._create_schema()
+        try:
+            validate_workflow_schema(self.connection)
+            self._create_schema()
+        except Exception:
+            self.connection.close()
+            raise
 
     def close(self) -> None:
         self.connection.close()
@@ -89,8 +137,8 @@ class WorkflowStore:
                 diffusion_T_m2_s REAL NOT NULL,
                 reduced_diffusion_L_m2_s_m3 REAL NOT NULL,
                 reduced_diffusion_T_m2_s_m3 REAL NOT NULL,
-                reduced_electron_energy_mobility_eV_m2_V_s_m3 REAL,
-                reduced_electron_energy_diffusion_eV_m2_s_m3 REAL,
+                reduced_electron_energy_mobility_m2_V_s_m3 REAL,
+                reduced_electron_energy_diffusion_m2_s_m3 REAL,
                 net_ionization_frequency_s REAL NOT NULL,
                 effective_townsend_m2 REAL NOT NULL,
                 schema_version TEXT NOT NULL,
@@ -223,8 +271,8 @@ class WorkflowStore:
                     reduced_mobility_m2_V_s_m3, diffusion_L_m2_s,
                     diffusion_T_m2_s, reduced_diffusion_L_m2_s_m3,
                     reduced_diffusion_T_m2_s_m3,
-                    reduced_electron_energy_mobility_eV_m2_V_s_m3,
-                    reduced_electron_energy_diffusion_eV_m2_s_m3,
+                    reduced_electron_energy_mobility_m2_V_s_m3,
+                    reduced_electron_energy_diffusion_m2_s_m3,
                     net_ionization_frequency_s, effective_townsend_m2,
                     schema_version, metadata_json, diagnostics_json
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -243,10 +291,10 @@ class WorkflowStore:
                     float(case.reduced_diffusion_L_m2_s_m3),
                     float(case.reduced_diffusion_T_m2_s_m3),
                     _finite_or_none(
-                        case.reduced_electron_energy_mobility_eV_m2_V_s_m3
+                        case.reduced_electron_energy_mobility_m2_V_s_m3
                     ),
                     _finite_or_none(
-                        case.reduced_electron_energy_diffusion_eV_m2_s_m3
+                        case.reduced_electron_energy_diffusion_m2_s_m3
                     ),
                     float(case.net_ionization_frequency_s),
                     float(case.effective_townsend_m2),

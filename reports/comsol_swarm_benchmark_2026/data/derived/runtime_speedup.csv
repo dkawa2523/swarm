@@ -1,0 +1,3 @@
+evidence_status,scope,external_median_seconds,builtin_median_seconds,speedup_builtin_over_external,external_repetitions,builtin_repetitions
+provisional_2026-07-14,solve_only,42.9143645,370.0,8.621821721256062,1,1
+provisional_2026-07-14,end_to_end,80.1195902,379.0,4.73042858873734,1,1

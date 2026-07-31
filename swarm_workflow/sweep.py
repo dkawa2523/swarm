@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from hashlib import sha256
 import json
 import math
@@ -12,9 +12,21 @@ from typing import Any
 
 import yaml
 
-from electron_swarm import SwarmConfig, load_config, run
-from electron_swarm.core.config import GasComponent, RequestedSolverConfig, SolverId
+from electron_swarm import (
+    GasComponent,
+    RequestedSolverConfig,
+    SolverId,
+    SwarmConfig,
+    load_config,
+    run,
+)
 
+from .aggregate import (
+    QualityThresholds,
+    aggregate_workflow_results,
+    parse_quality_thresholds,
+    stable_mc_seed,
+)
 from .store import WorkflowStore
 
 
@@ -33,6 +45,7 @@ class WorkflowConfig:
     mixtures: tuple[MixtureSpec, ...]
     mc_replicas: int = 1
     mc_base_seed: int | None = None
+    quality: QualityThresholds = field(default_factory=QualityThresholds)
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,7 +118,7 @@ def _load_workflow_raw(path: Path) -> tuple[dict[str, Any], Path]:
 def load_workflow(path: str | Path) -> WorkflowConfig:
     raw, workflow_path = _load_workflow_raw(Path(path))
     base_dir = workflow_path.parent
-    allowed = {"base_config", "database", "e_over_n_Td", "mixtures", "mc"}
+    allowed = {"base_config", "database", "e_over_n_Td", "mixtures", "mc", "quality"}
     unknown = set(raw) - allowed
     if unknown:
         raise ValueError(f"Unsupported workflow fields: {sorted(unknown)}")
@@ -149,6 +162,7 @@ def load_workflow(path: str | Path) -> WorkflowConfig:
         mixtures=mixtures,
         mc_replicas=mc_replicas,
         mc_base_seed=mc_base_seed,
+        quality=parse_quality_thresholds(raw.get("quality")),
     )
 
 
@@ -225,18 +239,6 @@ def _mixture_species_rows(
     ]
 
 
-def _mc_seed(
-    *,
-    base_seed: int | None,
-    mixture_id: int,
-    e_index: int,
-    replicate: int,
-) -> int | None:
-    if base_seed is None:
-        return None
-    return int(base_seed) + mixture_id * 1_000_000 + e_index * 10_000 + replicate
-
-
 def run_sweep(path: str | Path) -> SweepSummary:
     workflow = load_workflow(path)
     base_config = load_config(workflow.base_config_path)
@@ -281,7 +283,7 @@ def run_sweep(path: str | Path) -> SweepSummary:
                     cases_written += 1
 
             if "monte_carlo" in solver_ids:
-                for e_index, e_over_n in enumerate(workflow.e_over_n_Td):
+                for e_over_n in workflow.e_over_n_Td:
                     for replicate in range(workflow.mc_replicas):
                         config = _clone_config(
                             base_config,
@@ -289,11 +291,12 @@ def run_sweep(path: str | Path) -> SweepSummary:
                             e_over_n_values=(e_over_n,),
                             solver_ids=["monte_carlo"],
                             replicate=replicate,
-                            seed=_mc_seed(
+                            seed=stable_mc_seed(
                                 base_seed=workflow.mc_base_seed,
                                 mixture_id=mixture.mixture_id,
-                                e_index=e_index,
+                                e_over_n_Td=e_over_n,
                                 replicate=replicate,
+                                solver="monte_carlo",
                             ),
                         )
                         for case in run(config, write=False).cases:
@@ -303,6 +306,7 @@ def run_sweep(path: str | Path) -> SweepSummary:
                                 case=case,
                             )
                             cases_written += 1
+        aggregate_workflow_results(store.connection, workflow.quality)
 
     return SweepSummary(
         database_path=workflow.database_path,

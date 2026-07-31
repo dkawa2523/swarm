@@ -1,0 +1,7 @@
+Failed to compile java file.
+File: C:\Users\user\Desktop\swarm_5\outputs\comsol_positive_column\SwarmPositiveColumnRun.java
+Compilation error on line 29:
+Unhandled exception type IOException
+model.save("C:/Users/user/Desktop/swarm 5/Model/work/positive column external applied.mph");
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR: Compilation failed. For details, see the log file C:\Users\user\.comsol\v64\logs\compile4.log

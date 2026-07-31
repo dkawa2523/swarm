@@ -1,0 +1,113 @@
+{
+  "stage": "run-comsol",
+  "status": "completed",
+  "mapping": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\maps\\positive_column_external.yaml",
+  "effective_mapping": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\comsol_positive_column\\positive_column_effective_mapping.yaml",
+  "bundle": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\validation\\188_low_mean_energy_floor_bundle\\mixture_0000",
+  "input_mph": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\positive_column_1d.mph",
+  "output_mph": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\work\\positive_column_external_applied.mph",
+  "study": "std1",
+  "voltages_V": [
+    20.0,
+    50.0,
+    100.0,
+    200.0
+  ],
+  "final_voltage_V": 200.0,
+  "result_csv": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\comsol_positive_column\\positive_column_results.csv",
+  "valid_E_over_N_Td": [
+    0.0444,
+    5000.0
+  ],
+  "quality_passed": true,
+  "result_stats": {
+    "rows": 801,
+    "columns": [
+      "x",
+      "electron_density",
+      "mean_electron_energy",
+      "electric_potential",
+      "electron_current_density",
+      "ion_current_density",
+      "total_current_density",
+      "excitation_source",
+      "ionization_source",
+      "E_over_N",
+      "reduced_mobility",
+      "excitation_townsend",
+      "ionization_townsend",
+      "applied_voltage",
+      "gas_pressure"
+    ],
+    "x": {
+      "min": 0.016,
+      "max": 0.384
+    },
+    "E_over_N": {
+      "min": 1.9019043997226335e-23,
+      "max": 4.6312476787831396e-18
+    },
+    "electron_density": {
+      "min": 436104426413.834,
+      "max": 8224659708321258.0
+    },
+    "mean_electron_energy": {
+      "min": 0.0772450722127745,
+      "max": 24.711606363493352
+    },
+    "electric_potential": {
+      "min": 0.0,
+      "max": 123.02060676693046
+    },
+    "electron_current_density": {
+      "min": -12.425130965016443,
+      "max": 10.328261274607216
+    },
+    "ion_current_density": {
+      "min": -0.683487448623112,
+      "max": 0.19686560621497085
+    },
+    "total_current_density": {
+      "min": -12.793009815417284,
+      "max": 9.94883498583604
+    },
+    "excitation_source": {
+      "min": 0.0,
+      "max": 2.4233810896161695e+20
+    },
+    "ionization_source": {
+      "min": 0.0,
+      "max": 2.7423294058163343e+20
+    },
+    "negative_counts": {
+      "electron_density": 0,
+      "excitation_source": 0,
+      "ionization_source": 0
+    },
+    "nan_or_nonfinite_count": 0,
+    "E_over_N_Td": {
+      "min": 0.019019043997226336,
+      "max": 4631.24767878314
+    }
+  },
+  "closure_checks": {
+    "low_field_clamp_from_Td": 0.019019043997226336,
+    "mobility_max_relative_error": 5.082634427338891e-16,
+    "excitation_townsend_max_relative_error": 7.061361835300939e-15,
+    "ionization_townsend_max_relative_error": 2.097017562545461e-15
+  },
+  "logs": {
+    "apply": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\apply_20260714_013424",
+    "verify_summary_csv": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\comsol_verify\\function_verify_summary.csv",
+    "run": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\positive_column_run_20260714_013448",
+    "export": "C:\\Users\\user\\Desktop\\swarm_5\\Model\\logs\\positive_column_export_20260714_013531"
+  },
+  "timing_s": {
+    "apply": 13.779590799999824,
+    "verify": 10.837636100000054,
+    "run": 42.914364499999465,
+    "export": 12.587998800000605,
+    "total": 80.11959019999995
+  },
+  "note": "External closure passed; COMSOL agreement is reported separately."
+}

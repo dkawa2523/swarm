@@ -1,5 +1,0 @@
-case_id,E_over_N_Td,reference_solver,candidate_solver,angular_model_status,mean_energy_eV_relative_difference,drift_velocity_relative_difference,mobility_relative_difference,diffusion_L_relative_difference,net_ionization_frequency_relative_difference,eedf_l1_error
-ar_mcig_sweep_rerun_0000,5.0000000000e+01,monte_carlo,two_term,match,3.8279671082e-02,-7.5718823628e-02,-7.5718823628e-02,3.8365639191e-01,2.7846824013e-02,5.3434451596e-02
-ar_mcig_sweep_rerun_0001,1.0000000000e+02,monte_carlo,two_term,match,4.9545625879e-03,-2.7377886752e-02,-2.7377886752e-02,4.4656569807e-01,-1.2080630357e-01,2.1747088854e-02
-ar_mcig_sweep_rerun_0002,2.0000000000e+02,monte_carlo,two_term,match,-3.6523520760e-03,-1.9567783896e-02,-1.9567783896e-02,8.0492347000e-01,-7.9581479783e-02,1.4833506917e-02
-ar_mcig_sweep_rerun_0003,4.0000000000e+02,monte_carlo,two_term,match,-1.0740831446e-02,-1.0276618108e-02,-1.0276618108e-02,1.0505668892e+00,-8.5478238184e-02,2.7835266519e-02

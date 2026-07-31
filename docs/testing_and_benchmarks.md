@@ -47,72 +47,27 @@ binaries are not product solver modes. Reference parsing, external command
 execution, and EEDF comparison helpers live under `tools`, outside the runtime
 `electron_swarm` package.
 
-Run one product benchmark config:
+Run product benchmark configs:
 
 ```powershell
 py -3 benchmarks\run_product_benchmarks.py --config configs\benchmarks\ar_simple.yaml
-```
-
-Run all benchmark configs:
-
-```powershell
 py -3 benchmarks\run_product_benchmarks.py
 ```
 
 The benchmark runner writes only `outputs/benchmarks/benchmark_summary.csv`.
 Canonical solver CSV outputs are not written during benchmarks.
 
-The focused Ar EEDF consistency benchmark is:
+Focused benchmark CLIs:
 
 ```powershell
 py -3 tools\benchmark_ar_eedf_consistency.py --config configs\benchmarks\ar_bolsig_eedf_consistency.yaml
-```
-
-It writes `ar_eedf_consistency_eedf_metrics.csv`,
-`ar_eedf_consistency_failure_analysis.csv`, and
-`ar_eedf_consistency_report.md` under `outputs/benchmarks`. See
-`docs/benchmarks/ar_eedf_consistency.md`.
-
-The Ar BOLSIG+ manual reference benchmark compares `two_term` and
-`multi_term pn_closure_direct lmax=1` against ingested BOLSIG+ output:
-
-```powershell
 py -3 tools\benchmark_ar_external_references.py --config configs\benchmarks\ar_bolsig_plus_equivalence.yaml --reference bolsig
-```
-
-It writes `ar_bolsig_plus_equivalence_summary.csv`,
-`ar_bolsig_plus_equivalence_eedf_metrics.csv`,
-`ar_bolsig_plus_equivalence_failure_analysis.csv`, and
-`ar_bolsig_plus_equivalence_report.md`. See
-`docs/benchmarks/ar_bolsig_plus_equivalence.md`.
-
-The MCIG manual reference benchmark uses the same external-reference CLI:
-
-```powershell
 py -3 tools\benchmark_ar_external_references.py --config configs\benchmarks\ar_mcig_reference.yaml --reference mcig
-```
-
-It writes `ar_mcig_reference_summary.csv`,
-`ar_mcig_reference_eedf_metrics.csv`,
-`ar_mcig_reference_failure_analysis.csv`, and
-`ar_mcig_reference_report.md`. See
-`docs/benchmarks/ar_mcig_reference.md`.
-
-The combined BOLSIG+ / MCIG triage benchmark runs the product solvers once and
-classifies disagreements across BOLSIG+, MCIG, `two_term`, direct `multi_term`,
-and optional internal MC:
-
-```powershell
 py -3 tools\benchmark_ar_bolsig_mcig_triage.py --config configs\benchmarks\ar_bolsig_mcig_triage.yaml
 ```
 
-It writes `ar_triage_matrix.csv`, `ar_triage_eedf_metrics.csv`,
-`ar_triage_transport_metrics.csv`, `ar_triage_rate_metrics.csv`,
-`ar_triage_failure_analysis.csv`, and `ar_triage_report.md`. Use `--plot` for
-an optional EEDF figure when external reference files are present. Use
-`--run-bolsig` / `--run-mcig` with explicit command templates when local
-external binaries should be executed before ingest. See
-`docs/benchmarks/ar_bolsig_mcig_triage.md`.
+The focused tools write CSV/report files under `outputs/benchmarks`. See the
+matching page under `docs/benchmarks/` for command-specific inputs and outputs.
 
 External BOLSIG+ / MCIG output files can also be ingested by benchmark-only
 `references.external` entries. Product YAML loaded by

@@ -1,0 +1,29 @@
+{
+  "current_spike": {
+    "base_mesh_elements": 200,
+    "base_full_relative_standard_deviation": 0.7696339718287027,
+    "base_bulk_central_80_percent_relative_standard_deviation": 0.005137137321508333,
+    "refined_mesh_elements": 400,
+    "refined_full_relative_standard_deviation": 0.3536732923372607,
+    "refined_bulk_central_80_percent_relative_standard_deviation": 0.0020360844020467566,
+    "recovery_result": "pprint/ppr did not remove the sheath-localized spikes",
+    "second_refinement": "stopped after 3 minutes because it did not support the speed objective",
+    "conclusion": "mesh-dependent pointwise sheath flux; bulk total current is conserved"
+  },
+  "reaction_audit": {
+    "base_and_external_feature_sets_equal": true,
+    "plasma_features": 23,
+    "reaction_features": 10,
+    "external_replacements": ["eir2", "eir4"],
+    "duplicate_external_sources_found": false
+  },
+  "fresh_builtin_reference": {
+    "method": "run saved final solver sol3 directly from Model/positive_column_1d_boltzmann.mph",
+    "voltage_V": 200.0,
+    "gas_pressure_Pa": 13.3322,
+    "solve_time_s": 370.0,
+    "rows": 801,
+    "numeric_difference_from_historical_reference": 0.0,
+    "csv": "outputs/comsol_reference/builtin_200V_fresh.csv"
+  }
+}

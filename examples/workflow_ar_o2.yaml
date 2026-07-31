@@ -1,0 +1,15 @@
+base_config: ar_o2_base.yaml
+database: ../outputs/workflow_ar_o2.sqlite
+e_over_n_Td: [20.0, 50.0]
+mixtures:
+  - Ar: 1.0
+    O2: 0.0
+  - Ar: 0.99
+    O2: 0.01
+mc:
+  replicas: 1
+  base_seed: 12345
+quality:
+  mobility_rse: 0.2
+  diffusion_rse: 0.3
+  major_rate_rse: 0.5

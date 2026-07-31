@@ -1,0 +1,308 @@
+{
+  "format_version": 1,
+  "hashes": {
+    "base_config_sha256": "143eba56e2590cb64d72cf976e6243ea6efaeeea7da3b52ad907dd27913aa040",
+    "cross_sections_sha256": "a70cd71afa33710fbb4189b82fb61612f75f492ba1dc7e626789e759f70ea921"
+  },
+  "missing_required_coefficients": [],
+  "mixture": {
+    "mixture_id": 0,
+    "species": [
+      {
+        "fraction": 1.0,
+        "mass_amu": 39.948,
+        "species": "Ar"
+      }
+    ]
+  },
+  "monotonicity": {
+    "mean_energy_strictly_monotonic": true,
+    "reason": null
+  },
+  "quality_summary": {
+    "failed_points": 0,
+    "passed": true,
+    "total_points": 34
+  },
+  "source": "two_term",
+  "source_policy": {
+    "selection": "all_aggregate_points",
+    "source": "two_term"
+  },
+  "stage": "export-comsol",
+  "status": "ok",
+  "table_argument": {
+    "eedf": "electron_energy_eV,E_over_N_Td",
+    "primary": "E_over_N_Td",
+    "secondary": "mean_energy_eV"
+  },
+  "tables": {
+    "comsol_functions/sw_meanE.csv": {
+      "argument": "E_over_N_V_m2",
+      "columns": [
+        "E_over_N_V_m2",
+        "mean_energy_eV"
+      ],
+      "derived_for_comsol_interpolation": true,
+      "units": {
+        "E_over_N_V_m2": "V m^2",
+        "mean_energy_eV": "eV"
+      }
+    },
+    "comsol_functions/sw_muN.csv": {
+      "argument": "E_over_N_V_m2",
+      "columns": [
+        "E_over_N_V_m2",
+        "reduced_mobility_m2_V_s_m3"
+      ],
+      "derived_for_comsol_interpolation": true,
+      "units": {
+        "E_over_N_V_m2": "V m^2",
+        "reduced_mobility_m2_V_s_m3": "1/(V m s)"
+      }
+    },
+    "eedf.csv": {
+      "argument": "electron_energy_eV,E_over_N_Td",
+      "columns": [
+        "electron_energy_eV",
+        "energy_width_eV",
+        "E_over_N_Td",
+        "E_over_N_V_m2",
+        "mean_energy_eV",
+        "eedf"
+      ],
+      "units": {
+        "E_over_N_Td": "Td",
+        "E_over_N_V_m2": "V m^2",
+        "eedf": "eV^-1",
+        "electron_energy_eV": "eV",
+        "energy_width_eV": "eV",
+        "mean_energy_eV": "eV"
+      }
+    },
+    "eedf_f0.csv": {
+      "argument": "electron_energy_eV,E_over_N_Td",
+      "columns": [
+        "electron_energy_eV",
+        "mean_energy_eV",
+        "E_over_N_Td",
+        "eepf_eV_m32"
+      ],
+      "definition": "eepf_eV_m32 = eedf / sqrt(electron_energy_eV)",
+      "derived_for_comsol_interpolation": true,
+      "units": {
+        "E_over_N_Td": "Td",
+        "eepf_eV_m32": "eV^-3/2",
+        "electron_energy_eV": "eV",
+        "mean_energy_eV": "eV"
+      }
+    },
+    "mean_energy_vs_en.csv": {
+      "argument": "E_over_N_Td",
+      "columns": [
+        "E_over_N_Td",
+        "E_over_N_V_m2",
+        "mean_energy_eV"
+      ],
+      "units": {
+        "E_over_N_Td": "Td",
+        "E_over_N_V_m2": "V m^2",
+        "mean_energy_eV": "eV"
+      }
+    },
+    "quality.csv": {
+      "argument": "E_over_N_Td",
+      "columns": [
+        "E_over_N_Td",
+        "E_over_N_V_m2",
+        "passed",
+        "failure_reasons_json",
+        "mobility_rse",
+        "diffusion_L_rse",
+        "diffusion_T_rse",
+        "max_major_rate_rse",
+        "eedf_normalization_error",
+        "valid_replicates",
+        "uncertainty_available",
+        "quality_source"
+      ],
+      "units": {
+        "E_over_N_Td": "Td",
+        "E_over_N_V_m2": "V m^2"
+      }
+    },
+    "rates_vs_en.csv": {
+      "argument": "E_over_N_Td",
+      "columns": [
+        "E_over_N_Td",
+        "E_over_N_V_m2",
+        "species",
+        "process",
+        "process_type",
+        "threshold_eV",
+        "target_species_fraction",
+        "rate_coefficient_m3_s",
+        "mixture_weighted_rate_m3_s",
+        "reduced_townsend_m2",
+        "mixture_weighted_reduced_townsend_m2"
+      ],
+      "units": {
+        "E_over_N_Td": "Td",
+        "E_over_N_V_m2": "V m^2",
+        "mixture_weighted_rate_m3_s": "m^3/s",
+        "mixture_weighted_reduced_townsend_m2": "m^2",
+        "rate_coefficient_m3_s": "m^3/s",
+        "reduced_townsend_m2": "m^2",
+        "threshold_eV": "eV"
+      }
+    },
+    "rates_vs_mean_energy.csv": {
+      "argument": "mean_energy_eV",
+      "columns": [
+        "mean_energy_eV",
+        "E_over_N_Td",
+        "E_over_N_V_m2",
+        "species",
+        "process",
+        "process_type",
+        "threshold_eV",
+        "target_species_fraction",
+        "rate_coefficient_m3_s",
+        "mixture_weighted_rate_m3_s",
+        "reduced_townsend_m2",
+        "mixture_weighted_reduced_townsend_m2"
+      ],
+      "units": {
+        "E_over_N_Td": "Td",
+        "E_over_N_V_m2": "V m^2",
+        "mean_energy_eV": "eV",
+        "mixture_weighted_rate_m3_s": "m^3/s",
+        "mixture_weighted_reduced_townsend_m2": "m^2",
+        "rate_coefficient_m3_s": "m^3/s",
+        "reduced_townsend_m2": "m^2",
+        "threshold_eV": "eV"
+      }
+    },
+    "townsend_vs_en.csv": {
+      "argument": "E_over_N_Td",
+      "columns": [
+        "E_over_N_Td",
+        "E_over_N_V_m2",
+        "effective_townsend_m2"
+      ],
+      "units": {
+        "E_over_N_Td": "Td",
+        "E_over_N_V_m2": "V m^2",
+        "effective_townsend_m2": "m^2"
+      }
+    },
+    "transport_vs_en.csv": {
+      "argument": "E_over_N_Td",
+      "columns": [
+        "E_over_N_Td",
+        "E_over_N_V_m2",
+        "mean_energy_eV",
+        "drift_velocity_m_s",
+        "reduced_mobility_m2_V_s_m3",
+        "reduced_diffusion_L_m2_s_m3",
+        "reduced_diffusion_T_m2_s_m3",
+        "reduced_electron_energy_mobility_m2_V_s_m3",
+        "reduced_electron_energy_diffusion_m2_s_m3"
+      ],
+      "units": {
+        "E_over_N_Td": "Td",
+        "E_over_N_V_m2": "V m^2",
+        "drift_velocity_m_s": "m/s",
+        "mean_energy_eV": "eV",
+        "reduced_diffusion_L_m2_s_m3": "1/(m s)",
+        "reduced_diffusion_T_m2_s_m3": "1/(m s)",
+        "reduced_electron_energy_diffusion_m2_s_m3": "1/(m s)",
+        "reduced_electron_energy_mobility_m2_V_s_m3": "1/(V m s)",
+        "reduced_mobility_m2_V_s_m3": "1/(V m s)"
+      }
+    },
+    "transport_vs_mean_energy.csv": {
+      "argument": "mean_energy_eV",
+      "columns": [
+        "mean_energy_eV",
+        "E_over_N_Td",
+        "E_over_N_V_m2",
+        "drift_velocity_m_s",
+        "reduced_mobility_m2_V_s_m3",
+        "reduced_diffusion_L_m2_s_m3",
+        "reduced_diffusion_T_m2_s_m3",
+        "reduced_electron_energy_mobility_m2_V_s_m3",
+        "reduced_electron_energy_diffusion_m2_s_m3"
+      ],
+      "units": {
+        "E_over_N_Td": "Td",
+        "E_over_N_V_m2": "V m^2",
+        "drift_velocity_m_s": "m/s",
+        "mean_energy_eV": "eV",
+        "reduced_diffusion_L_m2_s_m3": "1/(m s)",
+        "reduced_diffusion_T_m2_s_m3": "1/(m s)",
+        "reduced_electron_energy_diffusion_m2_s_m3": "1/(m s)",
+        "reduced_electron_energy_mobility_m2_V_s_m3": "1/(V m s)",
+        "reduced_mobility_m2_V_s_m3": "1/(V m s)"
+      }
+    }
+  },
+  "units": {
+    "E_over_N_Td": "Td",
+    "E_over_N_V_m2": "V m^2",
+    "drift_velocity_m_s": "m/s",
+    "eedf": "eV^-1",
+    "eepf_eV_m32": "eV^-3/2",
+    "effective_townsend_m2": "m^2",
+    "electron_energy_eV": "eV",
+    "energy_width_eV": "eV",
+    "mean_energy_eV": "eV",
+    "mixture_weighted_rate_m3_s": "m^3/s",
+    "mixture_weighted_reduced_townsend_m2": "m^2",
+    "rate_coefficient_m3_s": "m^3/s",
+    "reduced_diffusion_L_m2_s_m3": "1/(m s)",
+    "reduced_diffusion_T_m2_s_m3": "1/(m s)",
+    "reduced_electron_energy_diffusion_m2_s_m3": "1/(m s)",
+    "reduced_electron_energy_mobility_m2_V_s_m3": "1/(V m s)",
+    "reduced_mobility_m2_V_s_m3": "1/(V m s)",
+    "reduced_townsend_m2": "m^2",
+    "threshold_eV": "eV"
+  },
+  "valid_ranges": {
+    "E_over_N_Td": [
+      0.0444,
+      5000.0
+    ],
+    "E_over_N_V_m2": [
+      4.44e-23,
+      4.9999999999999996e-18
+    ],
+    "mean_energy_eV": [
+      0.0,
+      100.1433764775097
+    ]
+  },
+  "postprocess": {
+    "low_mean_energy_floor": {
+      "enabled": true,
+      "added_mean_energy_eV": [
+        0.0,
+        0.05,
+        0.1,
+        0.2,
+        0.35
+      ],
+      "transport_policy": "constant floor from lowest computed Swarm point",
+      "drift_velocity_policy": "zero on derived E/N=0 rows; diagnostic column is not mapped into COMSOL",
+      "elastic_rate_policy": "constant floor from lowest computed Swarm point",
+      "inelastic_reaction_policy": "zero below lowest computed mean-energy point",
+      "reason": "avoid implicit COMSOL extrapolation below the computed Swarm mean-energy domain",
+      "source_bundle_relative": "../bundle_qualified_20keV",
+      "source_manifest_sha256": "dc8b3257675712ff0db2ec221f9cb1823d830420e9034a4ccdf02f1e24ec5424"
+    }
+  },
+  "derived_table_hashes_sha256": {
+    "transport_vs_mean_energy.csv": "5efc8335001497ceb397d62c287c7c98d5a4fa7117e1f72c2e11a503027c7480",
+    "rates_vs_mean_energy.csv": "abb4e5fd4a5b97d662df25b233bbd6682e1271d4f5b104299ee6e4324868b281"
+  }
+}

@@ -51,35 +51,9 @@ Outputs:
 - optional `ar_triage_eedf.png` with `--plot`
 
 The metric CSVs use `angular_model_status` for angular compatibility. Detailed
-reference/candidate angular labels are kept out of the CSV schema and appear
-only as failure-analysis evidence when needed.
-
-Interpretation:
-
-- `code_regression_multi_term_lmax1` is a product bug.  Fix the direct lmax=1
-  reduction before inspecting higher-l behavior.
-- `code_or_bolsig_input_mismatch` means BOLSIG+ input, EEDF convention,
-  cross-section projection, grid, or rate convolution must be checked.
-- `possible_two_term_approximation_limit_or_angular_model_difference` means
-  BOLSIG+ and MCIG disagree while product code follows BOLSIG+.
-- `multi_term_higher_l_model_issue` points to higher-l damping, source/sink, or
-  tail behavior.
-- `mc_uncertainty_limited` means MC confidence is not strong enough for a code
-  mismatch claim.
-- `angular_model_mismatch` means the comparison is degraded until reference and
-  product angular models match.
-
-The triage should decide the next fix, not simply fail every difference.  MCIG
-is not automatically an error-free reference when angular scattering metadata or
-statistical uncertainty are missing.
-
-Internal MC audit metadata should be inspected before interpreting high-energy
-tails. The product internal backend defaults to
-`fixed_particle_single_daughter`; full branching or growth-population MC is
-roadmap work and is not a product solver setting. The EEDF CSV provides
-`sample_count`, `effective_sample_count`, and `relative_standard_error`;
-low-count tail bins should be classified as statistically weak instead of as a
-solver mismatch.
+evidence appears in `ar_triage_failure_analysis.csv` and the markdown report.
+The triage is a development aid: MCIG is not treated as an error-free reference
+when angular metadata or statistical uncertainty are missing.
 
 For an internal-MC-only audit table, run:
 
