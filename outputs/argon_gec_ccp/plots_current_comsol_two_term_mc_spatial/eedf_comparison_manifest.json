@@ -1,0 +1,89 @@
+{
+  "title": "Representative EEDF comparison for current COMSOL/two-term/MC spatial case",
+  "representative_E_over_N_Td": [
+    20.0,
+    100.0,
+    300.0,
+    1000.0,
+    4000.0
+  ],
+  "selection_basis": "common MC and two-term anchors spanning low, intermediate, inelastic, and high reduced-field regimes",
+  "convention": {
+    "plotted_quantity": "F(electron_energy) probability-density EEDF",
+    "plotted_units": "eV^-1",
+    "normalization": "integral F(E) dE = 1",
+    "mean_energy": "integral E F(E) dE",
+    "comsol_conversion": "F(E) = sqrt(E) * f0(E)",
+    "comsol_native_f0_units": "eV^-3/2"
+  },
+  "comsol_analytic_reference": {
+    "documentation": "https://doc.comsol.com/6.4/doc/com.comsol.help.plasma/plasma_ug_boltzmann.06.09.html",
+    "generalized_formula": "f0(E)=g*phi^(-3/2)*beta1*exp(-(E*beta2/phi)^g); beta1=Gamma(5/(2g))^(3/2)*Gamma(3/(2g))^(-5/2); beta2=Gamma(5/(2g))/Gamma(3/(2g))",
+    "maxwellian_power_g": 1.0,
+    "druyvesteyn_power_g": 2.0,
+    "phi_definition": "mean electron energy in eV",
+    "detail_plot_moment_basis": "left panel matches the MC mean; right panel matches the two-term mean",
+    "overview_moment_basis": "each physical curve is nondimensionalized by its own mean energy"
+  },
+  "sources": {
+    "monte_carlo": {
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\monte_carlo_function_eedf_restricted_lmea_bundle\\mixture_0000\\eedf.csv",
+      "sha256": "3a7617bbbd29a6ca37b516c69a1f982a27b89cecaa382b9aa4f8c0d562c15935",
+      "mean_energy_path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\monte_carlo_function_eedf_restricted_lmea_bundle\\mixture_0000\\mean_energy_vs_en.csv",
+      "mean_energy_sha256": "1c9fdacef2f452289c909cc2798258a3b23fcf6541336aab94eeef2194631001"
+    },
+    "two_term": {
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\two_term_function_eedf_restricted_lmea_bundle\\mixture_0000\\eedf.csv",
+      "sha256": "b1432763e37347d59cc5f75c8216bf6b276f2a7bc0f7d84c42676e2ffd39c580",
+      "mean_energy_path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\two_term_function_eedf_restricted_lmea_bundle\\mixture_0000\\mean_energy_vs_en.csv",
+      "mean_energy_sha256": "4cbaba612cdae7dd6b989788d6698d327d3679412973221fbbce5ff798a0028c"
+    }
+  },
+  "qa": {
+    "maximum_source_normalization_error": 1.63202784619898e-14,
+    "maximum_source_mean_energy_relative_error": 0.0008803350289030407,
+    "analytic_distribution_audits": {
+      "maxwellian_g1": {
+        "normalization": 1.0000000043299266,
+        "normalization_error": 4.329926639456971e-09,
+        "calculated_mean_energy_eV": 1.0000000043299266,
+        "mean_energy_relative_error": 4.329926639456971e-09
+      },
+      "druyvesteyn_g2": {
+        "normalization": 1.0000000043299264,
+        "normalization_error": 4.329926417412366e-09,
+        "calculated_mean_energy_eV": 1.0000000043299264,
+        "mean_energy_relative_error": 4.329926417412366e-09
+      }
+    }
+  },
+  "outputs": {
+    "overview": [
+      "eedf_comparison_representative_en.png",
+      "eedf_comparison_representative_en.svg"
+    ],
+    "details_by_E_over_N_Td": {
+      "20": [
+        "eedf_comparison_0020_Td.png",
+        "eedf_comparison_0020_Td.svg"
+      ],
+      "100": [
+        "eedf_comparison_0100_Td.png",
+        "eedf_comparison_0100_Td.svg"
+      ],
+      "300": [
+        "eedf_comparison_0300_Td.png",
+        "eedf_comparison_0300_Td.svg"
+      ],
+      "1000": [
+        "eedf_comparison_1000_Td.png",
+        "eedf_comparison_1000_Td.svg"
+      ],
+      "4000": [
+        "eedf_comparison_4000_Td.png",
+        "eedf_comparison_4000_Td.svg"
+      ]
+    },
+    "summary": "eedf_comparison_summary.csv"
+  }
+}

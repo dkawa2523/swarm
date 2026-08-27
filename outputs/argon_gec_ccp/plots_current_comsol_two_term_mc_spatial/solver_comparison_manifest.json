@@ -1,0 +1,1517 @@
+{
+  "acceptance_policy": "both solver-specific physical-target runs passed physics quality; two_term Function-EEDF and monte_carlo direct-rate inputs share swarm_mobility_einstein restricted-LMEA transport",
+  "comparison_labels": {
+    "baseline": "Original COMSOL built-in Druyvesteyn",
+    "monte_carlo": "Monte Carlo Swarm: Swarm mobility + COMSOL Einstein diffusion; imported Swarm rates",
+    "two_term": "two-term Swarm: Swarm mobility + COMSOL Einstein diffusion; Function-EEDF + COMSOL cross-section integration"
+  },
+  "comparison_metrics": {
+    "additional_coordinate_match": true,
+    "additional_label": "Monte Carlo Swarm\nDirect rates + Einstein diffusion",
+    "additional_nodes": 1520,
+    "baseline_nodes": 1520,
+    "baseline_repeatability": {
+      "accepted": true,
+      "coordinate_match": true,
+      "fields": {
+        "electron_density_m3": {
+          "relative_l2_difference": 4.192354470537139e-13
+        },
+        "electron_temperature_eV": {
+          "relative_l2_difference": 6.962958646530953e-14
+        },
+        "ionization_source_m3_s": {
+          "relative_l2_difference": 2.3084570640947185e-13
+        },
+        "potential_V": {
+          "relative_l2_difference": 1.510364606938932e-14
+        }
+      },
+      "first_path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\comsol_two_term_function_eedf_restricted_lmea\\builtin_druyvesteyn\\domain_period_average.csv",
+      "first_sha256": "f0754e4f82cc7a8688f2e0f670c441bbd1691e362e48047f38b05065d5c58840",
+      "maximum_relative_l2_difference": 4.192354470537139e-13,
+      "relative_l2_limit": 0.001,
+      "second_path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\comsol_monte_carlo_external_rates_restricted_lmea\\builtin_druyvesteyn\\domain_period_average.csv",
+      "second_sha256": "5758366ef11969b347fbbd004c8a8882034afa437b1a58a324535e20069f0720"
+    },
+    "coordinate_match": true,
+    "external_nodes": 1520,
+    "fields": {
+      "electron_density_m3": {
+        "additional_max": 1500614611432459.0,
+        "additional_min": 8201121287.622331,
+        "additional_relative_l2_difference": 0.40441768912926834,
+        "baseline_max": 2230179542119291.2,
+        "baseline_min": 20238560800.41557,
+        "display_scale": "linear",
+        "external_max": 1462097959533604.8,
+        "external_min": 8323142648.99017,
+        "relative_l2_difference": 0.4178677356393175,
+        "shared_display_range": [
+          0.0,
+          2230179542119291.2
+        ]
+      },
+      "electron_temperature_eV": {
+        "additional_max": 15.20884074983505,
+        "additional_min": 3.459471682288732,
+        "additional_relative_l2_difference": 0.23732285902983796,
+        "baseline_max": 18.97058712468155,
+        "baseline_min": 2.6906218292603383,
+        "display_scale": "linear",
+        "external_max": 15.162524019767952,
+        "external_min": 3.4813063018795507,
+        "relative_l2_difference": 0.2394816364320009,
+        "shared_display_range": [
+          2.6906218292603383,
+          18.97058712468155
+        ]
+      },
+      "potential_V": {
+        "additional_max": 35.35374859250434,
+        "additional_min": -52.49064049697776,
+        "additional_relative_l2_difference": 0.3170865619108925,
+        "baseline_max": 27.331550524802214,
+        "baseline_min": -75.84651649583289,
+        "display_scale": "linear",
+        "external_max": 35.46091364724754,
+        "external_min": -52.375353458958685,
+        "relative_l2_difference": 0.31873891786231473,
+        "shared_display_range": [
+          -75.84651649583289,
+          35.46091364724754
+        ]
+      }
+    },
+    "geometry_cm": {
+      "axis_radius_cm": 0.0,
+      "chamber_radius_cm": 10.16,
+      "gap_z_max_cm": 2.54,
+      "gap_z_min_cm": 0.0,
+      "outer_z_max_cm": 6.35,
+      "outer_z_min_cm": -3.81,
+      "powered_radius_cm": 5.08,
+      "throat_radius_cm": 5.38
+    },
+    "presentation": {
+      "absolute_color_table": "RainbowLight approximation",
+      "color_levels": 1024,
+      "color_scale": "linear",
+      "electrical_boundaries_identified": true,
+      "layout": "one 3-panel figure per quantity",
+      "shared_limits_between_closures": true,
+      "style": "COMSOL 6.x Graphics-pane approximation"
+    },
+    "radial_midplane": {
+      "actual_center_heights_cm": {
+        "monte_carlo": 1.2699999999999994,
+        "original": 1.2699999999999994,
+        "two_term": 1.2699999999999994
+      },
+      "baseline_repeatability": {
+        "accepted": true,
+        "coordinate_overlap_m": [
+          0.0,
+          0.10159999999999998
+        ],
+        "fields": {
+          "electron_density_m3": {
+            "baseline_max": 2202739854148550.5,
+            "baseline_min": 633523945416.4736,
+            "external_max": 2202739854148565.0,
+            "external_min": 633523945416.4417,
+            "external_to_baseline_abs_peak_ratio": 1.0000000000000067,
+            "relative_l2_difference": 2.978126003549552e-13
+          },
+          "electron_temperature_eV": {
+            "baseline_max": 3.608627840072766,
+            "baseline_min": 2.9651885563331373,
+            "external_max": 3.6086278400725735,
+            "external_min": 2.9651885563331586,
+            "external_to_baseline_abs_peak_ratio": 0.9999999999999467,
+            "relative_l2_difference": 3.7094085360669483e-14
+          },
+          "ionization_source_m3_s": {
+            "baseline_max": 1.870751582400526e+20,
+            "baseline_min": 1829460804960171.8,
+            "external_max": 1.8707515824005933e+20,
+            "external_min": 1829460804960294.5,
+            "external_to_baseline_abs_peak_ratio": 1.000000000000036,
+            "relative_l2_difference": 1.557516562677097e-13
+          },
+          "potential_V": {
+            "baseline_max": 27.288878940191125,
+            "baseline_min": 0.0,
+            "external_max": 27.288878940191466,
+            "external_min": 0.0,
+            "external_to_baseline_abs_peak_ratio": 1.0000000000000124,
+            "relative_l2_difference": 1.3263613285742872e-14
+          }
+        },
+        "maximum_relative_l2_difference": 2.978126003549552e-13,
+        "relative_l2_limit": 0.001,
+        "samples": 79
+      },
+      "center_height_cm": 1.27,
+      "coordinate_match": true,
+      "electron_temperature_unit_note": "COMSOL exports ptp.Teav in V; it is displayed as the numerically equivalent electron-temperature energy in eV",
+      "fields": {
+        "electric_potential": {
+          "display_range": [
+            -1.772557128741098,
+            37.22369970356306
+          ],
+          "display_scale": "linear",
+          "series": {
+            "monte_carlo": {
+              "maximum": 35.34792939658569,
+              "minimum": 0.0
+            },
+            "original": {
+              "maximum": 27.288878940191125,
+              "minimum": 0.0
+            },
+            "two_term": {
+              "maximum": 35.45114257482196,
+              "minimum": 0.0
+            }
+          }
+        },
+        "electron_density": {
+          "display_range": [
+            0.0,
+            2312876846855978.0
+          ],
+          "display_scale": "linear",
+          "series": {
+            "monte_carlo": {
+              "maximum": 1495572415075188.8,
+              "minimum": 387473197625.6625
+            },
+            "original": {
+              "maximum": 2202739854148550.5,
+              "minimum": 633523945416.4736
+            },
+            "two_term": {
+              "maximum": 1455716627227997.5,
+              "minimum": 375682019825.4605
+            }
+          }
+        },
+        "electron_temperature": {
+          "display_range": [
+            2.8944266681257975,
+            4.451188208687274
+          ],
+          "display_scale": "linear",
+          "series": {
+            "monte_carlo": {
+              "maximum": 4.354315055473681,
+              "minimum": 3.8195088078038673
+            },
+            "original": {
+              "maximum": 3.608627840072766,
+              "minimum": 2.9651885563331373
+            },
+            "two_term": {
+              "maximum": 4.380426320479934,
+              "minimum": 3.828267842160094
+            }
+          }
+        }
+      },
+      "presentation": {
+        "density_and_source_zero_based": true,
+        "geometry_markers_cm": {
+          "chamber_throat": 5.38,
+          "powered_electrode_edge": 5.08
+        },
+        "layout": "one three-series figure per quantity",
+        "shared_axis_between_closures": true,
+        "style": "COMSOL 6.x 1D Plot Group approximation",
+        "y_scale": "linear"
+      },
+      "radius_range_cm": [
+        0.0,
+        10.159999999999998
+      ],
+      "sample_counts": {
+        "monte_carlo": 79,
+        "original": 79,
+        "two_term": 79
+      }
+    }
+  },
+  "figures": [
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\plots_current_comsol_two_term_mc_spatial\\comsol_style_electron_density_comparison.png",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\plots_current_comsol_two_term_mc_spatial\\comsol_style_electron_density_comparison.svg",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\plots_current_comsol_two_term_mc_spatial\\comsol_style_electron_temperature_comparison.png",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\plots_current_comsol_two_term_mc_spatial\\comsol_style_electron_temperature_comparison.svg",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\plots_current_comsol_two_term_mc_spatial\\comsol_style_electric_potential_comparison.png",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\plots_current_comsol_two_term_mc_spatial\\comsol_style_electric_potential_comparison.svg",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\plots_current_comsol_two_term_mc_spatial\\comsol_style_radial_midplane_electron_density_comparison.png",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\plots_current_comsol_two_term_mc_spatial\\comsol_style_radial_midplane_electron_density_comparison.svg",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\plots_current_comsol_two_term_mc_spatial\\comsol_style_radial_midplane_electron_temperature_comparison.png",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\plots_current_comsol_two_term_mc_spatial\\comsol_style_radial_midplane_electron_temperature_comparison.svg",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\plots_current_comsol_two_term_mc_spatial\\comsol_style_radial_midplane_electric_potential_comparison.png",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\plots_current_comsol_two_term_mc_spatial\\comsol_style_radial_midplane_electric_potential_comparison.svg"
+  ],
+  "input_mph_sha256": "850961ca17424958b1abddef31ff63d49f74741fa93ce1fb5c1fc7ec621df05a",
+  "run_provenance": {
+    "monte_carlo": {
+      "bundle": {
+        "artifact_verification": {
+          "sha256": {
+            "comsol_functions/sw_meanE.csv": "c3922558e431deff3c1fa3b37850e5a146cf1854377dcac84620124526a050e1",
+            "comsol_functions/sw_muN.csv": "119a5911a7f945ca1cea7670b8f2128450d319b34c8a5da7989b577aaa34386e",
+            "eedf.csv": "3a7617bbbd29a6ca37b516c69a1f982a27b89cecaa382b9aa4f8c0d562c15935",
+            "eedf_f0_binding_seed.csv": "fd01138a275943d252f484a0ea673d6e9000fd7459f3e2847686755bad866d36",
+            "eedf_f0_comsol_grid.txt": "9baa9deb41cbccdf3ad5e80443e9f48e2312e5bccaac1ea86fb379e28f7fef71",
+            "eedf_f0_vs_mean_energy.csv": "fbd3f5c9ae79c9de4bcc55176d2df9c0fb3159f7c9577d614b8fe8ad4501fc3f",
+            "elastic_energy_loss_vs_mean_energy.csv": "9132d946a2a2f6086b91a07bf5b1d0f729d15940b9271308cdb5685f5717131c",
+            "mean_energy_vs_en.csv": "1c9fdacef2f452289c909cc2798258a3b23fcf6541336aab94eeef2194631001",
+            "quality.csv": "cf6d01ed86fce8be5767567f2091a8739e4b1538e311bd5326d25fb290cf5381",
+            "rate_evidence.csv": "0d68f9609a741309d35f5a4976e1c5640a56eeeaf1fa662dd6a2e91b8e520d7c",
+            "rates_vs_en.csv": "9578d10fd3409fae3b7b51b797efe01650b22945c630cc3463ebc4ba2cad696d",
+            "rates_vs_mean_energy.csv": "ad3a4416571409470fa2783bf5292be0f09b1928c2c34cf698a45d88ae34e83e",
+            "townsend_vs_en.csv": "1c7d8820a73423d3e67721381cb229a8d6773969b9ada4646c165f16e337412a",
+            "transport_vs_en.csv": "71e5fd8b94f8b598d1aca6e88c6f322cd16795f54ac1c1839a21b12dd8f0fad6",
+            "transport_vs_mean_energy.csv": "27f44872ad79667022ea742ad817746639c6ca071ceb6a7497973643b7c56d80"
+          },
+          "status": "passed",
+          "verified_files": 15
+        },
+        "eedf_artifacts": {
+          "canonicalization_source": {
+            "file": "eedf.csv",
+            "role": "raw_swarm_eedf_audit_and_canonicalization_source",
+            "sha256": "3a7617bbbd29a6ca37b516c69a1f982a27b89cecaa382b9aa4f8c0d562c15935"
+          },
+          "comsol_input": {
+            "file": "eedf_f0_comsol_grid.txt",
+            "role": "canonical_comsol_function_eedf_input",
+            "sha256": "9baa9deb41cbccdf3ad5e80443e9f48e2312e5bccaac1ea86fb379e28f7fef71"
+          },
+          "raw_audit": {
+            "file": "eedf.csv",
+            "role": "raw_swarm_eedf_audit_and_canonicalization_source",
+            "sha256": "3a7617bbbd29a6ca37b516c69a1f982a27b89cecaa382b9aa4f8c0d562c15935"
+          }
+        },
+        "elastic_energy_loss": {
+          "COMSOL_elastic_reaction_owner": "disabled:eir1",
+          "coefficient_range_eV_m3_s": [
+            2.6309386877337477e-17,
+            1.9248019980491976e-16
+          ],
+          "energy_equation_owner": "GeneralPowerDeposition:swElLoss",
+          "mean_energy_range_eV": [
+            5.62860187801615,
+            62.93833017152416
+          ],
+          "model": "external_solver_native",
+          "physics_contract": {
+            "aggregation": "sum_target_fraction_times_process_coefficient",
+            "estimator": "trajectory_time_average_sigma_v_delta_energy",
+            "event_models": [
+              "finite_mass_recoil_isotropic_angular_expectation"
+            ],
+            "gas_temperature_terms_included": false,
+            "neutral_thermal_motion_model": "cold_neutral_recoil",
+            "schema": "swarm.elastic_energy_loss.v1",
+            "sign_convention": "positive_is_net_electron_energy_loss",
+            "source_eedf": "same_sampled_trajectory_residence_measure",
+            "symbol": "K_epsilon_el",
+            "uncertainty": "independent_replica_student_t_95"
+          },
+          "points": 10,
+          "source": "monte_carlo",
+          "statistical_evidence": {
+            "estimate_statuses": [
+              "estimate"
+            ],
+            "kind": "independent_replica_student_t_95",
+            "maximum_relative_standard_error": 0.002178737102568134,
+            "minimum_valid_replicates": 4,
+            "relative_standard_error_limit": 0.12,
+            "relative_standard_error_qualified": true,
+            "uncertainty_available_at_every_anchor": true
+          },
+          "table": "elastic_energy_loss_vs_mean_energy.csv",
+          "table_sha256": "9132d946a2a2f6086b91a07bf5b1d0f729d15940b9271308cdb5685f5717131c"
+        },
+        "expected_mc_qualification_profile": "function_eedf_restricted_lmea",
+        "expected_mc_transport_estimator_schema": "direct_mc_weighted_growth_configured_lag.v6",
+        "expected_source": "monte_carlo",
+        "function_eedf": null,
+        "hashes": {
+          "base_config_sha256": "a0fb77f1a5539d004e239a2c88077dc561208f02fc2c06e325ceecb15bb71f42",
+          "cross_sections_sha256": "a70cd71afa33710fbb4189b82fb61612f75f492ba1dc7e626789e759f70ea921",
+          "workflow_config_sha256": "80a325a3dfe0d44b06f9732a3d813f065c884999e1fbc2d142e0d7ed65ae08c9"
+        },
+        "independent_quality_audit": {
+          "decision": "independently_recomputed_from_quality_columns",
+          "passed": true,
+          "rows": [
+            {
+              "E_over_N_Td": 20.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 30.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 35.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 50.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 100.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 300.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 1000.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 1500.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 2500.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 4000.0,
+              "failure_reasons": [],
+              "passed": true
+            }
+          ],
+          "source": "monte_carlo",
+          "thresholds": {
+            "diffusion_rse": 0.12,
+            "eedf_normalization_error": 1e-06,
+            "major_rate_fraction": 0.01,
+            "major_rate_rse": 0.12,
+            "mobility_rse": 0.08,
+            "required_rate_min_process_peak_fraction": 1e-05,
+            "required_rate_rse": {
+              "process": {},
+              "process_type": {
+                "excitation": 0.12,
+                "ionization": 0.12
+              }
+            }
+          },
+          "transport_anchor_coverage": {
+            "exported_support_E_over_N_Td": [
+              20.0,
+              4000.0
+            ],
+            "failed_internal_E_over_N_Td": [],
+            "failed_outside_exported_support_E_over_N_Td": [
+              5.0,
+              10.0
+            ],
+            "interpolation_across_failed_planned_anchor": false,
+            "passed": true,
+            "planned_E_over_N_Td": [
+              5.0,
+              10.0,
+              20.0,
+              30.0,
+              35.0,
+              50.0,
+              100.0,
+              300.0,
+              1000.0,
+              1500.0,
+              2500.0,
+              4000.0
+            ],
+            "policy": "qualified_active_closure_anchors_are_a_contiguous_subsequence_of_planned_E_over_N",
+            "qualified_E_over_N_Td": [
+              20.0,
+              30.0,
+              35.0,
+              50.0,
+              100.0,
+              300.0,
+              1000.0,
+              1500.0,
+              2500.0,
+              4000.0
+            ]
+          }
+        },
+        "low_energy_guard": {
+          "active_comsol_input": false,
+          "artifact_sha256": {
+            "elastic_energy_loss_vs_mean_energy.csv": "816ead0d81ac365c884d60e2fd5ea4fae8a3040bbaed41b2bbe503d3eb4fda86",
+            "quality.csv": "88353d4e412fdfaa644f31609feb94693dcd032d7060da63c6f86d052ed4f3a5",
+            "rates_vs_mean_energy.csv": "70b8e07c3b5cc55d88ceec6123e94b05c9575a6e611d3e92222c93bab2824e44",
+            "transport_vs_mean_energy.csv": "d37509f1171713c04793717485339515ce53a4b3025f8bc661e23c3802a004fd"
+          },
+          "cross_sections_sha256": "a70cd71afa33710fbb4189b82fb61612f75f492ba1dc7e626789e759f70ea921",
+          "manifest_sha256": "3e76428d289e22c83e227626b60ef1f1ca85dda84eb1baf86342043afa10f6cb",
+          "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\two_term_function_eedf_restricted_lmea_bundle\\mixture_0000",
+          "quality_audit": {
+            "decision": "independently_recomputed_from_quality_columns",
+            "failed_points": 0,
+            "passed": true,
+            "points": 54
+          },
+          "relative_influence_limit": 0.01,
+          "role": "frozen_field_low_energy_sensitivity_only",
+          "source": "two_term",
+          "status": "qualified",
+          "supports_mean_energy_eV": {
+            "elastic_energy_loss": [
+              0.5764851748791673,
+              59.883620812005596
+            ],
+            "mobility": [
+              0.5764851748791673,
+              59.883620812005596
+            ],
+            "rates": {
+              "excitation": [
+                0.5764851748791673,
+                59.883620812005596
+              ],
+              "ionization": [
+                0.5764851748791673,
+                59.883620812005596
+              ]
+            }
+          }
+        },
+        "manifest_path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\monte_carlo_function_eedf_restricted_lmea_bundle\\mixture_0000\\manifest.json",
+        "manifest_sha256": "53068d71a5e3b9e4ecc5fcbe2fd150d54ffc3a8776efd82ebc723a849d328871",
+        "mc_qualification_profile": "function_eedf_restricted_lmea",
+        "mc_sampling_plan_sha256": "88849b659d05c05835c838f6cb2ede62cae78999aa6b3f725976ba904ecfc944",
+        "mc_transport_estimator_schema": "direct_mc_weighted_growth_configured_lag.v6",
+        "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\monte_carlo_function_eedf_restricted_lmea_bundle\\mixture_0000",
+        "quality_thresholds": {
+          "diffusion_rse": 0.12,
+          "eedf_normalization_error": 1e-06,
+          "major_rate_fraction": 0.01,
+          "major_rate_rse": 0.12,
+          "mobility_rse": 0.08,
+          "required_rate_min_process_peak_fraction": 1e-05,
+          "required_rate_rse": {
+            "process": {},
+            "process_type": {
+              "excitation": 0.12,
+              "ionization": 0.12
+            }
+          }
+        },
+        "restricted_scalar_diffusion_audit": null,
+        "source": "monte_carlo",
+        "source_policy": {
+          "active_comsol_inputs": [
+            "function_eedf",
+            "reduced_mobility",
+            "direct_elastic_energy_loss"
+          ],
+          "active_mean_energy_anchors_eV": [
+            5.62860187801615,
+            5.866416410032995,
+            5.970406871958525,
+            6.244989676900074,
+            6.918695147440728,
+            8.68439451958286,
+            15.18884852867303,
+            21.209237355643054,
+            35.79806844660938,
+            62.93833017152416
+          ],
+          "component_mean_energy_range_eV": {
+            "eedf_rate": [
+              5.62860187801615,
+              62.93833017152416
+            ],
+            "transport": [
+              5.62860187801615,
+              62.93833017152416
+            ]
+          },
+          "eedf_policy": "independent_replica_mc_histogram_then_nonnegative_local_C1_reconstruction_and_moment_preserving_COMSOL_projection",
+          "eedf_rate_eligible_E_over_N_Td": [
+            20.0,
+            30.0,
+            35.0,
+            50.0,
+            100.0,
+            300.0,
+            1000.0,
+            1500.0,
+            2500.0,
+            4000.0
+          ],
+          "eedf_rate_eligible_anchor_points": 10,
+          "eedf_rate_excluded_E_over_N_Td": {
+            "10": [
+              "mc_weighted_growth_stationarity_not_converged:mobility_m2_V_s"
+            ],
+            "5": [
+              "mc_weighted_growth_stationarity_not_converged:mobility_m2_V_s"
+            ]
+          },
+          "field_type": "dc",
+          "full_transport_eligible_E_over_N_Td": [
+            20.0,
+            1000.0,
+            1500.0
+          ],
+          "full_transport_eligible_anchor_points": 3,
+          "full_transport_excluded_E_over_N_Td": {
+            "10": [
+              "mc_weighted_growth_stationarity_not_converged:energy_mobility_m2_V_s",
+              "mc_weighted_growth_stationarity_not_converged:mobility_m2_V_s"
+            ],
+            "100": [
+              "mc_weighted_growth_lag_not_converged:diffusion_L_m2_s",
+              "mc_weighted_growth_lag_not_converged:energy_diffusion_L_m2_s"
+            ],
+            "2500": [
+              "mc_weighted_growth_lag_not_converged:energy_diffusion_L_m2_s"
+            ],
+            "30": [
+              "mc_weighted_growth_lag_not_converged:diffusion_L_m2_s"
+            ],
+            "300": [
+              "mc_weighted_growth_lag_not_converged:diffusion_L_m2_s"
+            ],
+            "35": [
+              "mc_weighted_growth_lag_not_converged:diffusion_L_m2_s"
+            ],
+            "4000": [
+              "mc_weighted_growth_stationarity_not_converged:energy_diffusion_L_m2_s"
+            ],
+            "5": [
+              "mc_weighted_growth_stationarity_not_converged:energy_mobility_m2_V_s",
+              "mc_weighted_growth_stationarity_not_converged:mobility_m2_V_s"
+            ],
+            "50": [
+              "mc_weighted_growth_lag_not_converged:diffusion_L_m2_s"
+            ]
+          },
+          "maximum_adjacent_mean_energy_gap_eV": 27.14026172491478,
+          "maximum_adjacent_mean_energy_ratio": 1.7581487745740476,
+          "net_ionization_policy": "derive_from_mc_ionization_and_attachment_rates",
+          "postprocess": "none",
+          "qualification_profile": "function_eedf_restricted_lmea",
+          "quality_policy": {
+            "diffusion_stationarity_relative_ci95_bound_limit": 0.25,
+            "eedf_rate_consistency": "direct_trajectory_rate_vs_same_MC_histogram_convolution",
+            "eedf_rate_relative_ci95_bound_limit": 0.1,
+            "failed_points": "active_closure_failures_excluded_only_outside_contiguous_support;inactive_MC_failures_retained_not_repaired",
+            "lineage_qualification_lag_rule": "[L/2,L]",
+            "origin_stationarity_relative_ci95_bound_limit": 0.1,
+            "required_effective_lineage_count": 128.0,
+            "required_effective_lineage_fraction": 0.05,
+            "transport_convergence": "paired_log_ratio_common_time_flux_moment_stationarity_with_minimum_per_lag_lineage_ESS_across_all_complete_blocks_and_case_vs_transport_mean_energy_across_independent_replicas",
+            "transport_mean_energy_relative_ci95_bound_limit": 0.1,
+            "unresolved_rate_tail": "defer_to_rate_RSE_and_pooled_zero_event_upper_bound"
+          },
+          "rate_censoring_qualification": {
+            "artificial_rate_floor": false,
+            "censored_anchor_count": 0,
+            "censored_anchors": [],
+            "criterion": "pooled_upper_95_strictly_below_required_fraction_of_process_peak",
+            "required_rate_min_process_peak_fraction": 1e-05,
+            "status": "qualified",
+            "zero_event_confidence": 0.95
+          },
+          "reaction_rate_policy": "direct_mc_trajectory_rates_as_independent_function_eedf_tail_evidence_not_active_COMSOL_input",
+          "retained_inactive_mc_evidence": [
+            "particle_diffusion_L_T",
+            "energy_mobility",
+            "restricted_energy_diffusion_L_T",
+            "direct_reaction_rates"
+          ],
+          "rf_amplitude_definition": "none",
+          "rf_field_treatment": "none",
+          "rf_frequency_Hz": null,
+          "selection": "component_specific_fail_closed_mc_anchors",
+          "smoothing": {
+            "eedf": "shape_preserving_local_reconstruction_only; no_external_distribution_prior",
+            "transport_and_rates": "none"
+          },
+          "solver_physics": {
+            "angular_model": "isotropic",
+            "angular_moment_source": "isotropic_closure",
+            "electron_electron_transport_stale": false,
+            "electron_electron_treatment": "none",
+            "exact_dcs_based": false,
+            "high_energy_extrapolation": "zero",
+            "ionization_source_model": "equal",
+            "ionization_source_treatment": "equal",
+            "magnetic_field_treatment": "none",
+            "ordinary_integral_xs_closure": true,
+            "population_model": "weighted_branching",
+            "tail_refinement_treatment": "approximate"
+          },
+          "source": "monte_carlo",
+          "transport_definition": "mc_flux_particle_tracking_weighted_growth_population",
+          "transport_eligible_E_over_N_Td": [
+            20.0,
+            30.0,
+            35.0,
+            50.0,
+            100.0,
+            300.0,
+            1000.0,
+            1500.0,
+            2500.0,
+            4000.0
+          ],
+          "transport_eligible_anchor_points": 10,
+          "transport_excluded_E_over_N_Td": {
+            "10": [
+              "mc_weighted_growth_stationarity_not_converged:mobility_m2_V_s"
+            ],
+            "5": [
+              "mc_weighted_growth_stationarity_not_converged:mobility_m2_V_s"
+            ]
+          },
+          "transport_policy": "direct_mc_synchronized_weighted_growth_flux_mobility_position_velocity_covariance_diffusion_L_T_residence_energy_mobility_and_restricted_density_packet_energy_diffusion_L_T",
+          "transport_scope": {
+            "full_cross_gradient_response_identified": false,
+            "standard_energy_density_gradient_closure": "restricted_direct_density_packet_energy_flux_correlation"
+          }
+        },
+        "two_term_transport_kernel": null,
+        "upstream_eedf_evidence": {
+          "active_in_comsol": false,
+          "binding_status": "inactive_evidence_only",
+          "bundle_artifact_role": "canonical_comsol_function_eedf_input",
+          "bundle_comsol_import_capable": true,
+          "evidence_verified_from_csv": true,
+          "grid_shape": [
+            265,
+            2049
+          ],
+          "mean_energy_range_eV": [
+            5.62860187801615,
+            62.93833017152416
+          ],
+          "recomputed_moment_audit": {
+            "active_in_comsol": false,
+            "grid_shape": [
+              265,
+              2049
+            ],
+            "integration": "exact_piecewise_linear_energy_segments",
+            "mean_energy_relative_error_max": 9.956152385180504e-14,
+            "nonnegative_minimum": 0.0,
+            "normalization_error_max": 4.440892098500626e-16,
+            "role": "independent_upstream_swarm_evidence",
+            "rows": 265,
+            "status": "passed",
+            "table_sha256": "9baa9deb41cbccdf3ad5e80443e9f48e2312e5bccaac1ea86fb379e28f7fef71"
+          },
+          "representation": "physical_2d_structured_grid_linear_moment_projected",
+          "role": "upstream_projected_eedf_evidence",
+          "table": "eedf_f0_comsol_grid.txt",
+          "table_sha256": "9baa9deb41cbccdf3ad5e80443e9f48e2312e5bccaac1ea86fb379e28f7fef71"
+        },
+        "valid_ranges": {
+          "E_over_N_Td": [
+            20.0,
+            4000.0
+          ],
+          "E_over_N_V_m2": [
+            2e-20,
+            3.9999999999999995e-18
+          ],
+          "mean_energy_eV": [
+            5.62860187801615,
+            62.93833017152416
+          ]
+        }
+      },
+      "closure": {
+        "electron_transport": "swarm_mobility_einstein",
+        "reaction_model": "external_rates"
+      },
+      "external_label": "Monte Carlo Swarm: Swarm mobility + COMSOL Einstein diffusion; imported Swarm rates",
+      "physical_target_accepted": true,
+      "plan": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\comsol_monte_carlo_external_rates_restricted_lmea\\gec_ccp_plan.json",
+      "plan_sha256": "df0869be6918186520fd95cd66150be96c3ece61c4da99a299870f32a9dceb01",
+      "planned_result_role": "physical_target",
+      "quality_status": "passed",
+      "result_role": "physical_target",
+      "results": [
+        {
+          "path": "builtin_druyvesteyn/axis_period_average.csv",
+          "sha256": "16622b02f1ab616f8cc53ae010aea2a23203488b813a628d80e66676ccad86a1",
+          "size_bytes": 2425
+        },
+        {
+          "path": "builtin_druyvesteyn/axis_phase_resolved.csv",
+          "sha256": "ab65bc100c7756a9a7d4afefcc938ad6e25bf9949b87e81f7df02384b80dcb35",
+          "size_bytes": 64244
+        },
+        {
+          "path": "builtin_druyvesteyn/closure_phase.csv",
+          "sha256": "be58ab893fad89e846f4383b1f71382b4f8bce397468fd4da5b656fd7e7fe32e",
+          "size_bytes": 165902
+        },
+        {
+          "path": "builtin_druyvesteyn/closure_phase_radial.csv",
+          "sha256": "acfd52726fd4d958e59e91c19d968c53872bc31c506c48816dcab3a08960c637",
+          "size_bytes": 607875
+        },
+        {
+          "path": "builtin_druyvesteyn/conservation_terminal_power.csv",
+          "sha256": "6894a6e55df8a552515ab9949fa52ce340183e6c8fb7e138d95e8b34e474f0b4",
+          "size_bytes": 283
+        },
+        {
+          "path": "builtin_druyvesteyn/conservation_volume.csv",
+          "sha256": "873e5247fbd298583cb7708b2a88951c85a970f6e2d500f4d02bc00a96207d8d",
+          "size_bytes": 396
+        },
+        {
+          "path": "builtin_druyvesteyn/conservation_wall.csv",
+          "sha256": "761e3867dca35b150c5e7cd83cdfd47bd524d282ca4984dd903a9a3b43abf52e",
+          "size_bytes": 611
+        },
+        {
+          "path": "builtin_druyvesteyn/domain_period_average.csv",
+          "sha256": "5758366ef11969b347fbbd004c8a8882034afa437b1a58a324535e20069f0720",
+          "size_bytes": 180157
+        },
+        {
+          "path": "builtin_druyvesteyn/domain_phase_closure.csv",
+          "sha256": "633168fa2c64dbd107d028510a4c830844d0e6f18088887235629c4612d1b5be",
+          "size_bytes": 14121175
+        },
+        {
+          "path": "builtin_druyvesteyn/electrode_waveform.csv",
+          "sha256": "98e3b1473853c460591ecfe88f738b1d6dee3c273433b31c0d2c654a7fe9bf63",
+          "size_bytes": 1899
+        },
+        {
+          "path": "builtin_druyvesteyn/radial_period_average.csv",
+          "sha256": "787286930a15daa0a3fcd24480e726ffd3c2bfe4f2e37284f68ef390c8970835",
+          "size_bytes": 9977
+        },
+        {
+          "path": "swarm_tables/axis_period_average.csv",
+          "sha256": "a691cfb6393df810c1cd68bba35630a1d31b9af4d40a2c99732e1fd3b96be9d0",
+          "size_bytes": 2405
+        },
+        {
+          "path": "swarm_tables/axis_phase_resolved.csv",
+          "sha256": "e3e7cb0f2abcfd82bda88899756089c531162b053a9b799175d2f4acb33115a6",
+          "size_bytes": 63394
+        },
+        {
+          "path": "swarm_tables/closure_phase.csv",
+          "sha256": "774814b2f5953024ac9a03f17d4eacf96cfd4119dd37eddb9dd9d0721d7fc5ed",
+          "size_bytes": 138348
+        },
+        {
+          "path": "swarm_tables/closure_phase_radial.csv",
+          "sha256": "fdf82f406e202d8d66c1384a5628312c7af3c5264170f21f8f1766cd7b0dba83",
+          "size_bytes": 504922
+        },
+        {
+          "path": "swarm_tables/conservation_terminal_power.csv",
+          "sha256": "5bfc8976544cdb3b329544a58468a5c7e9fe4e42d0daada6b00f51d520a29323",
+          "size_bytes": 285
+        },
+        {
+          "path": "swarm_tables/conservation_volume.csv",
+          "sha256": "5c0c3a5111008df1977442a2a2c458d3bba58a102ceadb1412aca044a4ebd581",
+          "size_bytes": 417
+        },
+        {
+          "path": "swarm_tables/conservation_wall.csv",
+          "sha256": "0bc3c7a6ecd11f010f4c92d8ec5f0894314ffef78f0f0edca2eab6b49d1b98fa",
+          "size_bytes": 611
+        },
+        {
+          "path": "swarm_tables/domain_period_average.csv",
+          "sha256": "91cd417934b4c1ed7724c50424723ad810e6d50cb9a64286a700f86356c204c9",
+          "size_bytes": 179347
+        },
+        {
+          "path": "swarm_tables/domain_phase_closure.csv",
+          "sha256": "00a3661c5cb278a2f5edf57140a1d108c50eaf5c6fedce45dc8e4aaf03fe6b1f",
+          "size_bytes": 18911931
+        },
+        {
+          "path": "swarm_tables/electrode_waveform.csv",
+          "sha256": "5eeda7c419e3b7aab602e0818bb50449331e30c956cfdf1618f076a78d0a0709",
+          "size_bytes": 1898
+        },
+        {
+          "path": "swarm_tables/radial_period_average.csv",
+          "sha256": "9f237b0de396f6c5aebe024e51155f78020ada2500d4561fbfcd805a2babb9ae",
+          "size_bytes": 9909
+        }
+      ],
+      "status": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\comsol_monte_carlo_external_rates_restricted_lmea\\gec_ccp_run_status.json"
+    },
+    "two_term": {
+      "bundle": {
+        "artifact_verification": {
+          "sha256": {
+            "comsol_functions/sw_meanE.csv": "c3ec6509e80fcefba29acd343727c27733585f56096c3d538bd2c85280e5851a",
+            "comsol_functions/sw_muN.csv": "47dcc8cfb03dc2ef12db625b31581f12cbbbb29bbfa02ecea8e436d595b5fc52",
+            "eedf.csv": "b1432763e37347d59cc5f75c8216bf6b276f2a7bc0f7d84c42676e2ffd39c580",
+            "eedf_f0_comsol_2d.csv": "e89e2195bcd1f62838135a8e8bb0f246a33bf9e13c020622571f7df9d980a3ea",
+            "eedf_f0_vs_mean_energy.csv": "01461fea7352fb8a6ca11a27075f081c41025325e9351f4b5a97be1107aad4ed",
+            "elastic_energy_loss_vs_mean_energy.csv": "816ead0d81ac365c884d60e2fd5ea4fae8a3040bbaed41b2bbe503d3eb4fda86",
+            "mean_energy_vs_en.csv": "4cbaba612cdae7dd6b989788d6698d327d3679412973221fbbce5ff798a0028c",
+            "quality.csv": "88353d4e412fdfaa644f31609feb94693dcd032d7060da63c6f86d052ed4f3a5",
+            "rates_vs_en.csv": "0e237f9e5f264b70c854d221ef014384cf5c812787d8f25b4a3e89c7ca280b66",
+            "rates_vs_mean_energy.csv": "70b8e07c3b5cc55d88ceec6123e94b05c9575a6e611d3e92222c93bab2824e44",
+            "townsend_vs_en.csv": "3f54e0d671a2723fa11baf428e6d9fb64e534d8066838ec0af0a025df51e141b",
+            "transport_vs_en.csv": "20eede7f3d13a23d16f302d43e58861c3f6c537a9e5dfaad43418979cdbce3d9",
+            "transport_vs_mean_energy.csv": "d37509f1171713c04793717485339515ce53a4b3025f8bc661e23c3802a004fd"
+          },
+          "status": "passed",
+          "verified_files": 13
+        },
+        "eedf_artifacts": {
+          "canonicalization_source": {
+            "file": "eedf.csv",
+            "role": "raw_swarm_eedf_audit_and_canonicalization_source",
+            "sha256": "b1432763e37347d59cc5f75c8216bf6b276f2a7bc0f7d84c42676e2ffd39c580"
+          },
+          "comsol_input": {
+            "file": "eedf_f0_comsol_2d.csv",
+            "role": "canonical_comsol_function_eedf_input",
+            "sha256": "e89e2195bcd1f62838135a8e8bb0f246a33bf9e13c020622571f7df9d980a3ea"
+          },
+          "raw_audit": {
+            "file": "eedf.csv",
+            "role": "raw_swarm_eedf_audit_and_canonicalization_source",
+            "sha256": "b1432763e37347d59cc5f75c8216bf6b276f2a7bc0f7d84c42676e2ffd39c580"
+          }
+        },
+        "elastic_energy_loss": {
+          "COMSOL_elastic_reaction_owner": "disabled:eir1",
+          "coefficient_range_eV_m3_s": [
+            6.750232102883261e-20,
+            1.8767817683152805e-16
+          ],
+          "energy_equation_owner": "GeneralPowerDeposition:swElLoss",
+          "mean_energy_range_eV": [
+            0.5764851748791673,
+            59.883620812005596
+          ],
+          "model": "external_solver_native",
+          "physics_contract": {
+            "estimator": "same_discrete_elastic_collision_operator_energy_moment",
+            "gas_temperature_K": 300.0,
+            "gas_temperature_terms_included": true,
+            "neutral_thermal_motion_model": "finite_temperature_fokker_planck",
+            "operator": "native_finite_volume_scharfetter_gummel_elastic_A_D_zero_field",
+            "operator_isolation": "zero_field_reassembly_from_same_elastic_A_D_coefficients",
+            "schema": "swarm.elastic_energy_loss.v1",
+            "sign_convention": "positive_is_net_electron_energy_loss",
+            "source_eedf": "same_solved_eedf",
+            "symbol": "K_epsilon_el",
+            "uncertainty": "deterministic_kinetic_solver"
+          },
+          "points": 54,
+          "source": "two_term",
+          "statistical_evidence": {
+            "kind": "deterministic_kinetic_solver",
+            "uncertainty_applicability": "not_applicable"
+          },
+          "table": "elastic_energy_loss_vs_mean_energy.csv",
+          "table_sha256": "816ead0d81ac365c884d60e2fd5ea4fae8a3040bbaed41b2bbe503d3eb4fda86"
+        },
+        "expected_mc_transport_estimator_schema": null,
+        "expected_source": "two_term",
+        "function_eedf": {
+          "comsol_feature_operation": "Interpolation",
+          "continuity": "C0",
+          "electron_energy_range_eV": [
+            0.0,
+            5347.618482248937
+          ],
+          "extrapolation": "constant",
+          "function_tag": "sw_eedf_two_term",
+          "grid_shape": [
+            309,
+            2049
+          ],
+          "interpolation": "linear",
+          "mean_energy_range_eV": [
+            0.5764851748791673,
+            59.883620812005596
+          ],
+          "projected_moment_audit": {
+            "integration": "exact_piecewise_linear_energy_segments",
+            "mean_energy_relative_error_max": 9.996698899243569e-14,
+            "nonnegative_minimum": 0.0,
+            "normalization_error_max": 3.3306690738754696e-16,
+            "rows": 309
+          },
+          "representation": "native_2d_linear_projection",
+          "scaledata": "auto",
+          "table": "eedf_f0_comsol_2d.csv",
+          "table_sha256": "e89e2195bcd1f62838135a8e8bb0f246a33bf9e13c020622571f7df9d980a3ea"
+        },
+        "hashes": {
+          "base_config_sha256": "fff740b6a9fef80566dcac80edce279adb68954984799864a5a2bdf8e4463314",
+          "cross_sections_sha256": "a70cd71afa33710fbb4189b82fb61612f75f492ba1dc7e626789e759f70ea921",
+          "workflow_config_sha256": "7f39fbb817f4646dd5e475b50380a0efa6546ced57b1e05f5b1c553b8b9cd08e"
+        },
+        "independent_quality_audit": {
+          "decision": "independently_recomputed_from_quality_columns",
+          "passed": true,
+          "rows": [
+            {
+              "E_over_N_Td": 0.05,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 0.1,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 0.2,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 0.5,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 1.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 2.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 3.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 3.5,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 4.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 4.5,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 5.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 5.5,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 6.5,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 7.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 7.5,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 8.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 8.5,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 9.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 9.5,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 10.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 11.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 12.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 13.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 14.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 15.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 17.5,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 20.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 22.5,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 25.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 27.5,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 30.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 35.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 40.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 45.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 50.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 60.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 70.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 75.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 85.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 100.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 125.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 150.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 175.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 200.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 250.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 300.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 500.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 750.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 1000.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 1500.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 2000.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 3000.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 3500.0,
+              "failure_reasons": [],
+              "passed": true
+            },
+            {
+              "E_over_N_Td": 4000.0,
+              "failure_reasons": [],
+              "passed": true
+            }
+          ],
+          "source": "two_term",
+          "thresholds": {
+            "diffusion_rse": 0.3,
+            "eedf_normalization_error": 1e-06,
+            "major_rate_fraction": 0.01,
+            "major_rate_rse": 0.5,
+            "mobility_rse": 0.2,
+            "required_rate_min_process_peak_fraction": 0.0,
+            "required_rate_rse": {
+              "process": {},
+              "process_type": {
+                "excitation": null,
+                "ionization": null
+              }
+            }
+          },
+          "transport_anchor_coverage": null
+        },
+        "manifest_path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\two_term_function_eedf_restricted_lmea_bundle\\mixture_0000\\manifest.json",
+        "manifest_sha256": "3e76428d289e22c83e227626b60ef1f1ca85dda84eb1baf86342043afa10f6cb",
+        "mc_sampling_plan_sha256": null,
+        "mc_transport_estimator_schema": null,
+        "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\two_term_function_eedf_restricted_lmea_bundle\\mixture_0000",
+        "quality_thresholds": {
+          "diffusion_rse": 0.3,
+          "eedf_normalization_error": 1e-06,
+          "major_rate_fraction": 0.01,
+          "major_rate_rse": 0.5,
+          "mobility_rse": 0.2,
+          "required_rate_min_process_peak_fraction": 0.0,
+          "required_rate_rse": {
+            "process": {},
+            "process_type": {
+              "excitation": null,
+              "ionization": null
+            }
+          }
+        },
+        "restricted_scalar_diffusion_audit": null,
+        "source": "two_term",
+        "source_policy": {
+          "field_type": "dc",
+          "postprocess": "none",
+          "rf_amplitude_definition": "none",
+          "rf_field_treatment": "none",
+          "rf_frequency_Hz": null,
+          "selection": "all_aggregate_points",
+          "source": "two_term",
+          "transport_definition": "flux",
+          "two_term_transport_kernel": {
+            "anchor_points": 54,
+            "correction_applied_every_anchor": true,
+            "effective_momentum_model": "nu_m_eff(epsilon)=nu_m(epsilon)+growth_frequency",
+            "evidence_columns": [
+              "gas_number_density_m3",
+              "temporal_growth_frequency_s_inv",
+              "reduced_temporal_growth_frequency_m3_s"
+            ],
+            "gas_number_density_m3": [
+              3.2188243837982474e+21,
+              3.2188243837982474e+21
+            ],
+            "growth_frequency_s_inv": [
+              2.415097888241548e-09,
+              288753256.06568825
+            ],
+            "growth_frequency_source": "converged_temporal_growth_eigenvalue",
+            "minimum_momentum_cross_section_m2": 1e-24,
+            "momentum_cross_section_floor_policy": "sum_raw_process_cross_sections_then_single_floor",
+            "schema": "two_term_temporal_growth_transport.v1"
+          }
+        },
+        "two_term_transport_kernel": {
+          "anchor_points": 54,
+          "correction_applied_every_anchor": true,
+          "effective_momentum_model": "nu_m_eff(epsilon)=nu_m(epsilon)+growth_frequency",
+          "evidence_columns": [
+            "gas_number_density_m3",
+            "temporal_growth_frequency_s_inv",
+            "reduced_temporal_growth_frequency_m3_s"
+          ],
+          "gas_number_density_m3": [
+            3.2188243837982474e+21,
+            3.2188243837982474e+21
+          ],
+          "growth_frequency_s_inv": [
+            2.415097888241548e-09,
+            288753256.06568825
+          ],
+          "growth_frequency_source": "converged_temporal_growth_eigenvalue",
+          "minimum_momentum_cross_section_m2": 1e-24,
+          "momentum_cross_section_floor_policy": "sum_raw_process_cross_sections_then_single_floor",
+          "schema": "two_term_temporal_growth_transport.v1"
+        },
+        "upstream_eedf_evidence": {
+          "active_in_comsol": true,
+          "binding_status": "active_comsol_function_eedf",
+          "bundle_artifact_role": "canonical_comsol_function_eedf_input",
+          "bundle_comsol_import_capable": true,
+          "grid_shape": [
+            309,
+            2049
+          ],
+          "mean_energy_range_eV": [
+            0.5764851748791673,
+            59.883620812005596
+          ],
+          "representation": "physical_2d_linear_moment_projected",
+          "role": "active_comsol_function_eedf",
+          "table": "eedf_f0_comsol_2d.csv",
+          "table_sha256": "e89e2195bcd1f62838135a8e8bb0f246a33bf9e13c020622571f7df9d980a3ea"
+        },
+        "valid_ranges": {
+          "E_over_N_Td": [
+            0.05,
+            4000.0
+          ],
+          "E_over_N_V_m2": [
+            4.9999999999999997e-23,
+            3.9999999999999995e-18
+          ],
+          "mean_energy_eV": [
+            0.5764851748791673,
+            59.883620812005596
+          ]
+        }
+      },
+      "closure": {
+        "electron_transport": "swarm_mobility_einstein",
+        "reaction_model": "function_eedf"
+      },
+      "external_label": "two-term Swarm: Swarm mobility + COMSOL Einstein diffusion; Function-EEDF + COMSOL cross-section integration",
+      "physical_target_accepted": true,
+      "plan": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\comsol_two_term_function_eedf_restricted_lmea\\gec_ccp_plan.json",
+      "plan_sha256": "c506afea3e32eb649f1cbee770e572bcfbb1ed860eb42db66b62355c5d0f51a3",
+      "planned_result_role": "physical_target",
+      "quality_status": "passed",
+      "result_role": "physical_target",
+      "results": [
+        {
+          "path": "builtin_druyvesteyn/axis_period_average.csv",
+          "sha256": "95c9b77e4c48324a6e0abcdd56cbcce5690d71abac163efe3c763ce2e99c1a97",
+          "size_bytes": 2423
+        },
+        {
+          "path": "builtin_druyvesteyn/axis_phase_resolved.csv",
+          "sha256": "c47bbb1ea78f2c43e623d8fbf9fd7181c83b7671fc705f5b9c1a38ce78c14ef4",
+          "size_bytes": 64199
+        },
+        {
+          "path": "builtin_druyvesteyn/closure_phase.csv",
+          "sha256": "6517fb17304fcb57d36ac828ec96f12ac01e89956a372873b5a92e18419ed8ea",
+          "size_bytes": 165791
+        },
+        {
+          "path": "builtin_druyvesteyn/closure_phase_radial.csv",
+          "sha256": "4443a15000f25bcf28727e8d258c0c48655a6103603b220aa1877f877516981c",
+          "size_bytes": 607647
+        },
+        {
+          "path": "builtin_druyvesteyn/conservation_terminal_power.csv",
+          "sha256": "03a114d3426884bde49fcfebbd02b10a686b80a1c9622dfe0bbd4dd8a7a9b765",
+          "size_bytes": 284
+        },
+        {
+          "path": "builtin_druyvesteyn/conservation_volume.csv",
+          "sha256": "dc95c1c71bebeaecd883e2af28b1cf7efd9cd6e7301d235eabb8d89c2354b2a1",
+          "size_bytes": 398
+        },
+        {
+          "path": "builtin_druyvesteyn/conservation_wall.csv",
+          "sha256": "defc01484771b64cd51e8e14ed63ff071cff32ba09c87dcd90b3aab9a8f94ac6",
+          "size_bytes": 613
+        },
+        {
+          "path": "builtin_druyvesteyn/domain_period_average.csv",
+          "sha256": "f0754e4f82cc7a8688f2e0f670c441bbd1691e362e48047f38b05065d5c58840",
+          "size_bytes": 180181
+        },
+        {
+          "path": "builtin_druyvesteyn/domain_phase_closure.csv",
+          "sha256": "e494bf47dbfc5ad1e45068b5c9dea718557b40c114201181f6d84ea2f04c15f6",
+          "size_bytes": 14122148
+        },
+        {
+          "path": "builtin_druyvesteyn/electrode_waveform.csv",
+          "sha256": "01c1c0dd89183a078e6f7e9eff8d8109f789d326971e84554bd38355b01263ff",
+          "size_bytes": 1902
+        },
+        {
+          "path": "builtin_druyvesteyn/radial_period_average.csv",
+          "sha256": "f1a8c0e55dc37900e0d172419470ba569ab5b1708c4917d02eabde7bb6afbc01",
+          "size_bytes": 9974
+        },
+        {
+          "path": "swarm_tables/axis_period_average.csv",
+          "sha256": "d5a371bfd9897b84c1e446f6762ee50d5d7256a6faa77b16d02918b22631f04b",
+          "size_bytes": 2404
+        },
+        {
+          "path": "swarm_tables/axis_phase_resolved.csv",
+          "sha256": "0489ae4782c5bb549dd3bbe656ecf7464b102633509079f36069f49e0c8f08d8",
+          "size_bytes": 63418
+        },
+        {
+          "path": "swarm_tables/closure_phase.csv",
+          "sha256": "4abb03e0a3a35a8f6713137ea809ac3c249e685ee17c1dc62786a0ff2ad7acd4",
+          "size_bytes": 138459
+        },
+        {
+          "path": "swarm_tables/closure_phase_radial.csv",
+          "sha256": "913883c9cf1178ae7c909e372a5d4eeddae3a34b7fafa35fe6b95275bfd624b5",
+          "size_bytes": 505135
+        },
+        {
+          "path": "swarm_tables/conservation_terminal_power.csv",
+          "sha256": "836935a3d517fa42980e1e382cddcba31b1f7b940eef346ff2155dddd9ca07ec",
+          "size_bytes": 285
+        },
+        {
+          "path": "swarm_tables/conservation_volume.csv",
+          "sha256": "a9029801321b0917c51ceacbf9c5afdc140df8b8b334c7a674260a955929e6ee",
+          "size_bytes": 416
+        },
+        {
+          "path": "swarm_tables/conservation_wall.csv",
+          "sha256": "6c013cb82007f2a5283eb5a22760035cf55cbe24674e77d86fb5f49e589ed7c2",
+          "size_bytes": 609
+        },
+        {
+          "path": "swarm_tables/domain_period_average.csv",
+          "sha256": "0a84d7cdaa8551a34b8841780b735f14014558159666a8448c97eb190e9ef26f",
+          "size_bytes": 179423
+        },
+        {
+          "path": "swarm_tables/domain_phase_closure.csv",
+          "sha256": "5d0783bfe68201dc14a594adc5d8e2439f5b453ae2ee5bef29111b5393b4b30d",
+          "size_bytes": 18913356
+        },
+        {
+          "path": "swarm_tables/electrode_waveform.csv",
+          "sha256": "01edfcb7d151068ddea245eaf778d92296ae6de3f974535e3b72a8740a06688a",
+          "size_bytes": 1890
+        },
+        {
+          "path": "swarm_tables/radial_period_average.csv",
+          "sha256": "152664dbe031d92c9d0d8432d8ce2c564dae70bdcfb6cb8a6b9dcc9469499bfe",
+          "size_bytes": 9902
+        }
+      ],
+      "status": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_ccp\\comsol_two_term_function_eedf_restricted_lmea\\gec_ccp_run_status.json"
+    }
+  },
+  "stage": "plot-gec-ccp-comparison",
+  "status": "ok"
+}
