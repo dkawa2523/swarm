@@ -7,14 +7,17 @@ import pytest
 
 from electron_swarm.core.transport import ElectronTransport
 from electron_swarm.io.writers import SUMMARY_COLUMNS
-from swarm_workflow.aggregate import aggregate_database
-from swarm_workflow.store import WorkflowSchemaError, WorkflowStore
-from swarm_workflow.tables import CASE_COLUMNS, UNITS, build_tables
+from swarm_workflow.campaign.aggregate import aggregate_database
+from swarm_workflow.campaign.store import WorkflowSchemaError, WorkflowStore
+from swarm_workflow.tables.contracts import CASE_COLUMNS, UNITS
+from swarm_workflow.tables import build_tables
 
 
 CANONICAL_REDUCED_COLUMNS = {
     "reduced_electron_energy_mobility_m2_V_s_m3",
     "reduced_electron_energy_diffusion_m2_s_m3",
+    "reduced_electron_energy_diffusion_L_m2_s_m3",
+    "reduced_electron_energy_diffusion_T_m2_s_m3",
 }
 LEGACY_REDUCED_COLUMNS = {
     "reduced_electron_energy_mobility_eV_m2_V_s_m3",
@@ -47,6 +50,8 @@ def test_energy_transport_fields_have_dimensionally_correct_names() -> None:
     )
     assert transport.electron_energy_mobility_m2_V_s == pytest.approx(5.0)
     assert transport.electron_energy_diffusion_m2_s == pytest.approx(6.0)
+    assert transport.electron_energy_diffusion_L_m2_s == pytest.approx(6.0)
+    assert transport.electron_energy_diffusion_T_m2_s == pytest.approx(6.0)
     for legacy in LEGACY_REDUCED_COLUMNS | LEGACY_ACTUAL_PROPERTIES:
         assert not hasattr(transport, legacy)
 
@@ -61,10 +66,30 @@ def test_public_columns_and_table_units_exclude_obsolete_ev_factor() -> None:
         == "1/(V m s)"
     )
     assert UNITS["reduced_electron_energy_diffusion_m2_s_m3"] == "1/(m s)"
+    assert UNITS["reduced_electron_energy_diffusion_L_m2_s_m3"] == "1/(m s)"
+    assert UNITS["reduced_electron_energy_diffusion_T_m2_s_m3"] == "1/(m s)"
     assert UNITS["reduced_mobility_m2_V_s_m3"] == "1/(V m s)"
     assert UNITS["reduced_diffusion_L_m2_s_m3"] == "1/(m s)"
     assert UNITS["reduced_diffusion_T_m2_s_m3"] == "1/(m s)"
     assert all("eV" not in UNITS[column] for column in CANONICAL_REDUCED_COLUMNS)
+
+
+def test_anisotropic_energy_diffusion_does_not_create_scalar_projection() -> None:
+    transport = ElectronTransport.from_actual(
+        definition="mc_flux",
+        gas_number_density_m3=2.0,
+        drift_velocity_m_s=1.0,
+        mobility_m2_V_s=2.0,
+        diffusion_L_m2_s=3.0,
+        diffusion_T_m2_s=4.0,
+        electron_energy_mobility_m2_V_s=5.0,
+        electron_energy_diffusion_L_m2_s=6.0,
+        electron_energy_diffusion_T_m2_s=7.0,
+    )
+
+    assert transport.electron_energy_diffusion_m2_s is None
+    assert transport.electron_energy_diffusion_L_m2_s == pytest.approx(6.0)
+    assert transport.electron_energy_diffusion_T_m2_s == pytest.approx(7.0)
 
 
 def test_new_workflow_database_uses_only_canonical_columns(tmp_path: Path) -> None:

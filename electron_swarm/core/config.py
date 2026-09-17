@@ -8,12 +8,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field as dc_field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
-from electron_swarm.core.legacy_schema import MIGRATION_ERROR
-from electron_swarm.core.solver_registry import CANONICAL_SOLVER_IDS
+from electron_swarm.core.legacy_schema import MIGRATION_ERROR as MIGRATION_ERROR
+from electron_swarm.core.solver_ids import (
+    CANONICAL_SOLVER_IDS as CANONICAL_SOLVER_IDS,
+    SolverId as SolverId,
+)
 
-SolverId = Literal["two_term", "multi_term", "monte_carlo"]
 UnsupportedPolicy = Literal["fail", "skip_solver"]
 DegradedPolicy = Literal["fail", "record"]
 TwoTermBackend = Literal["native_sg"]
@@ -71,14 +73,34 @@ class MonteCarloProductConfig:
     particles: int | None = None
     warmup_collisions: int | None = None
     max_collisions: int | None = None
+    tail_max_collisions: int | None = None
+    tail_rate_rse_trigger: float = 0.25
+    transport_correlation_lag_barriers: int = 64
+    transport_estimator: Literal["single_field", "paired_field_parity"] = "single_field"
+    numeric_kernel: Literal["auto", "python", "numba"] = "auto"
+
+
+@dataclass(slots=True)
+class PropagatorProductConfig:
+    method: Literal["stationary_response"] = "stationary_response"
+    energy_cells: int = 600
+    polar_cells: int = 72
+    max_iterations: int = 2000
+    convergence_tolerance: float = 1.0e-8
+    max_memory_mb: int = 1024
 
 
 @dataclass(slots=True)
 class SolversConfig:
     two_term: TwoTermProductConfig = dc_field(default_factory=TwoTermProductConfig)
-    multi_term: MultiTermProductConfig = dc_field(default_factory=MultiTermProductConfig)
+    multi_term: MultiTermProductConfig = dc_field(
+        default_factory=MultiTermProductConfig
+    )
     monte_carlo: MonteCarloProductConfig = dc_field(
         default_factory=MonteCarloProductConfig
+    )
+    propagator: PropagatorProductConfig = dc_field(
+        default_factory=PropagatorProductConfig
     )
 
 
@@ -103,9 +125,32 @@ class MagneticFieldConfig:
 
 
 @dataclass(slots=True)
+class TimeDependentFieldConfig:
+    """Homogeneous periodic-field settings for a time-dependent EEDF solve.
+
+    The electric-field values in ``run.e_over_n_Td`` are interpreted as RMS
+    amplitudes.  The first implementation advances F0 in time while assuming
+    that the two-term anisotropic response F1 follows the field
+    instantaneously.  That approximation is recorded in every solve plan and
+    result.
+    """
+
+    waveform: Literal["sinusoidal"] = "sinusoidal"
+    frequency_Hz: float | None = None
+    amplitude_definition: Literal["rms"] = "rms"
+    momentum_response: Literal["instantaneous"] = "instantaneous"
+    phase_steps: int = 48
+    max_periods: int = 2000
+    periodic_tolerance: float = 1.0e-7
+
+
+@dataclass(slots=True)
 class FieldConfig:
     type: Literal["dc", "rf", "time_dependent"] = "dc"
     magnetic_field: MagneticFieldConfig = dc_field(default_factory=MagneticFieldConfig)
+    time_dependent: TimeDependentFieldConfig = dc_field(
+        default_factory=TimeDependentFieldConfig
+    )
 
 
 @dataclass(slots=True)
@@ -118,7 +163,9 @@ class MomentTableConfig:
 
 @dataclass(slots=True)
 class AngularScatteringConfig:
-    model: Literal["isotropic", "momentum_power", "maxent_p1", "moment_table"] = "isotropic"
+    model: Literal["isotropic", "momentum_power", "maxent_p1", "moment_table"] = (
+        "isotropic"
+    )
     higher_moment_closure: Literal["zero", "power", "maxent", "table"] = "zero"
     moment_table: MomentTableConfig | None = None
 
@@ -206,20 +253,3 @@ class SwarmConfig:
     feature_policy: FeaturePolicyConfig = dc_field(default_factory=FeaturePolicyConfig)
     output: OutputConfig = dc_field(default_factory=OutputConfig)
     source_path: Path | None = None
-
-
-def _load_config_from_raw(raw: dict[str, Any], cfg_path: str | Path) -> SwarmConfig:
-    """Compatibility wrapper for development tooling that parses raw mappings."""
-
-    from electron_swarm.core.config_parser import load_config_from_raw
-
-    return load_config_from_raw(raw, cfg_path)
-
-
-def load_config(path: str | Path) -> SwarmConfig:
-    """Load and validate a schema v2 product YAML configuration file."""
-
-    from electron_swarm.core.config_parser import read_mapping
-
-    cfg_path = Path(path).resolve()
-    return _load_config_from_raw(read_mapping(cfg_path), cfg_path)

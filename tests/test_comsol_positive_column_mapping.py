@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
 
-from swarm_workflow.comsol_adapter import format_apply_plan
-from swarm_workflow.comsol_mapping import load_comsol_mapping
+from swarm_workflow.comsol.models.positive_column.config import load_comsol_mapping
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,12 +22,12 @@ def test_canonical_positive_column_mapping_is_minimal() -> None:
     ]
 
 
-def test_canonical_mapping_dry_run_describes_only_active_external_inputs() -> None:
+def test_canonical_mapping_contains_only_active_external_inputs() -> None:
     mapping = load_comsol_mapping(MAPPING)
-    text = format_apply_plan(SimpleNamespace(mapping=mapping, java_path=Path("apply.java")))
 
-    assert "sw_meanE" in text
-    assert "sw_muN" in text
-    assert "sw_DLN" not in text
-    assert "energy_loss" not in text
-    assert "reaction_lookups:" in text
+    tags = {function.tag for function in mapping.functions}
+    assert tags == {"sw_meanE", "sw_muN"}
+    assert {lookup.name for lookup in mapping.reaction_lookups} == {
+        "excitation",
+        "ionization",
+    }

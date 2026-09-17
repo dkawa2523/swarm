@@ -1,0 +1,70 @@
+# Schema-v2 weighted-branching MC source for the GEC-ICP restricted-LMEA
+# Function-EEDF closure. The workflow owns the field-specific finite budget.
+schema_version: 2
+
+run:
+  solvers:
+    - id: monte_carlo
+  e_over_n_Td: [10.0]
+  case_prefix: argon_gec_icp_monte_carlo
+
+conditions:
+  gas_temperature_K: 300.0
+  pressure_Pa: 2.66644
+  gas_mixture:
+    - species: Ar
+      fraction: 1.0
+      mass_amu: 39.948
+
+cross_sections:
+  format: csv
+  high_energy_extrapolation: zero
+  files:
+    - path: cross_sections/argon_application_library.csv
+      species: Ar
+      format: csv
+
+physics:
+  field:
+    type: dc
+    magnetic_field:
+      enabled: false
+      B_T: 0.0
+      angle_EB_deg: 0.0
+  angular_scattering:
+    model: isotropic
+    higher_moment_closure: zero
+  electron_electron:
+    enabled: false
+    model: none
+  ionization:
+    energy_sharing: equal
+  energy_grid_policy:
+    adaptive: true
+    threshold_refinement: true
+    tail_probability_target: 1.0e-9
+    tail_metrics: true
+    tail_rate_warning_fraction: 0.05
+    max_eV_limit: 5000.0
+
+solvers:
+  monte_carlo:
+    population_model: weighted_branching
+    numeric_kernel: auto
+    particles: 128
+    warmup_collisions: 65536
+    max_collisions: 262144
+    tail_max_collisions: 16384
+    tail_rate_rse_trigger: 0.12
+    transport_correlation_lag_barriers: 128
+
+comparison:
+  enabled: false
+
+feature_policy:
+  unsupported: fail
+  degraded: record
+
+output:
+  directory: ../outputs/argon_gec_icp/monte_carlo_cases
+  base_name: argon_gec_icp_monte_carlo

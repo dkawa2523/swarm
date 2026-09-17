@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swarm Multi-Term Config"
+  short_description: "Configure direct PN multi-term swarm jobs"
+  default_prompt: "Use $swarm-multi-term-config to create and validate a multi-term calculation configuration."

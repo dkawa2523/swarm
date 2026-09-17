@@ -54,10 +54,16 @@ def resolve_tail_threshold_eV(
     explicit = config.physics.energy_grid_policy.tail_threshold_eV
     if explicit is not None:
         return float(explicit)
+    active_species = {
+        component.species
+        for component in config.conditions.gas_mixture
+        if component.fraction > 0.0
+    }
     thresholds = [
         float(proc.threshold_eV)
         for proc in cross_sections.processes
         if proc.process_type.value in REACTION_TYPES
+        and (not active_species or proc.species in active_species)
         and proc.threshold_eV is not None
         and np.isfinite(proc.threshold_eV)
         and proc.threshold_eV > 0.0

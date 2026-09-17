@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swarm COMSOL Model Map"
+  short_description: "Configure an implemented COMSOL model adapter"
+  default_prompt: "Use $swarm-comsol-map-config to configure and validate the mapping for this implemented COMSOL model adapter."

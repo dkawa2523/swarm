@@ -8,16 +8,23 @@ from types import SimpleNamespace
 
 import pytest
 
-from swarm_workflow.comsol_adapter import find_comsol_executable
-from swarm_workflow.comsol_verify import (
+import swarm_workflow.comsol.models.positive_column.verify as comsol_verify
+from swarm_workflow.comsol.runtime import (
+    ComsolAdapterError,
+    resolve_comsol_executable,
+)
+from swarm_workflow.comsol.models.positive_column.verify import (
     ComsolVerifyError,
     compare_function_values,
     execute_verify_comsol_functions,
-    format_verify_plan,
     generate_verify_java_source,
     plan_verify_comsol_functions,
     write_expected_values_csv,
 )
+
+
+def test_verify_module_does_not_expose_obsolete_text_formatter() -> None:
+    assert not hasattr(comsol_verify, "format_verify_plan")
 
 
 def test_verify_plan_generates_control_points_from_csv_values(tmp_path: Path) -> None:
@@ -64,17 +71,13 @@ def test_verify_plan_generates_control_points_from_csv_values(tmp_path: Path) ->
     assert {point.fununit for point in energy_diffusion} == {"1/(m*s)"}
 
 
-def test_verify_dry_run_format_reports_planned_points(tmp_path: Path) -> None:
+def test_verify_plan_reports_artifact_paths_and_tolerances(tmp_path: Path) -> None:
     plan = plan_verify_comsol_functions(_write_verify_repo(tmp_path))
-    text = format_verify_plan(plan)
 
-    assert "COMSOL function verify dry-run" in text
-    assert "sw_meanE" in text
-    assert "sw_muN" in text
-    assert "function_values_expected.csv" in text
-    assert "verify_manifest.json" in text
-    assert "COMSOL command: not executed" in text
-    assert "relative_tolerance: 1e-05" in text
+    assert {point.function_tag for point in plan.points} == {"sw_meanE", "sw_muN"}
+    assert plan.expected_csv.name == "function_values_expected.csv"
+    assert plan.manifest_path.name == "verify_manifest.json"
+    assert plan.relative_tolerance == pytest.approx(1.0e-5)
 
 
 def test_verify_java_source_evaluates_mapped_function_tags(tmp_path: Path) -> None:
@@ -148,10 +151,18 @@ def test_execute_verify_writes_expected_java_and_summary_without_comsol(
 ) -> None:
     mapping_path = _write_verify_repo(tmp_path, output_mph_exists=True)
 
-    def fake_execute(mapping, java_path, *, operation, comsol_executable=None):
+    def fake_execute(
+        context,
+        java_path,
+        *,
+        operation,
+        comsol_executable=None,
+        study,
+    ):
         assert operation == "verify"
+        assert study == "std1"
         assert Path(java_path).exists()
-        plan = plan_verify_comsol_functions(mapping.path)
+        plan = plan_verify_comsol_functions(context.mapping_path)
         _write_comsol_values_from_expected(plan)
         return SimpleNamespace(
             log_dir=tmp_path / "model" / "logs" / "verify_fake",
@@ -160,7 +171,8 @@ def test_execute_verify_writes_expected_java_and_summary_without_comsol(
         )
 
     monkeypatch.setattr(
-        "swarm_workflow.comsol_verify.execute_generated_comsol_java",
+        "swarm_workflow.comsol.models.positive_column.verify."
+        "execute_generated_comsol_java",
         fake_execute,
     )
 
@@ -195,8 +207,15 @@ def test_execute_verify_clears_stale_comsol_values_before_execution(
     stale.parent.mkdir(parents=True)
     stale.write_text("old,row\n1,2\n", encoding="utf-8")
 
-    def fake_execute(mapping, java_path, *, operation, comsol_executable=None):
-        plan = plan_verify_comsol_functions(mapping.path)
+    def fake_execute(
+        context,
+        java_path,
+        *,
+        operation,
+        comsol_executable=None,
+        study,
+    ):
+        plan = plan_verify_comsol_functions(context.mapping_path)
         assert not plan.comsol_csv.exists()
         _write_comsol_values_from_expected(plan)
         return SimpleNamespace(
@@ -206,7 +225,8 @@ def test_execute_verify_clears_stale_comsol_values_before_execution(
         )
 
     monkeypatch.setattr(
-        "swarm_workflow.comsol_verify.execute_generated_comsol_java",
+        "swarm_workflow.comsol.models.positive_column.verify."
+        "execute_generated_comsol_java",
         fake_execute,
     )
 
@@ -288,8 +308,9 @@ def test_verify_rejects_unsupported_nargs(tmp_path: Path) -> None:
 @pytest.mark.comsol
 @pytest.mark.slow
 def test_optional_comsol_verify_integration_requires_local_prerequisites() -> None:
-    resolved = find_comsol_executable()
-    if resolved is None:
+    try:
+        resolved = resolve_comsol_executable()
+    except ComsolAdapterError:
         pytest.skip(
             "COMSOL executable not found; set COMSOL_BATCH, COMSOL_EXECUTABLE, "
             "or put comsol/comsolbatch on PATH"
@@ -327,6 +348,7 @@ def _write_verify_repo(root: Path, *, output_mph_exists: bool = False) -> Path:
     mapping_path = maps_dir / "verify.yaml"
     mapping_path.write_text(
         """
+schema_version: 2
 model:
   input_mph: model/fake_input.mph
   output_mph: model/work/fake_out.mph

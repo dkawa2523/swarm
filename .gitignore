@@ -2,10 +2,13 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.ruff_cache/
+.uv-cache*/
 *.egg-info/
 outputs/
 .DS_Store
 .tmp/
+.codex-finalizer/
 
 # Local COMSOL Application Library models and generated artifacts.
 model/**/*.mph

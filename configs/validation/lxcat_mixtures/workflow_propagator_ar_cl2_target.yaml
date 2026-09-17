@@ -1,0 +1,13 @@
+base_config: propagator_ar_cl2_target.yaml
+database: ../../../outputs/lxcat_swarm_validation/qualifications/propagator_ar_cl2_medium.sqlite
+e_over_n_Td: [1.0, 10.0, 100.0, 1000.0]
+mixtures:
+  - {Ar: 0.9, O2: 0.0, N2: 0.0, Cl2: 0.1}
+quality:
+  mobility_rse: 0.15
+  diffusion_rse: 0.25
+  major_rate_rse: 0.25
+execution:
+  deterministic:
+    workers: 4
+    global_memory_budget_mb: 3072

@@ -6,9 +6,6 @@ import numpy as np
 
 from electron_swarm.core.config import ComparisonConfig
 from electron_swarm.core.results import SwarmCaseResult, SwarmRunResult
-from electron_swarm.core.numerics import widths_from_centers
-
-
 SCALAR_METRICS = {
     "mean_energy_eV": "mean_energy_eV_relative_difference",
     "drift_velocity_m_s": "drift_velocity_relative_difference",
@@ -29,18 +26,67 @@ def _relative_difference(candidate: float, reference: float) -> float:
     return float((float(candidate) - float(reference)) / denom)
 
 
-def _eedf_l1_error(candidate: SwarmCaseResult, reference: SwarmCaseResult) -> float:
-    ref_energy = np.asarray(reference.energy_eV, dtype=float)
-    ref_eedf = np.asarray(reference.eedf, dtype=float)
-    candidate_eedf = np.interp(
-        ref_energy,
-        np.asarray(candidate.energy_eV, dtype=float),
-        np.asarray(candidate.eedf, dtype=float),
-        left=0.0,
-        right=0.0,
+def _finite_scalar(value: object) -> float | None:
+    if value is None:
+        return None
+    number = float(value)
+    return number if np.isfinite(number) else None
+
+
+def _scalar_comparison(
+    candidate: object,
+    reference: object,
+) -> tuple[float | None, str]:
+    candidate_value = _finite_scalar(candidate)
+    reference_value = _finite_scalar(reference)
+    if candidate_value is None:
+        return None, "candidate_unavailable"
+    if reference_value is None:
+        return None, "reference_unavailable"
+    return (
+        _relative_difference(candidate_value, reference_value),
+        "available",
     )
-    widths = widths_from_centers(ref_energy)
-    return float(np.sum(np.abs(candidate_eedf - ref_eedf) * widths))
+
+
+def _eedf_l1_error(candidate: SwarmCaseResult, reference: SwarmCaseResult) -> float:
+    """Compare the reported cell densities without point interpolation.
+
+    Solver grids can differ substantially near thresholds and in the tail.
+    Treating each reported value as a cell-average density makes the L1 norm
+    conservative and symmetric with respect to the two grids.
+    """
+
+    def cell_edges(case: SwarmCaseResult) -> np.ndarray:
+        centers = np.asarray(case.energy_eV, dtype=float)
+        widths = np.asarray(case.energy_widths_eV, dtype=float)
+        edges = np.concatenate(([0.0], np.cumsum(widths)))
+        scale = max(1.0, float(edges[-1]))
+        if np.any(centers < edges[:-1] - 1.0e-12 * scale) or np.any(
+            centers > edges[1:] + 1.0e-12 * scale
+        ):
+            raise ValueError(
+                f"{case.solver} EEDF centers do not lie in their reported cells"
+            )
+        return edges
+
+    candidate_edges = cell_edges(candidate)
+    reference_edges = cell_edges(reference)
+    common_edges = np.unique(np.concatenate((candidate_edges, reference_edges)))
+    midpoints = 0.5 * (common_edges[:-1] + common_edges[1:])
+
+    def density_on_intervals(case: SwarmCaseResult, edges: np.ndarray) -> np.ndarray:
+        indices = np.searchsorted(edges, midpoints, side="right") - 1
+        valid = (indices >= 0) & (indices < len(case.eedf))
+        values = np.zeros_like(midpoints)
+        values[valid] = np.asarray(case.eedf, dtype=float)[indices[valid]]
+        return values
+
+    candidate_density = density_on_intervals(candidate, candidate_edges)
+    reference_density = density_on_intervals(reference, reference_edges)
+    return float(
+        np.sum(np.abs(candidate_density - reference_density) * np.diff(common_edges))
+    )
 
 
 def _angular_value(case: SwarmCaseResult, key: str) -> object | None:
@@ -72,7 +118,10 @@ def comparison_summary_rows(
 ) -> list[dict[str, object]]:
     by_key: dict[tuple[str, float, str], SwarmCaseResult] = {}
     for case in result.cases:
-        by_key[(case.case_id, float(case.e_over_n_Td), case.solver)] = case
+        key = (case.case_id, float(case.e_over_n_Td), case.solver)
+        if key in by_key:
+            raise ValueError(f"duplicate solver result in comparison: {key!r}")
+        by_key[key] = case
 
     keys = sorted({(case.case_id, float(case.e_over_n_Td)) for case in result.cases})
     rows: list[dict[str, object]] = []
@@ -92,10 +141,12 @@ def comparison_summary_rows(
                 "angular_model_status": _angular_model_status(candidate, reference),
             }
             for attr, column in SCALAR_METRICS.items():
-                row[column] = _relative_difference(
+                difference, status = _scalar_comparison(
                     getattr(candidate, attr),
                     getattr(reference, attr),
                 )
+                row[column] = difference
+                row[f"{attr}_status"] = status
             if compare_eedf:
                 row["eedf_l1_error"] = _eedf_l1_error(candidate, reference)
             rows.append(row)
@@ -131,6 +182,10 @@ def build_comparison_summary(
     candidates = comparison.candidate_solvers or [
         solver for solver in sorted(result.by_solver()) if solver != reference
     ]
+    if reference in candidates:
+        raise ValueError("comparison reference solver cannot also be a candidate")
+    if comparison.required and not candidates:
+        raise ValueError("required comparison has no candidate solvers")
     summary_rows: list[dict[str, object]] = []
     if reference is not None:
         summary_rows = comparison_summary_rows(
@@ -140,6 +195,30 @@ def build_comparison_summary(
             compare_eedf=comparison.compare_eedf,
         )
     if comparison.required:
+        reference_keys = {
+            (case.case_id, float(case.e_over_n_Td))
+            for case in result.cases
+            if case.solver == reference
+        }
+        expected_rows = {
+            (case_id, e_over_n_Td, solver)
+            for case_id, e_over_n_Td in reference_keys
+            for solver in candidates
+        }
+        actual_rows = {
+            (
+                str(row["case_id"]),
+                float(row["E_over_N_Td"]),
+                str(row["candidate_solver"]),
+            )
+            for row in summary_rows
+        }
+        missing = sorted(expected_rows - actual_rows)
+        if missing:
+            raise ValueError(
+                "required comparison is missing candidate results: "
+                f"{missing}"
+            )
         bad_angular = [
             row
             for row in summary_rows

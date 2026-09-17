@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from swarm_workflow.comsol_mapping import (
+from swarm_workflow.comsol.models.positive_column.config import (
     ComsolMappingError,
     load_comsol_mapping,
     validate_comsol_mapping_files,
@@ -115,6 +115,7 @@ def _write_mapping_repo(root: Path) -> Path:
     mapping = root / "model" / "maps" / "positive_column.yaml"
     mapping.write_text(
         """
+schema_version: 2
 model:
   input_mph: model/base.mph
   output_mph: model/work/external.mph

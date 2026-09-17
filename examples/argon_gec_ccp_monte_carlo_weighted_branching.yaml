@@ -1,0 +1,71 @@
+schema_version: 2
+
+run:
+  solvers:
+    - id: monte_carlo
+  e_over_n_Td: [1000.0]
+  case_prefix: argon_gec_ccp_mc_weighted_growth
+
+conditions:
+  gas_temperature_K: 300.0
+  pressure_Pa: 13.3322
+  gas_mixture:
+    - species: Ar
+      fraction: 1.0
+      mass_amu: 39.948
+
+cross_sections:
+  format: csv
+  high_energy_extrapolation: zero
+  files:
+    - path: cross_sections/argon_application_library.csv
+      species: Ar
+      format: csv
+
+physics:
+  field:
+    type: dc
+    magnetic_field:
+      enabled: false
+      B_T: 0.0
+      angle_EB_deg: 0.0
+  angular_scattering:
+    model: isotropic
+    higher_moment_closure: zero
+  electron_electron:
+    enabled: false
+    model: none
+  ionization:
+    energy_sharing: equal
+  energy_grid_policy:
+    adaptive: true
+    threshold_refinement: true
+    tail_probability_target: 1.0e-9
+    tail_metrics: true
+    tail_rate_warning_fraction: 0.05
+    max_eV_limit: 30000.0
+
+solvers:
+  monte_carlo:
+    population_model: weighted_branching
+    # Auto selects the compiled full-barrier kernel for the supported DC/B=0/
+    # isotropic weighted-growth model and records any reference fallback.
+    numeric_kernel: auto
+    particles: 512
+    warmup_collisions: 8192
+    max_collisions: 32768
+    # Rare-tail sampling has an independent, bounded budget.  Its achieved RSE
+    # remains in the result and the workflow rejects an under-resolved rate.
+    tail_max_collisions: 16384
+    tail_rate_rse_trigger: 0.12
+
+comparison:
+  enabled: false
+
+feature_policy:
+  unsupported: fail
+  degraded: record
+
+output:
+  directory: ../outputs/argon_gec_ccp/monte_carlo_weighted_growth_cases
+  base_name: argon_gec_ccp_mc_weighted_growth

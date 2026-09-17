@@ -1,0 +1,80 @@
+schema_version: 2
+
+# Canonical Monte Carlo Function-EEDF restricted-LMEA target.
+#
+# External MC owns the statistically qualified EEDF, electron mobility, and
+# direct trajectory elastic energy-loss moment. The same EEDF and Ar cross
+# sections are integrated offline onto a mean-energy table. The EEDF itself
+# uses the same adaptive Spreadsheet contract as every other solver. COMSOL
+# retains particle diffusion and the full restricted-LMEA energy flux closure.
+
+model:
+  input_mph: ../argon_gec_ccp.mph
+  external_output_mph: ../work/argon_gec_ccp_monte_carlo_function_eedf_restricted_lmea.mph
+  component: comp1
+  physics: ptp
+  plasma_feature: pes1
+  time_periodic_study: std1
+  time_periodic_feature: tper
+  external_time_periodic_study: std3
+  external_time_periodic_feature: tper1
+  external_solution: sol3
+  conversion_study: std2
+  expected_original_eedf: Druyvesteyn
+
+bundle:
+  path: ../../outputs/argon_gec_ccp/monte_carlo_function_eedf_restricted_lmea_bundle/mixture_0000
+  require_solver_selection: true
+  expected_source: monte_carlo
+  expected_field_type: dc
+  expected_transport_definition: mc_flux_particle_tracking_weighted_growth_population
+  expected_mc_transport_estimator_schema: direct_mc_weighted_growth_configured_lag.v6
+  expected_mc_tail_estimator_schema: reaction_kernel_weighted_ensemble_pooled_estimators.v4
+  # Requires weighted branching plus the recorded isotropic integral-XS,
+  # equal-sharing, no-e-e, no-B, zero-extrapolation MC assumptions.
+  expected_mc_qualification_profile: function_eedf_restricted_lmea
+
+reactions:
+  - name: elastic
+    feature: eir1
+    process_type: elastic
+  - name: excitation
+    feature: eir2
+    process_type: excitation
+  - name: ionization
+    feature: eir3
+    process_type: ionization
+
+closure:
+  source_field: steady_dc
+  electron_transport: swarm_mobility_einstein
+  gradient_response_policy: standard_local_energy
+  thermal_diffusion_model: off_restricted_diagonal
+  reaction_model: function_eedf_preintegrated_inelastic
+  elastic_energy_loss_model: external_solver_native
+  lookup_jacobian: exact
+  interpolation: differentiable_log_piecewise_cubic
+  function_eedf:
+    table: eedf_f0_comsol_2d.csv
+    function_tag: sw_eedf_monte_carlo
+    interpolation: structured_spreadsheet_linear_projection
+    extrapolation: constant
+
+run:
+  power_parameter: P0
+  power_W: 1.0
+  source_stabilization: false
+  reaction_source_stabilization: false
+  axis_dataset: cln1
+  radial_dataset: cln2
+  external_period_dataset: dset4
+  phase_dataset: dset3
+  external_waveform_dataset: dset5
+  support_policy: strict
+
+results:
+  role: physical_target
+  output_directory: ../../outputs/argon_gec_ccp/comsol_monte_carlo_function_eedf_restricted_lmea
+
+logs:
+  path: ../../outputs/argon_gec_ccp/comsol_monte_carlo_function_eedf_restricted_lmea_logs

@@ -1,0 +1,66 @@
+# Schema-v2 local steady-state Swarm input for the repository GEC-ICP model.
+# COMSOL owns the 13.56 MHz inductive field and spatial local-energy equations;
+# this source supplies a mean-energy-indexed Function-EEDF closure.
+schema_version: 2
+
+run:
+  solvers:
+    - id: two_term
+  e_over_n_Td: [10.0]
+  case_prefix: argon_gec_icp_two_term
+
+conditions:
+  gas_temperature_K: 300.0
+  pressure_Pa: 2.66644
+  gas_mixture:
+    - species: Ar
+      fraction: 1.0
+      mass_amu: 39.948
+
+cross_sections:
+  format: csv
+  high_energy_extrapolation: zero
+  files:
+    # Ground-state Ar elastic, excitation, and ionization processes matching
+    # the maintained COMSOL Application Library-derived repository asset.
+    - path: cross_sections/argon_application_library.csv
+      species: Ar
+      format: csv
+
+physics:
+  field:
+    type: dc
+    magnetic_field:
+      enabled: false
+      B_T: 0.0
+      angle_EB_deg: 0.0
+  angular_scattering:
+    model: isotropic
+    higher_moment_closure: zero
+  electron_electron:
+    enabled: false
+    model: none
+  ionization:
+    energy_sharing: equal
+  energy_grid_policy:
+    adaptive: true
+    threshold_refinement: true
+    tail_probability_target: 1.0e-9
+    tail_metrics: true
+    tail_rate_warning_fraction: 0.05
+    max_eV_limit: 5000.0
+
+solvers:
+  two_term:
+    backend: native_sg
+
+comparison:
+  enabled: false
+
+feature_policy:
+  unsupported: fail
+  degraded: record
+
+output:
+  directory: ../outputs/argon_gec_icp/two_term_cases
+  base_name: argon_gec_icp_two_term

@@ -3,10 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field as dc_field
-from typing import Literal
-
-
-InternalBoltzmannBackend = Literal["native_bolsig"]
+from typing import Literal, Protocol
 
 
 @dataclass(slots=True)
@@ -75,18 +72,33 @@ class ConvergenceConfig:
     clip_negative: bool = True
 
 
+class MomentumCollisionConfig(Protocol):
+    """Solver-neutral momentum-collision regularization settings."""
+
+    min_momentum_cross_section_m2: float
+
+
+class InelasticCollisionConfig(Protocol):
+    """Solver-neutral inelastic and ionization collision settings."""
+
+    nonconservative_model: Literal["growth", "ignore"]
+    ionization_energy_sharing: Literal[
+        "equal", "primary_secondary", "loss_only"
+    ]
+    secondary_electron_energy_eV: float
+
+
 @dataclass(slots=True)
 class TwoTermInternalConfig:
     enabled: bool = True
-    backend: InternalBoltzmannBackend = "native_bolsig"
     energy_grid: EnergyGridConfig = dc_field(default_factory=EnergyGridConfig)
     adaptive_grid: AdaptiveGridConfig = dc_field(default_factory=AdaptiveGridConfig)
     convergence: ConvergenceConfig = dc_field(default_factory=ConvergenceConfig)
     initial_electron_temperature_eV: float = 2.0
     nonconservative_model: Literal["growth", "ignore"] = "growth"
-    ionization_energy_sharing: Literal[
-        "equal", "primary_secondary", "loss_only"
-    ] = "equal"
+    ionization_energy_sharing: Literal["equal", "primary_secondary", "loss_only"] = (
+        "equal"
+    )
     secondary_electron_energy_eV: float = 0.0
     min_momentum_cross_section_m2: float = 1.0e-24
 
@@ -95,11 +107,17 @@ class TwoTermInternalConfig:
 class MultiTermInternalConfig:
     enabled: bool = True
     lmax: int = 4
-    method: Literal["moment_closure"] = "moment_closure"
-    product_method: Literal["pn_closure_direct", "pn_dcs"] = "pn_closure_direct"
+    method: Literal["pn_closure_direct", "pn_dcs"] = "pn_closure_direct"
     energy_grid: MultiTermEnergyGridConfig = dc_field(
         default_factory=MultiTermEnergyGridConfig
     )
+    convergence: ConvergenceConfig = dc_field(default_factory=ConvergenceConfig)
+    nonconservative_model: Literal["growth", "ignore"] = "growth"
+    ionization_energy_sharing: Literal["equal", "primary_secondary", "loss_only"] = (
+        "equal"
+    )
+    secondary_electron_energy_eV: float = 0.0
+    min_momentum_cross_section_m2: float = 1.0e-24
 
 
 @dataclass(slots=True)
@@ -111,7 +129,27 @@ class MonteCarloAdapterConfig:
     particles: int | None = None
     warmup_collisions: int | None = None
     max_collisions: int | None = None
+    tail_max_collisions: int | None = None
+    tail_rate_rse_trigger: float = 0.25
+    transport_correlation_lag_barriers: int = 64
+    transport_estimator: Literal["single_field", "paired_field_parity"] = "single_field"
+    numeric_kernel: Literal["auto", "python", "numba"] = "auto"
     collect_audit: bool = False
+
+
+@dataclass(slots=True)
+class PropagatorInternalConfig:
+    method: Literal["stationary_response"] = "stationary_response"
+    energy_cells: int = 600
+    polar_cells: int = 72
+    max_iterations: int = 2000
+    convergence_tolerance: float = 1.0e-8
+    max_memory_mb: int = 1024
+    base_max_eV: float = 100.0
+    max_eV_limit: float = 2000.0
+    adaptive_grid: bool = True
+    threshold_refinement: bool = True
+    tail_probability_target: float = 1.0e-8
 
 
 @dataclass(slots=True)
@@ -123,14 +161,21 @@ class InternalSolverConfigs:
     monte_carlo: MonteCarloAdapterConfig = dc_field(
         default_factory=MonteCarloAdapterConfig
     )
+    propagator: PropagatorInternalConfig = dc_field(
+        default_factory=PropagatorInternalConfig
+    )
 
 
-def build_internal_solver_configs(solvers: object, physics: object) -> InternalSolverConfigs:
+def build_internal_solver_configs(
+    solvers: object, physics: object
+) -> InternalSolverConfigs:
     """Project product solver schema into implementation-only configs."""
 
-    refine = EnergyGridRefinementConfig(
-        enabled=physics.energy_grid_policy.threshold_refinement
-    )
+    def refinement_config() -> EnergyGridRefinementConfig:
+        return EnergyGridRefinementConfig(
+            enabled=physics.energy_grid_policy.threshold_refinement
+        )
+
     adaptive = AdaptiveGridConfig(
         enabled=physics.energy_grid_policy.adaptive,
         max_max_eV=physics.energy_grid_policy.max_eV_limit,
@@ -138,8 +183,7 @@ def build_internal_solver_configs(solvers: object, physics: object) -> InternalS
     )
     return InternalSolverConfigs(
         two_term=TwoTermInternalConfig(
-            backend="native_bolsig",
-            energy_grid=EnergyGridConfig(refine=refine),
+            energy_grid=EnergyGridConfig(refine=refinement_config()),
             adaptive_grid=adaptive,
             nonconservative_model=solvers.two_term.nonconservative_model,
             ionization_energy_sharing=physics.ionization.energy_sharing,
@@ -152,9 +196,12 @@ def build_internal_solver_configs(solvers: object, physics: object) -> InternalS
         ),
         multi_term=MultiTermInternalConfig(
             lmax=solvers.multi_term.lmax,
-            method="moment_closure",
-            product_method=solvers.multi_term.method,
-            energy_grid=MultiTermEnergyGridConfig(refine=refine),
+            method=solvers.multi_term.method,
+            energy_grid=MultiTermEnergyGridConfig(refine=refinement_config()),
+            ionization_energy_sharing=physics.ionization.energy_sharing,
+            secondary_electron_energy_eV=(
+                physics.ionization.secondary_electron_energy_eV
+            ),
         ),
         monte_carlo=MonteCarloAdapterConfig(
             population_model=solvers.monte_carlo.population_model,
@@ -162,5 +209,26 @@ def build_internal_solver_configs(solvers: object, physics: object) -> InternalS
             particles=solvers.monte_carlo.particles,
             warmup_collisions=solvers.monte_carlo.warmup_collisions,
             max_collisions=solvers.monte_carlo.max_collisions,
+            tail_max_collisions=solvers.monte_carlo.tail_max_collisions,
+            tail_rate_rse_trigger=solvers.monte_carlo.tail_rate_rse_trigger,
+            transport_correlation_lag_barriers=(
+                solvers.monte_carlo.transport_correlation_lag_barriers
+            ),
+            transport_estimator=solvers.monte_carlo.transport_estimator,
+            numeric_kernel=solvers.monte_carlo.numeric_kernel,
+        ),
+        propagator=PropagatorInternalConfig(
+            method=solvers.propagator.method,
+            energy_cells=solvers.propagator.energy_cells,
+            polar_cells=solvers.propagator.polar_cells,
+            max_iterations=solvers.propagator.max_iterations,
+            convergence_tolerance=solvers.propagator.convergence_tolerance,
+            max_memory_mb=solvers.propagator.max_memory_mb,
+            max_eV_limit=physics.energy_grid_policy.max_eV_limit,
+            adaptive_grid=physics.energy_grid_policy.adaptive,
+            threshold_refinement=physics.energy_grid_policy.threshold_refinement,
+            tail_probability_target=(
+                physics.energy_grid_policy.tail_probability_target
+            ),
         ),
     )

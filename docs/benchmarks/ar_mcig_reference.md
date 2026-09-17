@@ -6,19 +6,19 @@ Ar single gas.  MCIG is a reference source, not a product solver id.
 Run without requiring an external file:
 
 ```powershell
-py -3 tools\benchmark_ar_external_references.py --config configs\benchmarks\ar_mcig_reference.yaml --reference mcig
+py -3 tools\benchmarks\benchmark_ar_external_references.py --config configs\benchmarks\ar_mcig_reference.yaml --reference mcig
 ```
 
 Provide a generated MCIG file explicitly:
 
 ```powershell
-py -3 tools\benchmark_ar_external_references.py --config configs\benchmarks\ar_mcig_reference.yaml --reference mcig --mcig-output data\references\ar_mcig_reference.csv --angular-model isotropic
+py -3 tools\benchmarks\benchmark_ar_external_references.py --config configs\benchmarks\ar_mcig_reference.yaml --reference mcig --mcig-output data\references\ar_mcig_reference.csv --angular-model isotropic
 ```
 
 Run a local MCIG binary first by passing an explicit command template:
 
 ```powershell
-py -3 tools\benchmark_ar_external_references.py --config configs\benchmarks\ar_mcig_reference.yaml --reference mcig --run-mcig '"C:\path\to\mcig.exe" --input "{input}" --output "{output}"' --mcig-input data\mcig.in --mcig-output data\references\ar_mcig_reference.csv --angular-model isotropic --plot
+py -3 tools\benchmarks\benchmark_ar_external_references.py --config configs\benchmarks\ar_mcig_reference.yaml --reference mcig --run-mcig '"C:\path\to\mcig.exe" --input "{input}" --output "{output}"' --mcig-input data\mcig.in --mcig-output data\references\ar_mcig_reference.csv --angular-model isotropic --plot
 ```
 
 The command must create the declared output file in a supported ingest format.

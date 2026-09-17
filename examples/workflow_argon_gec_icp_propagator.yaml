@@ -1,0 +1,14 @@
+base_config: argon_gec_icp_propagator.yaml
+database: ../outputs/argon_gec_icp/propagator_function_eedf_mean_energy_guarded.sqlite
+e_over_n_Td: [1.0, 2.0, 3.0, 5.0, 10.0, 20.0, 30.0, 50.0, 100.0, 300.0, 1000.0, 1500.0, 2500.0, 2744.2936035]
+mixtures:
+  - Ar: 1.0
+quality:
+  mobility_rse: 0.2
+  diffusion_rse: 0.3
+  major_rate_rse: 0.5
+execution:
+  deterministic:
+    workers: 4
+    # Propagator reserves max_memory_mb plus 256 MiB process overhead.
+    global_memory_budget_mb: 2048

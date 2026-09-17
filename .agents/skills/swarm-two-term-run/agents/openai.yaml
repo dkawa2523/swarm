@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swarm Two-Term Run"
+  short_description: "Run and verify two-term swarm calculations"
+  default_prompt: "Use $swarm-two-term-run to execute and verify this repository's two-term calculation."

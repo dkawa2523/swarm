@@ -1,118 +1,203 @@
-# Argon GEC CCP: Swarm table comparison workflow
+# Argon GEC-CCP external-Swarm contract
 
-This path targets `comsol_modes/argon_gec_ccp.mph` without modifying the
-source model. It produces two solved copies when a valid COMSOL Plasma Module
-license is available:
+This document defines the current two-term, Monte Carlo, and P1 propagator
+physical inputs to the time-periodic argon GEC-CCP COMSOL model. This is a
+model-specific adapter contract. Shared COMSOL services and the
+extension path for other plasma models are defined in
+[COMSOL plasma-model adapters](comsol_model_adapters.md).
 
-1. the model's built-in Druyvesteyn closure;
-2. the same model with Swarm transport and reaction-rate lookup tables.
+The public entry points are:
 
-The local MPH contract is inspected before Java is generated. The workflow
-requires the time-periodic plasma interface `ptp`, plasma feature `pes1`,
-electron-impact reactions `eir1` through `eir3`, studies `std1` and `std2`,
-and the existing line datasets. A mismatch fails before COMSOL is launched.
+| Purpose | Two term | Monte Carlo | Propagator P1 |
+| --- | --- | --- | --- |
+| Base configuration | `examples/argon_gec_ccp_base.yaml` | `examples/argon_gec_ccp_monte_carlo_weighted_branching.yaml` | `examples/argon_gec_ccp_propagator.yaml` |
+| Sweep workflow | `examples/workflow_argon_gec_ccp_two_term.yaml` | `examples/workflow_argon_gec_ccp_monte_carlo.yaml` | `examples/workflow_argon_gec_ccp_propagator.yaml` |
+| COMSOL mapping | `comsol_modes/maps/argon_gec_ccp_two_term_function_eedf.yaml` | `comsol_modes/maps/argon_gec_ccp_monte_carlo_function_eedf_restricted_lmea.yaml` | `comsol_modes/maps/argon_gec_ccp_propagator_function_eedf.yaml` |
+| Result role | physical target | physical target after MC qualification | physical target after core and target-grid qualification |
 
-## What the source model actually assumes
+These product configurations use `schema_version: 2`, `run.solvers`, and
+their canonical ids `two_term`, `monte_carlo`, and `propagator`.
 
-The checked-in MPH contains `eedf = Druyvesteyn`, not Maxwellian. Its three
-electron-impact reactions use cross-section data and inherit that interface
-EEDF. The plasma model has a prescribed mobility path
-(`SpecifyMueOnly`), while the model solves electron density and mean electron
-energy in the time-periodic RF formulation.
+## Physics ownership
 
-For the external case, COMSOL must continue solving mean energy. Setting
-`SpecifyMeanElectronEnergy = MeanEnergyTable` would collapse the RF energy
-dynamics into a local-field prescription and is intentionally not used.
-Instead the workflow sets `SpecifyElectronDensityAndEnergy = UseLookupTables`
-and imports these quantities versus mean energy:
+The Swarm calculations are steady, spatially homogeneous DC calculations.
+COMSOL consumes their results through local mean electron energy during its RF
+time-periodic plasma solve. This is a restricted local-mean-energy closure; it
+is not an RF kinetic solve.
 
-- reduced electron mobility `muN`;
-- reduced particle diffusion `DN`;
-- reduced electron-energy mobility `mueN`
-  (`reduced_electron_energy_mobility_m2_V_s_m3`, `1/(V m s)`);
-- reduced electron-energy diffusion `DeN`
-  (`reduced_electron_energy_diffusion_m2_s_m3`, `1/(m s)`);
-- elastic, excitation, and ionization rate coefficients.
+| Quantity | Two-term target | MC target | Propagator target | COMSOL responsibility |
+| --- | --- | --- | --- | --- |
+| EEDF | Adaptive moment- and rate-controlled spreadsheet Function EEDF | Adaptive moment- and rate-controlled spreadsheet Function EEDF | Adaptive moment- and rate-controlled spreadsheet Function EEDF | Evaluate the active local-energy closure |
+| Reduced electron mobility | External two-term value | External weighted-MC value | External flux-moment value | Apply the imported value |
+| Particle diffusion | Not imported | Not imported | Unavailable | Einstein relation from imported mobility |
+| Energy mobility and diffusion | Not imported | Not imported | Unavailable | Restricted local-energy transport |
+| Elastic electron-energy loss | External solver-native moment | External direct trajectory moment | External same-operator moment | Apply as the electron-energy sink |
+| Excitation and ionization | COMSOL integrates cross sections with the Function EEDF | Rates are preintegrated from the same MC EEDF | COMSOL integrates cross sections with the Function EEDF | Apply the source-specific rate closure |
+| RF field, Ar/Ar+, walls, secondary emission | Not a Swarm output | Not a Swarm output | Not a Swarm output | Native COMSOL model |
 
-Each reaction is switched from `UseCrossSectionData` to `UseLookupTable` with
-`RateConstantForm = UseRate`. This is essential: leaving a reaction on
-cross-section mode would still let COMSOL evaluate it from the built-in EEDF
-and would mix the two closures.
+All three solvers use one COMSOL Spreadsheet serialization. Both tensor axes
+are adaptive: every actual solver anchor is retained on the mean-energy axis,
+and additional C1 rows are inserted only where COMSOL's linear interpolation
+needs them. Every materialized row preserves normalization and mean energy.
+Refinement continues until the EEDF total-variation error and every available
+active cross-section-rate integral meet the declared projection budget. Rate
+importance floors belong only to the error norms; they never change an EEDF
+or rate value, and exact zeros remain zero.
 
-`eedf.csv` and `eedf_f0.csv` are exported for diagnostics. The latter uses
-the COMSOL EEPF convention `f0 = EEDF/sqrt(energy)`. Neither file is imposed
-as a spatially uniform RF EEDF. A steady DC swarm EEDF is not, in general,
-the phase-resolved EEDF of a 13.56 MHz CCP.
+The qualified MC production route imports inelastic rate tables computed from
+the same EEDF and argon cross sections. It does not substitute two-term
+coefficients or add an artificial rate floor. The P1 propagator is projected
+from its finite-volume energy cells through the same source-independent
+adaptive representation. It otherwise uses the same restricted
+local-mean-energy closure as the two-term target,
+with `swarm_mobility_einstein` and `external_solver_native` elastic loss. It
+does not supply particle or energy diffusion. Its deterministic P0/P1 core
+qualification passes, including low-field, medium--fine, mixture, energy-
+ceiling, and weak-transfer gates. A separate target artifact binds the
+300 x 48 production grid to independent 600 x 72 checks at 3000, 3500, and
+4000 Td; this evidence is mandatory for the GEC preflight. The mapping
+declares a `physical_target`, but a run is accepted only after its
+Function-EEDF, operating-support, transport, conservation, and saved-model
+audits pass. That target is limited to the explicit restricted
+local-mean-energy closure; it does not imply P2, nonlocal-RF, or unavailable
+diffusion claims.
 
-## Reproducible commands
+Ordinary integral cross sections do not define differential scattering. The
+current MC qualification is explicitly limited to DC, zero magnetic field,
+isotropic scattering, no electron-electron collisions, equal ionization energy
+sharing, and zero high-energy cross-section extrapolation.
 
-From the repository root:
+## Monte Carlo work budget
+
+`workflow_argon_gec_ccp_monte_carlo.yaml` contains the complete 15-anchor plan
+from 1 to 4000 Td. It uses four independent replicas and 16 workers. Low-field
+anchors use small ensembles and long relaxation windows; high-field anchors
+use larger ensembles and shorter correlation lags. A separate bounded tail
+phase activates only where excitation or ionization statistics require it.
+
+The workflow enforces both per-replica and total particle-barrier ceilings. A
+failed statistical gate may produce one bounded follow-up decision through
+`decide-mc` and `advance-mc`; the code cannot extend work indefinitely. The
+canonical workflow does not name a `reuse_database`, so its result does not
+silently depend on a prior campaign.
+
+## Execution sequence
+
+For two term:
 
 ```powershell
-swarm-workflow sweep examples\workflow_argon_gec_ccp.yaml
-swarm-workflow build-tables outputs\argon_gec_ccp\swarm_schema_v2.sqlite `
-  --output outputs\argon_gec_ccp\tables_schema_v2 --source two_term
-swarm-workflow export-comsol outputs\argon_gec_ccp\tables_schema_v2 `
-  --output outputs\argon_gec_ccp\comsol_bundle_schema_v2
-swarm-workflow run-gec-ccp comsol_modes\maps\argon_gec_ccp_swarm.yaml `
-  --bundle outputs\argon_gec_ccp\comsol_bundle_schema_v2\mixture_0000 --dry-run
+swarm-workflow sweep examples\workflow_argon_gec_ccp_two_term.yaml
+swarm-workflow build-tables outputs\argon_gec_ccp\two_term_function_eedf_restricted_lmea.sqlite --output outputs\argon_gec_ccp\two_term_function_eedf_restricted_lmea_tables --source two_term
+swarm-workflow export-comsol outputs\argon_gec_ccp\two_term_function_eedf_restricted_lmea_tables --output outputs\argon_gec_ccp\two_term_function_eedf_restricted_lmea_bundle
+swarm-workflow run-gec-ccp comsol_modes\maps\argon_gec_ccp_two_term_function_eedf.yaml --bundle outputs\argon_gec_ccp\two_term_function_eedf_restricted_lmea_bundle\mixture_0000
 ```
 
-The configured sweep contains 28 points from 0.05 to 10000 Td. The
-time-periodic solve uses power continuation at 0.1, 0.25, 0.5, and 1 W,
-then runs the Time Periodic to Time Dependent conversion study.
-
-To execute and plot:
+For Monte Carlo:
 
 ```powershell
-swarm-workflow run-gec-ccp comsol_modes\maps\argon_gec_ccp_swarm.yaml `
-  --bundle outputs\argon_gec_ccp\comsol_bundle_schema_v2\mixture_0000 `
-  --comsol "C:\Program Files\COMSOL\COMSOL64\Multiphysics\bin\win64\comsol.exe"
-swarm-workflow plot-gec-ccp `
-  --bundle outputs\argon_gec_ccp\comsol_bundle_schema_v2\mixture_0000 `
-  --comsol-results outputs\argon_gec_ccp\comsol `
-  --output outputs\argon_gec_ccp\plots
+swarm-workflow sweep examples\workflow_argon_gec_ccp_monte_carlo.yaml
+swarm-workflow build-tables outputs\argon_gec_ccp\monte_carlo_function_eedf_restricted_lmea.sqlite --output outputs\argon_gec_ccp\monte_carlo_function_eedf_restricted_lmea_tables --source monte_carlo --mc-qualification-profile function_eedf_restricted_lmea
+swarm-workflow decide-mc --mc-tables outputs\argon_gec_ccp\monte_carlo_function_eedf_restricted_lmea_tables\mixture_0000 --two-term-tables outputs\argon_gec_ccp\two_term_function_eedf_restricted_lmea_tables\mixture_0000 --attempt 1 --output outputs\argon_gec_ccp\mc_solver_selection.json
+swarm-workflow export-comsol outputs\argon_gec_ccp\monte_carlo_function_eedf_restricted_lmea_tables --selection outputs\argon_gec_ccp\mc_solver_selection.json --output outputs\argon_gec_ccp\monte_carlo_function_eedf_restricted_lmea_bundle
+swarm-workflow run-gec-ccp comsol_modes\maps\argon_gec_ccp_monte_carlo_function_eedf_restricted_lmea.yaml --bundle outputs\argon_gec_ccp\monte_carlo_function_eedf_restricted_lmea_bundle\mixture_0000
 ```
 
-If a coarse transport-continuation step fails after saving a converged external
-MPH, rerun `run-gec-ccp` with `--resume-external`. This skips the baseline,
-loads the last converged external MPH, skips already saved coefficient stages,
-advances electron mobility, energy mobility, energy diffusion, and electron
-diffusion one at a time, and then activates the elastic, excitation, and
-ionization rate tables sequentially. The external case enables COMSOL's source and
-reaction-source stabilization for the logarithmic plasma formulation. Its
-automatic damped-Newton solver permits damping down to `1e-8` and disables the
-otherwise destabilizing minimum-step recovery jump. The built-in Druyvesteyn
-baseline remains unchanged.
+For the bounded propagator target:
 
-The plot command always produces a Swarm closure overview. It produces axial
-profile and electrode-waveform comparison plots only when both COMSOL result
-sets exist; missing COMSOL outputs are recorded as skipped and never replaced
-with synthetic data.
+```powershell
+swarm-workflow sweep examples\workflow_argon_gec_ccp_propagator.yaml
+py -3 tools\qualify_propagator_target.py `
+  --target argon_gec_ccp_restricted_local_mean_energy `
+  --fields-Td 3000 3500 4000 `
+  --operating-bracket-Td 3000 3500 `
+  --table-support-cap-Td 4000 `
+  --medium-grid 300 48 `
+  --fine-grid 600 72 `
+  --mixture-id 0 `
+  --fine-max-memory-mb 1024 `
+  --database outputs\argon_gec_ccp\propagator_function_eedf_restricted_lmea.sqlite `
+  --config examples\argon_gec_ccp_propagator.yaml `
+  --core-qualification docs\dev\results\propagator_p1_deterministic_qualification_20260908.json `
+  --workers 3 `
+  --memory-budget-mb 3072 `
+  --output docs\dev\results\propagator_gec_ccp_target_qualification_20260915.json
+swarm-workflow build-tables outputs\argon_gec_ccp\propagator_function_eedf_restricted_lmea.sqlite --output outputs\argon_gec_ccp\propagator_function_eedf_restricted_lmea_tables --source propagator --solver-qualification docs\dev\results\propagator_p1_deterministic_qualification_20260908.json --target-qualification docs\dev\results\propagator_gec_ccp_target_qualification_20260915.json
+swarm-workflow export-comsol outputs\argon_gec_ccp\propagator_function_eedf_restricted_lmea_tables --output outputs\argon_gec_ccp\propagator_function_eedf_restricted_lmea_bundle
+swarm-workflow run-gec-ccp comsol_modes\maps\argon_gec_ccp_propagator_function_eedf.yaml --bundle outputs\argon_gec_ccp\propagator_function_eedf_restricted_lmea_bundle\mixture_0000
+```
 
-## Comparison and acceptance checks
+The generic qualification CLI writes
+`swarm.propagator_target_qualification.v1`. The GEC-CCP adapter then validates
+that artifact against its own explicit fields, bracket, support cap, mixture,
+grid pair, and refinement limits during preflight.
 
-Keep geometry, mesh, wall coefficients, secondary emission, RF frequency,
-power-control/self-bias settings, tolerances, and initial conditions identical.
-Compare at minimum:
+Add `--dry-run` to `run-gec-ccp` to inspect the MPH contract, validate the
+bundle, and materialize Java without starting COMSOL.
 
-- period-averaged axial and radial electron density;
-- mean electron energy, potential, ionization source, and absorbed power;
-- powered-electrode voltage and current over an RF period;
-- convergence history, periodicity residual, and runtime;
-- whether the solved mean energy remains inside the 0.576 to 273.5 eV table
-  range produced by the current sweep.
+## COMSOL run behavior
 
-Do not treat the built-in Druyvesteyn result as experimental truth. It is the
-controlled reference for isolating closure changes. A stronger validation
-needs an external Boltzmann solver such as BOLSIG+ for the same cross sections
-and, for the RF nonlocal regime, PIC/MCC or measured GEC data. Ordinary
-integral cross sections also do not establish an exact angular-scattering
-model, so two-term versus multi-term/Monte Carlo comparisons must state their
-angular closure.
+A normal physical-target run performs these operations:
 
-COMSOL background:
+1. Validate the schema, bundle hashes, solver-selection record, MPH contract,
+   closure support, and source-specific statistical evidence.
+2. Apply the external closure to a separate MPH copy.
+3. Audit the active Function-EEDF binding when the closure uses one.
+4. Run the external time-periodic study.
+5. Export the eleven canonical result tables under `swarm_tables/`.
+6. Audit conservation, transport, Function-EEDF behavior, support, MC rate
+   censoring, and saved-model provenance.
 
-- [GEC CCP application model](https://doc.comsol.com/6.4/doc/com.comsol.help.models.plasma.argon_gec_ccp/argon_gec_ccp.html)
-- [Electron energy distribution functions](https://doc.comsol.com/6.4/doc/com.comsol.help.plasma/plasma_ug_boltzmann.06.09.html)
-- [Time-periodic EEDF formulation](https://doc.comsol.com/6.3/doc/com.comsol.help.plasma/plasma_ug_plasma.09.08.html)
+The COMSOL built-in Druyvesteyn calculation is not required to accept an
+external target and is skipped by default. This removes one complete periodic
+solve and eleven duplicate CSV exports from every production execution. To run
+it as an explicit comparison, copy a canonical map and add:
+
+```yaml
+model:
+  baseline_output_mph: ../work/reference.mph
+run:
+  include_builtin_reference: true
+  period_dataset: dset1
+  baseline_waveform_dataset: dset2
+```
+
+That opt-in run adds `gec_baseline_run`, `gec_baseline_export`, and the
+`builtin_druyvesteyn/` result directory. Cross-solver two-term versus MC plots
+compare their accepted external results directly and do not recompute this
+reference.
+
+## Canonical outputs and acceptance
+
+The run directory contains:
+
+- `gec_ccp_plan.json`, with immutable input and generated-Java hashes;
+- `swarm_tables/`, with the eleven COMSOL CSV exports;
+- source-specific audit JSON/CSV files;
+- `conservation_audit.json` and any applicable transport/support audits;
+- `gec_ccp_run_status.json`, the final acceptance record.
+
+The canonical retained run consists of that result directory, its output MPH,
+and the four matching apply, Function-EEDF audit, external-run, and export log
+directories. Timestamped failed attempts and superseded preflight material are
+diagnostic scratch data; after their cause is represented by a regression test
+or maintained contract, they are not part of the product result.
+
+The declared closure is accepted only when the solve completed and every
+applicable numerical and physics gate passed. Its terminal record then contains
+`quality_accepted_for_declared_closure: true`. A result is promoted separately
+to `physical_target_accepted: true` only when the mapping declares a physical
+target and supplies every required physical closure. A successful COMSOL
+process exit alone is insufficient for either decision.
+
+A `diagnostic_control` run has a separate terminal status and is never
+promoted to `physical_target_accepted: true`. Its purpose is to verify the
+input mapping and inspect solver sensitivity without presenting a restricted
+local-mean-energy closure as full physical validation.
+
+## Scope limits
+
+The current GEC-CCP target does not provide a full kinetic gradient-response
+closure, nonlocal RF kinetics, arbitrary crossed electric and magnetic fields,
+or state-resolved surface evolution. The wall model remains the shared native
+COMSOL drift-diffusion boundary closure. See `docs/physics_limitations.md` for
+the wider solver capability limits.

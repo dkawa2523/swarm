@@ -100,6 +100,12 @@ def _m1_from_cross_sections(
     if np.any(total <= 0.0):
         raise ValueError("sigma_total must be positive")
     m1 = 1.0 - momentum / total
+    tolerance = 1.0e-12
+    if np.any(m1 < -1.0 - tolerance) or np.any(m1 > 1.0 + tolerance):
+        raise ValueError(
+            "sigma_total and sigma_momentum imply a first angular moment "
+            "outside [-1, 1]"
+        )
     m1 = np.clip(m1, -1.0, 1.0)
     if not np.all(np.isfinite(m1)):
         raise ValueError("computed m1 must be finite")
@@ -151,6 +157,15 @@ def _inverse_langevin(target: float) -> float:
         else:
             hi = mid
     return sign * 0.5 * (lo + hi)
+
+
+def inverse_langevin(target: float) -> float:
+    """Strict public evaluation used by deterministic transition kernels."""
+
+    value = float(target)
+    if not np.isfinite(value) or value <= -1.0 or value >= 1.0:
+        raise ValueError("inverse Langevin target must be finite and inside (-1, 1)")
+    return _inverse_langevin(value)
 
 
 def _sample_maxent_mu(

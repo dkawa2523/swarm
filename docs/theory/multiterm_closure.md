@@ -1,19 +1,40 @@
-# Multi-Term Closure Notes
+# Multi-Term PN Model
 
-The runnable ordinary-cross-section multi-term method is
-`pn_closure_direct`. It uses angular closure assumptions because integral
-cross sections do not determine a full
-differential scattering distribution. The direct path uses the `lmax: 1`
-SG-reduction gate and a limited higher-l angular-closure block solve for B=0,
-DC, axisymmetric m=0 cases.
+The `multi_term` solver expands the homogeneous, axisymmetric electron
+distribution in Legendre coefficients `F_l(epsilon)`, `l=0..lmax`, and solves
+all coefficients in one stationary sparse eigenproblem. Electric acceleration
+couples every neighboring pair in both directions (`l-1 -> l` and
+`l+1 -> l`). It is not a two-term energy-diffusion solve with higher moments
+added afterward.
 
-`momentum_power` derives the first Legendre moment from total and
-momentum-transfer cross sections and closes higher moments with a power law.
-`maxent_p1` uses the same first moment and computes higher moments from a
-maximum-entropy P1 distribution.
+Even moments are stored at energy-cell centers and odd moments on internal
+cell faces. This staggered finite-volume layout gives a conservative `l=0`
+field divergence and avoids a collocated odd-even derivative mode. Odd moments
+vanish at the lower and upper energy boundaries. The temporal growth
+eigenvalue acts on every PN equation. A run is rejected unless shape,
+eigenvalue, and the residual of the complete PN system converge.
 
-`pn_dcs` consumes normalized Legendre moments from a table and therefore does
-not use ordinary-XS closure metadata. It runs the direct PN block with
-`angular_moment_source=moment_table`; `exact_dcs_based=true` is reserved for
-tables whose provenance is `dcs_derived`. Raw angle-resolved DCS parsing remains
-roadmap work.
+The reported drift is the velocity moment of the solved `F1`. Particle
+diffusion remains an `F0` gradient reconstruction, so the transport definition
+is `pn_f1_flux_drift_f0_gradient_diffusion`.
+
+## Angular input
+
+`pn_closure_direct` uses ordinary integral cross sections and therefore needs
+an explicit angular closure:
+
+- `isotropic` sets higher elastic Legendre moments to zero.
+- `momentum_power` derives `m1` from total and momentum-transfer integrals and
+  closes higher moments with powers of `m1`.
+- `maxent_p1` derives the same `m1` and obtains higher moments from its
+  maximum-entropy P1 distribution.
+
+These are angular-closure PN calculations, not exact differential-cross-
+section calculations. Their results record
+`ordinary_integral_xs_closure=true` and `exact_dcs_based=false`.
+
+`pn_dcs` accepts only `physics.angular_scattering.model: moment_table` and uses
+the supplied normalized Legendre moments in every angular damping block. It is
+marked `exact_dcs_based=true` only when the table provenance is
+`dcs_derived`; a model-derived table retains `exact_dcs_based=false`. Raw DCS
+parsing is not implemented.

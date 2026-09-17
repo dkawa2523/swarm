@@ -45,7 +45,7 @@ def test_tail_probability_calculation() -> None:
 def test_rate_tail_fraction_calculation() -> None:
     energy = np.array([0.0, 1.0, 2.0, 3.0])
     eedf = np.ones_like(energy)
-    process = _constant_process()
+    process = _constant_process(ProcessType.MOMENTUM)
     fraction = rate_tail_fraction(energy, eedf, process, 2.0, np.ones_like(energy))
     expected = (np.sqrt(2.0) + np.sqrt(3.0)) / (
         np.sqrt(1.0) + np.sqrt(2.0) + np.sqrt(3.0)
@@ -63,6 +63,28 @@ def test_tail_threshold_fallback_without_reaction_threshold(tmp_path: Path) -> N
     data["physics"]["energy_grid_policy"]["tail_threshold_eV"] = None
     cfg = load_config(write_config(tmp_path, data, name="default_tail.yaml"))
     assert resolve_tail_threshold_eV(cfg, xs) == pytest.approx(20.0)
+
+
+def test_implicit_tail_threshold_uses_only_active_mixture_species(
+    tmp_path: Path,
+) -> None:
+    data = base_product_config(tmp_path)
+    data["physics"]["energy_grid_policy"]["tail_threshold_eV"] = None
+    cfg = load_config(write_config(tmp_path, data))
+    active = _constant_process()
+    active.threshold_eV = 12.0
+    inactive = CrossSectionProcess(
+        species="Cl2",
+        process="inactive ionization",
+        process_type=ProcessType.IONIZATION,
+        threshold_eV=43.5,
+        energy_eV=np.array([0.0, 50.0]),
+        cross_section_m2=np.ones(2),
+    )
+
+    assert resolve_tail_threshold_eV(
+        cfg, CrossSectionSet([active, inactive])
+    ) == pytest.approx(12.0)
 
 
 def test_tail_status_insufficient_for_cutoff_rate_contribution(tmp_path: Path) -> None:

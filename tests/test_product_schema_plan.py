@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 
 import pytest
@@ -9,13 +9,12 @@ from electron_swarm import load_config, run
 from electron_swarm.core.capabilities import (
     SolverCapabilities,
     SupportLevel,
-    get_solver_capabilities,
 )
-from electron_swarm.core.config import CANONICAL_SOLVER_IDS
 from electron_swarm.core.result_metadata import PRODUCT_CASE_METADATA_KEYS
+from electron_swarm.core.solver_ids import CANONICAL_SOLVER_IDS
 from electron_swarm.core.solver_configs import build_internal_solver_configs
+from electron_swarm.core.solver_registry import SOLVER_DESCRIPTORS
 from electron_swarm.orchestration.plan import build_solve_plan, solver_plan_metadata
-import electron_swarm.orchestration.plan as plan_module
 
 from product_helpers import base_product_config, write_config, write_moment_table
 
@@ -26,6 +25,8 @@ def _plan_row(item: object) -> dict[str, object]:
 
 def test_schema_v2_valid_config_and_canonical_solver_ids(tmp_path: Path) -> None:
     data = base_product_config(tmp_path, ["two_term", "multi_term", "monte_carlo"])
+    data["solvers"]["two_term"]["nonconservative_model"] = "ignore"
+    data["solvers"]["two_term"]["min_momentum_cross_section_m2"] = 2.0e-24
     cfg = load_config(write_config(tmp_path, data))
     assert cfg.schema_version == 2
     assert [item.id for item in cfg.run.solvers] == [
@@ -34,10 +35,28 @@ def test_schema_v2_valid_config_and_canonical_solver_ids(tmp_path: Path) -> None
         "monte_carlo",
     ]
     internal = build_internal_solver_configs(cfg.solvers, cfg.physics)
-    assert internal.two_term.backend
-    assert internal.multi_term.product_method == "pn_closure_direct"
+    assert internal.multi_term.method == "pn_closure_direct"
+    assert internal.two_term.nonconservative_model == "ignore"
+    assert internal.multi_term.nonconservative_model == "growth"
+    assert internal.two_term.min_momentum_cross_section_m2 == 2.0e-24
+    assert internal.multi_term.min_momentum_cross_section_m2 == 1.0e-24
+    assert internal.multi_term.convergence is not internal.two_term.convergence
+    assert (
+        internal.multi_term.energy_grid.refine
+        is not internal.two_term.energy_grid.refine
+    )
     assert cfg.solvers.monte_carlo.population_model == "fixed_particle_single_daughter"
     assert cfg.feature_policy.degraded == "record"
+
+
+def test_solve_plan_rejects_duplicate_run_solver_ids(tmp_path: Path) -> None:
+    data = base_product_config(tmp_path, ["two_term", "propagator"])
+    data["run"]["solvers"].append({"id": "two_term", "enabled": False})
+    with pytest.raises(
+        ValueError,
+        match="duplicate solver ids",
+    ):
+        load_config(write_config(tmp_path, data))
 
 
 def test_monte_carlo_rejects_unknown_product_fields(tmp_path: Path) -> None:
@@ -60,16 +79,78 @@ def test_monte_carlo_internal_schema(tmp_path: Path) -> None:
     assert cfg.solvers.monte_carlo.seed == 123
     assert cfg.solvers.monte_carlo.warmup_collisions == 2
     assert internal.monte_carlo.warmup_collisions == 2
+    assert cfg.solvers.monte_carlo.tail_max_collisions is None
+    assert internal.monte_carlo.tail_max_collisions is None
     assert cfg.solvers.monte_carlo.population_model == "fixed_particle_single_daughter"
+    assert cfg.solvers.monte_carlo.transport_correlation_lag_barriers == 64
+    assert internal.monte_carlo.transport_correlation_lag_barriers == 64
+
+    data["solvers"]["monte_carlo"] = {"seed": -1}
+    with pytest.raises(ValueError, match="seed.*nonnegative"):
+        load_config(write_config(tmp_path, data, name="negative_seed.yaml"))
 
     data["solvers"]["monte_carlo"] = {
         "population_model": "weighted_branching",
         "particles": 8,
+        "tail_max_collisions": 2048,
+        "tail_rate_rse_trigger": 0.1,
+        "transport_correlation_lag_barriers": 256,
+        "transport_estimator": "paired_field_parity",
+        "numeric_kernel": "python",
     }
-    cfg = load_config(write_config(tmp_path, data))
+    cfg = load_config(write_config(tmp_path, data, name="weighted.yaml"))
     assert cfg.solvers.monte_carlo.population_model == "weighted_branching"
     internal = build_internal_solver_configs(cfg.solvers, cfg.physics)
     assert internal.monte_carlo.population_model == "weighted_branching"
+    assert internal.monte_carlo.transport_correlation_lag_barriers == 256
+    assert cfg.solvers.monte_carlo.transport_estimator == "paired_field_parity"
+    assert internal.monte_carlo.transport_estimator == "paired_field_parity"
+    assert cfg.solvers.monte_carlo.tail_max_collisions == 2048
+    assert internal.monte_carlo.tail_max_collisions == 2048
+    assert cfg.solvers.monte_carlo.tail_rate_rse_trigger == pytest.approx(0.1)
+    assert internal.monte_carlo.numeric_kernel == "python"
+
+    data["solvers"]["monte_carlo"] = {"tail_max_collisions": None}
+    cfg = load_config(write_config(tmp_path, data, name="no_tail.yaml"))
+    assert cfg.solvers.monte_carlo.tail_max_collisions is None
+
+    data["solvers"]["monte_carlo"] = {"collision_clock": "global"}
+    with pytest.raises(ValueError, match="Unsupported solvers.monte_carlo fields"):
+        load_config(write_config(tmp_path, data, name="removed_clock.yaml"))
+
+    for value in ("jit", "gpu"):
+        data["solvers"]["monte_carlo"] = {
+            "population_model": "weighted_branching",
+            "numeric_kernel": value,
+        }
+        with pytest.raises(ValueError, match="numeric_kernel"):
+            load_config(
+                write_config(tmp_path, data, name=f"invalid_kernel_{value}.yaml")
+            )
+
+    data["solvers"]["monte_carlo"] = {"transport_estimator": "low_field_only"}
+    with pytest.raises(ValueError, match="transport_estimator"):
+        load_config(
+            write_config(tmp_path, data, name="invalid_transport_estimator.yaml")
+        )
+
+    for value in (0, -1, True, 1.5):
+        data["solvers"]["monte_carlo"] = {
+            "population_model": "weighted_branching",
+            "tail_max_collisions": value,
+        }
+        with pytest.raises(ValueError, match="tail_max_collisions"):
+            load_config(write_config(tmp_path, data, name=f"invalid_tail_{value}.yaml"))
+
+    for value in (0.0, 1.1, True, "0.1"):
+        data["solvers"]["monte_carlo"] = {
+            "population_model": "weighted_branching",
+            "tail_rate_rse_trigger": value,
+        }
+        with pytest.raises(ValueError, match="tail_rate_rse_trigger"):
+            load_config(
+                write_config(tmp_path, data, name=f"invalid_tail_rse_{value}.yaml")
+            )
 
     data["solvers"]["monte_carlo"] = {
         "population_model": "branching_weighted",
@@ -96,6 +177,55 @@ def test_monte_carlo_internal_schema(tmp_path: Path) -> None:
     }
     with pytest.raises(ValueError, match="warmup_collisions"):
         load_config(write_config(tmp_path, data))
+
+    for lag in (2, 12):
+        data["solvers"]["monte_carlo"] = {
+            "population_model": "weighted_branching",
+            "transport_correlation_lag_barriers": lag,
+        }
+        with pytest.raises(ValueError, match="power of two"):
+            load_config(write_config(tmp_path, data, name=f"invalid_lag_{lag}.yaml"))
+
+    data["solvers"]["monte_carlo"] = {
+        "transport_correlation_lag_barriers": 64,
+    }
+    cfg = load_config(write_config(tmp_path, data, name="fixed_default_lag.yaml"))
+    assert cfg.solvers.monte_carlo.transport_correlation_lag_barriers == 64
+
+    data["solvers"]["monte_carlo"] = {
+        "transport_correlation_lag_barriers": 128,
+    }
+    with pytest.raises(ValueError, match="weighted_branching"):
+        load_config(write_config(tmp_path, data, name="fixed_nondefault_lag.yaml"))
+
+
+def test_monte_carlo_tail_plan_uses_only_explicit_mc_budget(tmp_path: Path) -> None:
+    data = base_product_config(tmp_path, ["monte_carlo"])
+    data["physics"]["energy_grid_policy"]["adaptive"] = True
+    data["solvers"]["monte_carlo"] = {"seed": 7}
+    [disabled] = build_solve_plan(load_config(write_config(tmp_path, data)))
+
+    tail = disabled.feature_treatments["tail_refinement"]
+    assert tail.requested is False
+    assert tail.treatment == "disabled"
+    assert _plan_row(disabled)["effective_tail_refinement"] == "disabled"
+    assert disabled.degraded is False
+
+    data["physics"]["energy_grid_policy"]["adaptive"] = False
+    data["solvers"]["monte_carlo"] = {
+        "population_model": "weighted_branching",
+        "seed": 7,
+        "tail_max_collisions": 8,
+    }
+    [configured] = build_solve_plan(
+        load_config(write_config(tmp_path, data, name="mc_tail.yaml"))
+    )
+
+    tail = configured.feature_treatments["tail_refinement"]
+    assert tail.requested is True
+    assert tail.treatment == "configured"
+    assert _plan_row(configured)["effective_tail_refinement"] == "configured"
+    assert configured.degraded is True
 
 
 def test_two_term_product_backend_is_native_sg_only(tmp_path: Path) -> None:
@@ -236,16 +366,22 @@ def test_tail_metrics_schema_validation(tmp_path: Path) -> None:
 
     data["physics"]["energy_grid_policy"]["tail_metrics"] = False
     data["physics"]["energy_grid_policy"]["tail_metric"] = False
-    with pytest.raises(ValueError, match="Unsupported physics.energy_grid_policy fields"):
+    with pytest.raises(
+        ValueError, match="Unsupported physics.energy_grid_policy fields"
+    ):
         load_config(write_config(tmp_path, data))
 
     data = base_product_config(tmp_path)
     data["physics"]["energy_grid_policy"]["tail_rate_fraction_target"] = 1.0e-3
-    with pytest.raises(ValueError, match="Unsupported physics.energy_grid_policy fields"):
+    with pytest.raises(
+        ValueError, match="Unsupported physics.energy_grid_policy fields"
+    ):
         load_config(write_config(tmp_path, data))
 
 
-def test_schema_v2_rejects_non_boolean_and_nested_unknown_fields(tmp_path: Path) -> None:
+def test_schema_v2_rejects_non_boolean_and_nested_unknown_fields(
+    tmp_path: Path,
+) -> None:
     data = base_product_config(tmp_path)
     data["feature_policy"]["allow_unsupported_fallback"] = "false"
     with pytest.raises(ValueError, match="allow_unsupported_fallback"):
@@ -384,14 +520,16 @@ def test_multi_term_product_method_validation(tmp_path: Path) -> None:
     [case] = result.cases
     assert case.metadata["solver_method"] == "pn_closure_direct"
     assert case.metadata["lmax"] == 2
-    assert case.metadata["transport_definition"] == "f0_gradient_reconstruction"
+    assert case.metadata["transport_definition"] == (
+        "pn_f1_flux_drift_f0_gradient_diffusion"
+    )
     assert set(case.metadata) <= PRODUCT_CASE_METADATA_KEYS
 
     data = base_product_config(tmp_path, ["multi_term"])
     data["solvers"]["multi_term"]["method"] = "pn_dcs"
     cfg = load_config(write_config(tmp_path, data))
     assert cfg.solvers.multi_term.method == "pn_dcs"
-    with pytest.raises(NotImplementedError, match="model=moment_table"):
+    with pytest.raises(ValueError, match="requires angular model 'moment_table'"):
         run(cfg, write=False)
 
 
@@ -402,14 +540,71 @@ def test_capability_matrix_is_canonical_and_minimal() -> None:
         "ionization_source",
         "electron_electron",
         "magnetic_field",
+        "rf_field",
         "tail_refinement",
     }
     for solver in CANONICAL_SOLVER_IDS:
-        caps = get_solver_capabilities(solver)
+        caps = SOLVER_DESCRIPTORS[solver].capabilities
         assert set(asdict(caps)) == expected
-        assert all(isinstance(value, SupportLevel) for value in asdict(caps).values() if value != solver)
-    assert get_solver_capabilities("two_term").electron_electron == SupportLevel.APPROXIMATE
-    assert get_solver_capabilities("multi_term").electron_electron == SupportLevel.APPROXIMATE
+        assert all(
+            isinstance(value, SupportLevel)
+            for value in asdict(caps).values()
+            if value != solver
+        )
+    assert (
+        SOLVER_DESCRIPTORS["two_term"].capabilities.electron_electron
+        == SupportLevel.APPROXIMATE
+    )
+    assert (
+        SOLVER_DESCRIPTORS["multi_term"].capabilities.electron_electron
+        == SupportLevel.APPROXIMATE
+    )
+    assert (
+        SOLVER_DESCRIPTORS["two_term"].capabilities.rf_field == SupportLevel.APPROXIMATE
+    )
+    assert all(
+        SOLVER_DESCRIPTORS[solver].capabilities.angular_scattering == SupportLevel.EXACT
+        for solver in CANONICAL_SOLVER_IDS
+    )
+
+
+def test_time_dependent_field_schema_and_plan_are_explicit(tmp_path: Path) -> None:
+    data = base_product_config(tmp_path, ["two_term"])
+    data["physics"]["field"] = {
+        "type": "time_dependent",
+        "magnetic_field": {
+            "enabled": False,
+            "B_T": 0.0,
+            "angle_EB_deg": 0.0,
+        },
+        "time_dependent": {
+            "waveform": "sinusoidal",
+            "frequency_Hz": 13.56e6,
+            "amplitude_definition": "rms",
+            "momentum_response": "instantaneous",
+            "phase_steps": 8,
+            "max_periods": 4,
+            "periodic_tolerance": 0.5,
+        },
+    }
+    cfg = load_config(write_config(tmp_path, data))
+    assert cfg.physics.field.time_dependent.frequency_Hz == pytest.approx(13.56e6)
+    [item] = build_solve_plan(cfg)
+    assert item.runnable
+    assert item.degraded
+    assert item.treatment("rf_field") == (
+        "time_periodic_f0:instantaneous_f1:sinusoidal_rms"
+    )
+
+    missing_frequency = base_product_config(tmp_path, ["two_term"])
+    missing_frequency["physics"]["field"]["type"] = "time_dependent"
+    with pytest.raises(ValueError, match="frequency_Hz"):
+        load_config(write_config(tmp_path, missing_frequency, "missing_frequency.yaml"))
+
+    high_frequency = base_product_config(tmp_path, ["two_term"])
+    high_frequency["physics"]["field"]["type"] = "rf"
+    with pytest.raises(ValueError, match="rf field"):
+        build_solve_plan(load_config(write_config(tmp_path, high_frequency, "hf.yaml")))
 
 
 def test_solver_plan_and_unsupported_feature_policy(tmp_path: Path) -> None:
@@ -472,6 +667,32 @@ def test_magnetic_policy_skips_unsupported_pn_but_runs_internal_mc(
     )
 
 
+def test_zero_magnetic_field_is_not_a_requested_feature(tmp_path: Path) -> None:
+    disabled_data = base_product_config(tmp_path, ["monte_carlo"])
+    disabled_cfg = load_config(
+        write_config(tmp_path, disabled_data, "mc_magnetic_disabled.yaml")
+    )
+    [disabled_item] = build_solve_plan(disabled_cfg)
+
+    data = base_product_config(tmp_path, ["monte_carlo"])
+    data["physics"]["field"]["magnetic_field"] = {
+        "enabled": True,
+        "B_T": 0.0,
+        "angle_EB_deg": 90.0,
+    }
+    cfg = load_config(write_config(tmp_path, data))
+
+    [item] = build_solve_plan(cfg)
+
+    magnetic_field = item.feature_treatments["magnetic_field"]
+    assert magnetic_field.requested is False
+    assert magnetic_field.treatment == "none"
+    assert item.runnable
+    assert item.degraded == disabled_item.degraded
+    assert item.warnings == disabled_item.warnings
+    assert _plan_row(item)["effective_magnetic_field"] == "none"
+
+
 def test_magnetic_field_schema_validation(tmp_path: Path) -> None:
     data = base_product_config(tmp_path)
     data["physics"]["field"]["magnetic_field"]["B_T"] = -0.1
@@ -504,12 +725,15 @@ def test_finite_k_is_schema_validated_and_policy_handled(tmp_path: Path) -> None
     cfg = load_config(write_config(tmp_path, data))
     plan = build_solve_plan(cfg)
     assert all(item.skipped for item in plan)
-    assert {
-        row["effective_finite_k"] for row in solver_plan_metadata(plan)
-    } == {"unsupported"}
+    assert {row["effective_finite_k"] for row in solver_plan_metadata(plan)} == {
+        "unsupported"
+    }
     result = run(cfg, write=False)
     assert result.cases == []
-    assert all(row["effective_finite_k"] == "unsupported" for row in result.metadata["solver_plan"])
+    assert all(
+        row["effective_finite_k"] == "unsupported"
+        for row in result.metadata["solver_plan"]
+    )
 
     data["feature_policy"]["unsupported"] = "approximate"
     with pytest.raises(ValueError, match="feature_policy.unsupported"):
@@ -527,10 +751,38 @@ def test_finite_k_requires_positive_finite_wavenumber(
         load_config(write_config(tmp_path, data))
 
 
-def test_degraded_policy_applies_to_angular_and_tail_features(tmp_path: Path) -> None:
+def test_selected_angular_closure_records_fidelity_without_degradation(
+    tmp_path: Path,
+) -> None:
     data = base_product_config(tmp_path, ["multi_term"])
+    data["physics"]["energy_grid_policy"]["adaptive"] = False
     data["feature_policy"]["degraded"] = "fail"
-    with pytest.raises(ValueError, match="angular_scattering"):
+    [item] = build_solve_plan(load_config(write_config(tmp_path, data)))
+    row = _plan_row(item)
+    assert item.runnable
+    assert not item.degraded
+    assert row["angular_scattering_support"] == "exact"
+    assert row["angular_scattering_fidelity"] == "integral_xs_closure"
+    assert row["angular_scattering_assumption"] == "isotropic:zero"
+    assert row["effective_angular_scattering"] == (
+        "same_as_physics:isotropic:pn_closure_direct"
+    )
+
+
+def test_two_term_plan_rejects_unconsumed_moment_table(tmp_path: Path) -> None:
+    table = write_moment_table(tmp_path)
+    data = base_product_config(tmp_path, ["two_term"])
+    data["physics"]["angular_scattering"] = {
+        "model": "moment_table",
+        "moment_table": {
+            "path": table.as_posix(),
+            "format": "normalized_legendre_moments",
+            "provenance": "dcs_derived",
+            "extrapolation": "error",
+        },
+    }
+
+    with pytest.raises(ValueError, match="cannot consume a higher-moment table"):
         build_solve_plan(load_config(write_config(tmp_path, data)))
 
 
@@ -542,17 +794,23 @@ def test_degraded_policy_applies_to_tail_refinement(
     data["feature_policy"]["degraded"] = "fail"
     cfg = load_config(write_config(tmp_path, data))
 
-    def fake_capabilities(solver: str) -> SolverCapabilities:
-        return SolverCapabilities(
-            solver=solver,
-            angular_scattering=SupportLevel.EXACT,
-            ionization_source=SupportLevel.EXACT,
-            electron_electron=SupportLevel.EXACT,
-            magnetic_field=SupportLevel.EXACT,
-            tail_refinement=SupportLevel.APPROXIMATE,
-        )
-
-    monkeypatch.setattr(plan_module, "get_solver_capabilities", fake_capabilities)
+    descriptor = SOLVER_DESCRIPTORS["two_term"]
+    monkeypatch.setitem(
+        SOLVER_DESCRIPTORS,
+        "two_term",
+        replace(
+            descriptor,
+            capabilities=SolverCapabilities(
+                solver="two_term",
+                angular_scattering=SupportLevel.EXACT,
+                ionization_source=SupportLevel.EXACT,
+                electron_electron=SupportLevel.EXACT,
+                magnetic_field=SupportLevel.EXACT,
+                tail_refinement=SupportLevel.APPROXIMATE,
+                rf_field=SupportLevel.EXACT,
+            ),
+        ),
+    )
     with pytest.raises(ValueError, match="tail_refinement"):
         build_solve_plan(cfg)
 
@@ -635,5 +893,5 @@ def test_ionization_secondary_energy_validation(tmp_path: Path) -> None:
         "energy_sharing": "equal",
         "secondary_electron_energy_eV": 0.1,
     }
-    with pytest.raises(ValueError, match="only used with primary_secondary"):
+    with pytest.raises(ValueError, match="secondary_electron_energy_eV"):
         load_config(write_config(tmp_path, data))

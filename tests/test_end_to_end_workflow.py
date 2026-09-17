@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+from hashlib import sha256
 import json
 import sqlite3
 from pathlib import Path
@@ -9,10 +10,11 @@ import yaml
 
 from electron_swarm import load_config
 from swarm_workflow.cli import main as workflow_cli_main
-from swarm_workflow.comsol_adapter import plan_apply_comsol
-from swarm_workflow.comsol_mapping import load_comsol_mapping
-from swarm_workflow.comsol_verify import plan_verify_comsol_functions
-from swarm_workflow.sweep import load_workflow
+from swarm_workflow.comsol.models.positive_column.config import load_comsol_mapping
+from swarm_workflow.comsol.models.positive_column.verify import (
+    plan_verify_comsol_functions,
+)
+from swarm_workflow.campaign.config import load_workflow
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,10 +29,10 @@ def test_examples_workflow_ar_o2_loads_as_schema_v2_workflow() -> None:
     assert workflow.mixtures[1].fractions["O2"] == 0.01
 
 
-def test_comsol_benchmark_workflow_matches_positive_column_conditions() -> None:
-    config_path = ROOT / "examples" / "argon_comsol_benchmark_2026.yaml"
+def test_positive_column_workflow_matches_model_conditions() -> None:
+    config_path = ROOT / "examples" / "argon_positive_column_two_term.yaml"
     workflow_path = (
-        ROOT / "examples" / "workflow_argon_comsol_benchmark_2026.yaml"
+        ROOT / "examples" / "workflow_argon_positive_column_two_term.yaml"
     )
 
     config = load_config(config_path)
@@ -45,6 +47,20 @@ def test_comsol_benchmark_workflow_matches_positive_column_conditions() -> None:
     assert workflow.e_over_n_Td == tuple(config.run.e_over_n_Td)
 
 
+def test_gec_ccp_monte_carlo_workflow_is_pure_qualified_mc() -> None:
+    workflow = load_workflow(
+        ROOT / "examples" / "workflow_argon_gec_ccp_monte_carlo.yaml"
+    )
+    config = load_config(workflow.base_config_path)
+
+    assert [str(solver.id) for solver in config.run.solvers] == ["monte_carlo"]
+    assert workflow.base_config_path.name == (
+        "argon_gec_ccp_monte_carlo_weighted_branching.yaml"
+    )
+    assert workflow.mc_e_over_n_Td == workflow.e_over_n_Td
+    assert workflow.quality.required_rate_min_process_peak_fraction == 1.0e-5
+
+
 def test_swarm_to_comsol_dry_run_end_to_end(tmp_path: Path) -> None:
     workflow_path = _write_workflow_repo(tmp_path)
     db_path = tmp_path / "outputs" / "swarm.sqlite"
@@ -56,10 +72,47 @@ def test_swarm_to_comsol_dry_run_end_to_end(tmp_path: Path) -> None:
     assert db_path.exists()
     with sqlite3.connect(db_path) as conn:
         assert conn.execute("SELECT COUNT(*) FROM cases").fetchone()[0] == 4
+        workflow_hash = str(
+            conn.execute(
+                "SELECT value FROM metadata "
+                "WHERE key = 'workflow_config_sha256'"
+            ).fetchone()[0]
+        )
+        quality_thresholds_json = str(
+            conn.execute(
+                "SELECT value FROM metadata "
+                "WHERE key = 'quality_thresholds_json'"
+            ).fetchone()[0]
+        )
+    assert len(workflow_hash) == 64
+    quality_thresholds = json.loads(quality_thresholds_json)
+    assert quality_thresholds["mobility_rse"] == 0.1
+    assert quality_thresholds["diffusion_rse"] == 0.25
+    assert quality_thresholds["major_rate_rse"] == 0.2
+    assert quality_thresholds["required_rate_min_process_peak_fraction"] == 0.0
+    assert quality_thresholds["required_rate_rse"]["process_type"] == {
+        "excitation": 0.2,
+        "ionization": 0.2,
+    }
+    quality_policy_sha256 = sha256(
+        quality_thresholds_json.encode("utf-8")
+    ).hexdigest()
+    expected_quality_policy = {
+        "source": quality_thresholds,
+        "source_sha256": quality_policy_sha256,
+        "evaluation": quality_thresholds,
+        "evaluation_sha256": quality_policy_sha256,
+        "quality_only_reevaluation": False,
+    }
 
     workflow_cli_main(["aggregate", str(db_path), "--output", str(aggregate_dir)])
     assert (aggregate_dir / "manifest.json").exists()
     assert (aggregate_dir / "aggregate_scalars.csv").exists()
+    with sqlite3.connect(db_path) as conn:
+        assert conn.execute(
+            "SELECT DISTINCT source_thresholds_json, thresholds_json, "
+            "quality_policy_reevaluated FROM aggregate_quality"
+        ).fetchall() == [(quality_thresholds_json, quality_thresholds_json, 0)]
 
     workflow_cli_main(
         [
@@ -72,26 +125,52 @@ def test_swarm_to_comsol_dry_run_end_to_end(tmp_path: Path) -> None:
         ]
     )
     assert (tables_dir / "manifest.json").exists()
+    with (tables_dir / "mixture_0000" / "quality.csv").open(
+        "r", encoding="utf-8", newline=""
+    ) as fp:
+        quality_rows = list(csv.DictReader(fp))
+    assert quality_rows
+    assert all(
+        float(row["required_rate_min_process_peak_fraction"]) == 0.0
+        for row in quality_rows
+    )
+    assert all(row["quality_policy_reevaluated"] == "0" for row in quality_rows)
 
     workflow_cli_main(["export-comsol", str(tables_dir), "--output", str(bundle_root)])
     bundle = bundle_root / "mixture_0000"
     assert (bundle / "manifest.json").exists()
     manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["status"] == "ok"
+    for manifest_path in (
+        aggregate_dir / "manifest.json",
+        tables_dir / "manifest.json",
+        tables_dir / "mixture_0000" / "manifest.json",
+        bundle_root / "manifest.json",
+        bundle / "manifest.json",
+    ):
+        stage_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert stage_manifest["hashes"]["workflow_config_sha256"] == workflow_hash
+        assert stage_manifest["quality_thresholds"] == quality_thresholds
+        assert stage_manifest["quality_policy"] == expected_quality_policy
 
     mapping_path = _write_mapping(tmp_path, bundle)
     mapping = load_comsol_mapping(mapping_path, validate_files=True)
     assert mapping.bundle.path == bundle.resolve()
 
-    apply_plan = plan_apply_comsol(mapping_path)
     verify_plan = plan_verify_comsol_functions(mapping_path)
 
-    assert apply_plan.mapping.model.input_mph.exists()
-    assert [function.tag for function in apply_plan.mapping.functions]
+    assert mapping.model.input_mph.exists()
+    assert [function.tag for function in mapping.functions]
     assert verify_plan.points
 
     workflow_cli_main(
-        ["run-comsol", str(mapping_path), "--bundle", str(bundle), "--dry-run"]
+        [
+            "run-positive-column",
+            str(mapping_path),
+            "--bundle",
+            str(bundle),
+            "--dry-run",
+        ]
     )
 
 
@@ -178,6 +257,20 @@ def _write_workflow_repo(root: Path) -> Path:
                     {"Ar": 0.99, "O2": 0.01},
                 ],
                 "mc": {"replicas": 1, "base_seed": 12345},
+                "quality": {
+                    "mobility_rse": 0.1,
+                    "diffusion_rse": 0.25,
+                    "major_rate_rse": 0.2,
+                    "major_rate_fraction": 0.03,
+                    "eedf_normalization_error": 1.0e-5,
+                    "required_rate_rse": {
+                        "process_type": {
+                            "excitation": 0.2,
+                            "ionization": 0.2,
+                        },
+                        "process": {},
+                    },
+                },
             },
             sort_keys=False,
         ),
@@ -194,6 +287,7 @@ def _write_mapping(root: Path, bundle: Path) -> Path:
     mapping_path = root / "mapping.yaml"
     mapping_path.write_text(
         f"""
+schema_version: 2
 model:
   input_mph: {input_mph.as_posix()}
   output_mph: {(model_dir / "positive_column_1d_swarm_tables.mph").as_posix()}

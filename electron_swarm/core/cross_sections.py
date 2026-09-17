@@ -26,7 +26,15 @@ from lxcat_data_parser import CrossSectionReadingError
 from lxcat_data_parser import CrossSectionSet as LxcatCrossSectionSet
 from lxcat_data_parser import CrossSectionTypes as CST
 
-from .config import ConditionsConfig, CrossSectionsConfig
+from .config import ConditionsConfig, CrossSectionsConfig, GasComponent
+
+
+class _NotLongCsv(ValueError):
+    """Internal signal that a CSV uses the wide representation."""
+
+
+class CrossSectionValidationError(ValueError):
+    """A parsed cross-section process contains invalid physical data."""
 
 
 class ProcessType(str, Enum):
@@ -40,13 +48,39 @@ class ProcessType(str, Enum):
     UNKNOWN = "unknown"
 
 
+_INCIDENT_THRESHOLD_TYPES = frozenset(
+    {
+        ProcessType.ATTACHMENT,
+        ProcessType.EXCITATION,
+        ProcessType.IONIZATION,
+    }
+)
+
+
+class ScatteringRole(str, Enum):
+    """Physical role of an ordinary integral scattering cross section.
+
+    ProcessType describes the collision family used by result tables.
+    ScatteringRole records which integral the input actually supplies.
+    Keeping the two separate prevents an effective or momentum-transfer
+    cross section from silently becoming a particle collision frequency.
+    """
+
+    ELASTIC_TOTAL = "elastic_total"
+    ELASTIC_MOMENTUM_TRANSFER = "elastic_momentum_transfer"
+    EFFECTIVE_MOMENTUM_TRANSFER = "effective_momentum_transfer"
+
+
 _TYPE_ALIASES = {
     "momentum": ProcessType.MOMENTUM,
     "momentum_transfer": ProcessType.MOMENTUM,
     "mt": ProcessType.MOMENTUM,
     "elastic": ProcessType.ELASTIC,
+    "elastic_total": ProcessType.ELASTIC,
+    "total_elastic": ProcessType.ELASTIC,
+    "elastic_momentum_transfer": ProcessType.MOMENTUM,
     "effective": ProcessType.EFFECTIVE,
-    "total_elastic": ProcessType.EFFECTIVE,
+    "effective_momentum_transfer": ProcessType.EFFECTIVE,
     "excitation": ProcessType.EXCITATION,
     "exc": ProcessType.EXCITATION,
     "ionization": ProcessType.IONIZATION,
@@ -60,12 +94,47 @@ _TYPE_ALIASES = {
     "de_excitation": ProcessType.SUPERELASTIC,
 }
 
+_SCATTERING_ROLE_ALIASES = {
+    "elastic_total": ScatteringRole.ELASTIC_TOTAL,
+    "total_elastic": ScatteringRole.ELASTIC_TOTAL,
+    "elastic_momentum_transfer": ScatteringRole.ELASTIC_MOMENTUM_TRANSFER,
+    "momentum": ScatteringRole.ELASTIC_MOMENTUM_TRANSFER,
+    "momentum_transfer": ScatteringRole.ELASTIC_MOMENTUM_TRANSFER,
+    "mt": ScatteringRole.ELASTIC_MOMENTUM_TRANSFER,
+    "effective": ScatteringRole.EFFECTIVE_MOMENTUM_TRANSFER,
+    "effective_momentum_transfer": ScatteringRole.EFFECTIVE_MOMENTUM_TRANSFER,
+}
+
 
 def normalize_process_type(value: str | None) -> ProcessType:
     if value is None:
         return ProcessType.UNKNOWN
     key = str(value).strip().lower().replace(" ", "_").replace("-", "_")
     return _TYPE_ALIASES.get(key, ProcessType.UNKNOWN)
+
+
+def normalize_scattering_role(
+    value: str | None,
+    *,
+    source_format: str = "canonical",
+) -> ScatteringRole | None:
+    """Map an input label to its explicit scattering integral role.
+
+    LXCat/BOLSIG ELASTIC is a momentum-transfer cross section. A canonical
+    CSV must say elastic_total or total_elastic to identify a total elastic
+    cross section. Bare elastic remains accepted in programmatic construction
+    through CrossSectionProcess where its role defaults to total, but file
+    loaders never infer total from that word.
+    """
+
+    if value is None:
+        return None
+    key = str(value).strip().lower().replace(" ", "_").replace("-", "_")
+    if key == "elastic":
+        if source_format.lower() in {"lxcat", "bolsig", "txt", "dat", "csv"}:
+            return ScatteringRole.ELASTIC_MOMENTUM_TRANSFER
+        return ScatteringRole.ELASTIC_TOTAL
+    return _SCATTERING_ROLE_ALIASES.get(key)
 
 
 def _process_type_from_lxcat(value: object) -> ProcessType:
@@ -80,6 +149,14 @@ def _process_type_from_lxcat(value: object) -> ProcessType:
     if value == CST.ATTACHMENT:
         return ProcessType.ATTACHMENT
     return normalize_process_type(getattr(value, "name", None))
+
+
+def _scattering_role_from_lxcat(value: object) -> ScatteringRole | None:
+    if value == CST.EFFECTIVE:
+        return ScatteringRole.EFFECTIVE_MOMENTUM_TRANSFER
+    if value == CST.ELASTIC:
+        return ScatteringRole.ELASTIC_MOMENTUM_TRANSFER
+    return None
 
 
 def _extract_process_name(info: object, default: str) -> str:
@@ -100,6 +177,7 @@ class CrossSectionProcess:
     process_type: ProcessType
     energy_eV: np.ndarray
     cross_section_m2: np.ndarray
+    scattering_role: ScatteringRole | None = None
     threshold_eV: float | None = None
     mass_amu: float | None = None
     metadata: dict[str, str | float] = field(default_factory=dict)
@@ -108,19 +186,59 @@ class CrossSectionProcess:
         energy = np.asarray(self.energy_eV, dtype=float)
         sigma = np.asarray(self.cross_section_m2, dtype=float)
         if energy.ndim != 1 or sigma.ndim != 1 or len(energy) != len(sigma):
-            raise ValueError(
+            raise CrossSectionValidationError(
                 f"Invalid cross-section arrays for {self.species}:{self.process}"
             )
         if len(energy) < 2:
-            raise ValueError(
+            raise CrossSectionValidationError(
                 f"At least two energy points are required for {self.species}:{self.process}"
             )
-        order = np.argsort(energy)
+        invalid_energy = np.flatnonzero(~np.isfinite(energy) | (energy < 0.0))
+        if invalid_energy.size:
+            raise CrossSectionValidationError(
+                f"Invalid energy at row {int(invalid_energy[0])} for "
+                f"{self.species}:{self.process}"
+            )
+        invalid_sigma = np.flatnonzero(~np.isfinite(sigma) | (sigma < 0.0))
+        if invalid_sigma.size:
+            raise CrossSectionValidationError(
+                f"Invalid cross section at row {int(invalid_sigma[0])} for "
+                f"{self.species}:{self.process}"
+            )
+        if self.threshold_eV is not None and (
+            not np.isfinite(float(self.threshold_eV))
+            or float(self.threshold_eV) < 0.0
+        ):
+            raise CrossSectionValidationError(
+                f"Invalid threshold for {self.species}:{self.process}"
+            )
+        if self.mass_amu is not None and (
+            not np.isfinite(float(self.mass_amu)) or float(self.mass_amu) <= 0.0
+        ):
+            raise CrossSectionValidationError(
+                f"Invalid target mass for {self.species}:{self.process}"
+            )
+        if self.scattering_role is None:
+            self.scattering_role = {
+                ProcessType.ELASTIC: ScatteringRole.ELASTIC_TOTAL,
+                ProcessType.MOMENTUM: ScatteringRole.ELASTIC_MOMENTUM_TRANSFER,
+                ProcessType.EFFECTIVE: ScatteringRole.EFFECTIVE_MOMENTUM_TRANSFER,
+            }.get(self.process_type)
+        elif not isinstance(self.scattering_role, ScatteringRole):
+            self.scattering_role = ScatteringRole(str(self.scattering_role))
+        if self.process_type not in {
+            ProcessType.ELASTIC,
+            ProcessType.MOMENTUM,
+            ProcessType.EFFECTIVE,
+        } and self.scattering_role is not None:
+            raise CrossSectionValidationError(
+                f"Non-scattering process {self.species}:{self.process} "
+                "cannot declare a scattering role"
+            )
+
+        order = np.argsort(energy, kind="stable")
         energy = energy[order]
         sigma = sigma[order]
-        keep = np.isfinite(energy) & np.isfinite(sigma) & (energy >= 0.0)
-        energy = energy[keep]
-        sigma = np.clip(sigma[keep], 0.0, None)
         uniq = np.unique(energy)
         if len(uniq) != len(energy):
             sigma2 = np.zeros_like(uniq)
@@ -130,11 +248,23 @@ class CrossSectionProcess:
         self.energy_eV = energy
         self.cross_section_m2 = sigma
 
+    @property
+    def incident_threshold_eV(self) -> float | None:
+        """Return the lower incident-energy support, when physically applicable."""
+
+        if (
+            self.process_type in _INCIDENT_THRESHOLD_TYPES
+            and self.threshold_eV is not None
+        ):
+            return float(self.threshold_eV)
+        return None
+
     def sigma(
         self, energy_eV: np.ndarray, *, left: float = 0.0, right: float | None = None
     ) -> np.ndarray:
         """Linearly interpolate cross section on an arbitrary energy grid."""
 
+        energy = np.asarray(energy_eV, dtype=float)
         if right is None:
             policy = str(
                 self.metadata.get("high_energy_extrapolation", "hold")
@@ -144,7 +274,6 @@ class CrossSectionProcess:
             elif policy == "hold":
                 right = float(self.cross_section_m2[-1])
             elif policy == "error":
-                energy = np.asarray(energy_eV, dtype=float)
                 if np.any(energy > self.energy_eV[-1]):
                     raise ValueError(
                         "Cross-section interpolation requested above the "
@@ -158,9 +287,13 @@ class CrossSectionProcess:
                     "Unsupported high-energy extrapolation policy for "
                     f"{self.species}:{self.process}: {policy!r}"
                 )
-        return np.interp(
-            energy_eV, self.energy_eV, self.cross_section_m2, left=left, right=right
+        values = np.interp(
+            energy, self.energy_eV, self.cross_section_m2, left=left, right=right
         )
+        threshold = self.incident_threshold_eV
+        if threshold is not None:
+            values = np.where(energy < threshold, 0.0, values)
+        return values
 
 
 @dataclass(slots=True)
@@ -178,12 +311,103 @@ class CrossSectionSet:
         return sorted({p.species for p in self.processes})
 
 
+@dataclass(slots=True)
+class ActiveMixtureInputs(CrossSectionSet):
+    """Solver-ready cross sections for positive-fraction gas components only."""
+
+    components: tuple[GasComponent, ...]
+
+    @property
+    def active_species(self) -> tuple[str, ...]:
+        return tuple(component.species for component in self.components)
+
+
+_REQUIRED_THRESHOLD_TYPES = frozenset(
+    {
+        ProcessType.EXCITATION,
+        ProcessType.IONIZATION,
+        ProcessType.SUPERELASTIC,
+    }
+)
+
+
+def prepare_active_mixture_inputs(
+    cross_sections: CrossSectionSet,
+    conditions: ConditionsConfig,
+) -> ActiveMixtureInputs:
+    """Filter and validate the one cross-section inventory used by every solver."""
+
+    components = tuple(
+        component
+        for component in conditions.gas_mixture
+        if component.fraction > 0.0
+    )
+    active_species = {component.species for component in components}
+    if isinstance(cross_sections, ActiveMixtureInputs):
+        if cross_sections.components != components:
+            raise CrossSectionValidationError(
+                "Active cross-section inventory does not match gas mixture"
+            )
+        _validate_active_processes(cross_sections.processes, active_species)
+        return ActiveMixtureInputs(
+            processes=list(cross_sections.processes),
+            components=components,
+        )
+
+    processes = [
+        process
+        for process in cross_sections.processes
+        if process.species in active_species
+    ]
+
+    _validate_active_processes(processes, active_species)
+    return ActiveMixtureInputs(processes=processes, components=components)
+
+
+def _validate_active_processes(
+    processes: list[CrossSectionProcess], active_species: set[str]
+) -> None:
+    """Validate both newly filtered and already materialized active inputs."""
+
+    unexpected_species = sorted(
+        {process.species for process in processes} - active_species
+    )
+    if unexpected_species:
+        raise CrossSectionValidationError(
+            "Active cross-section inventory contains inactive gas species: "
+            f"{unexpected_species}"
+        )
+
+    missing_species = sorted(
+        active_species - {process.species for process in processes}
+    )
+    if missing_species:
+        raise CrossSectionValidationError(
+            f"No cross sections loaded for active gas species: {missing_species}"
+        )
+
+    for process in processes:
+        identity = f"{process.species}:{process.process}"
+        if process.process_type == ProcessType.UNKNOWN:
+            raise CrossSectionValidationError(
+                f"Unknown cross-section process type for active process {identity}"
+            )
+        if (
+            process.process_type in _REQUIRED_THRESHOLD_TYPES
+            and process.threshold_eV is None
+        ):
+            raise CrossSectionValidationError(
+                "threshold_eV is required for active "
+                f"{process.process_type.value} process {identity}"
+            )
+
+
 def _read_csv_long(path: Path, default_species: str | None) -> list[CrossSectionProcess]:
     df = pd.read_csv(path)
     columns = {c.lower(): c for c in df.columns}
     required = {"energy_ev", "cross_section_m2"}
     if not required.issubset(columns):
-        raise ValueError("not long CSV")
+        raise _NotLongCsv("not long CSV")
     species_col = columns.get("species")
     process_col = columns.get("process")
     type_col = columns.get("type", columns.get("process_type"))
@@ -207,9 +431,12 @@ def _read_csv_long(path: Path, default_species: str | None) -> list[CrossSection
             keys = (keys,)
         key_map = dict(zip(group_cols, keys, strict=False))
         species = str(key_map.get(species_col, default_species or "gas"))
-        ptype = normalize_process_type(
-            str(key_map.get(type_col, "unknown")) if type_col is not None else None
+        raw_type = (
+            str(key_map.get(type_col, "unknown"))
+            if type_col is not None
+            else str(key_map.get(process_col, "unknown"))
         )
+        ptype = normalize_process_type(raw_type)
         process_name = str(
             key_map.get(
                 process_col,
@@ -223,6 +450,10 @@ def _read_csv_long(path: Path, default_species: str | None) -> list[CrossSection
                 species=species,
                 process=process_name,
                 process_type=ptype,
+                scattering_role=normalize_scattering_role(
+                    raw_type,
+                    source_format="csv",
+                ),
                 threshold_eV=None if pd.isna(threshold) else float(threshold),
                 mass_amu=None if pd.isna(mass) else float(mass),
                 energy_eV=group[energy_col].to_numpy(dtype=float),
@@ -278,6 +509,10 @@ def _read_csv_wide(
                 species=default_species or "gas",
                 process=col.replace("_m2", ""),
                 process_type=ptype,
+                scattering_role=normalize_scattering_role(
+                    col.removesuffix("_m2"),
+                    source_format="csv",
+                ),
                 threshold_eV=_threshold_from_column(col),
                 mass_amu=default_mass_amu,
                 energy_eV=energy,
@@ -294,8 +529,13 @@ def _default_species(
 ) -> str | None:
     if file_species:
         return file_species
-    if len(conditions.gas_mixture) == 1:
-        return conditions.gas_mixture[0].species
+    active = [
+        component
+        for component in conditions.gas_mixture
+        if component.fraction > 0.0
+    ]
+    if len(active) == 1:
+        return active[0].species
     return None
 
 
@@ -315,6 +555,7 @@ def _read_lxcat_text(path: Path, default_species: str | None) -> list[CrossSecti
                     f"{getattr(section.type, 'name', 'unknown')} {section.species}",
                 ),
                 process_type=_process_type_from_lxcat(section.type),
+                scattering_role=_scattering_role_from_lxcat(section.type),
                 threshold_eV=float(section.threshold) if section.threshold is not None else None,
                 mass_amu=None,
                 energy_eV=section.data["energy"].to_numpy(dtype=float),
@@ -378,6 +619,10 @@ def _read_bolsig_like(path: Path, default_species: str | None) -> list[CrossSect
                     species=species,
                     process=signature,
                     process_type=ptype,
+                    scattering_role=normalize_scattering_role(
+                        line,
+                        source_format="bolsig",
+                    ),
                     threshold_eV=threshold,
                     energy_eV=arr[:, 0],
                     cross_section_m2=arr[:, 1],
@@ -391,7 +636,7 @@ def _read_bolsig_like(path: Path, default_species: str | None) -> list[CrossSect
 def load_cross_sections(
     config: CrossSectionsConfig, conditions: ConditionsConfig
 ) -> CrossSectionSet:
-    """Load all configured cross-section files."""
+    """Load all configured cross-section files without selecting a mixture."""
 
     mass_by_species = {g.species: g.mass_amu for g in conditions.gas_mixture}
     processes: list[CrossSectionProcess] = []
@@ -403,11 +648,13 @@ def load_cross_sections(
         if fmt == "csv":
             try:
                 processes.extend(_read_csv_long(path, default_species))
-            except ValueError:
+            except _NotLongCsv:
                 processes.extend(_read_csv_wide(path, default_species, default_mass))
         elif fmt in {"bolsig", "lxcat", "txt", "dat"}:
             try:
                 processes.extend(_read_lxcat_text(path, default_species))
+            except CrossSectionValidationError:
+                raise
             except (CrossSectionReadingError, ValueError, OSError):
                 processes.extend(_read_bolsig_like(path, default_species))
         else:
@@ -423,12 +670,30 @@ def load_cross_sections(
         filled.append(process)
 
     missing_species = sorted(
-        set(g.species for g in conditions.gas_mixture)
-        - set(process.species for process in filled)
+        {
+            component.species
+            for component in conditions.gas_mixture
+            if component.fraction > 0.0
+        }
+        - {process.species for process in filled}
     )
     if missing_species:
-        raise ValueError(f"No cross sections loaded for gas species: {missing_species}")
+        raise ValueError(
+            f"No cross sections loaded for active gas species: {missing_species}"
+        )
     return CrossSectionSet(filled)
+
+
+def load_active_mixture_inputs(
+    config: CrossSectionsConfig,
+    conditions: ConditionsConfig,
+) -> ActiveMixtureInputs:
+    """Load, select, and validate the inventory for one solver mixture."""
+
+    return prepare_active_mixture_inputs(
+        load_cross_sections(config, conditions),
+        conditions,
+    )
 
 
 def mixture_fraction(conditions: ConditionsConfig, species: str) -> float:

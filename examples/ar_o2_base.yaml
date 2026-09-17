@@ -19,7 +19,10 @@ conditions:
 
 cross_sections:
   format: csv
-  high_energy_extrapolation: zero
+  # This compact teaching set ends at 100 eV. Holding the tabulated endpoint
+  # prevents an unphysical collision-free runaway when the adaptive tail
+  # briefly extends beyond that support.
+  high_energy_extrapolation: hold
   files:
     - path: cross_sections/ar_o2_minimal.csv
       format: csv

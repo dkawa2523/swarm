@@ -22,7 +22,11 @@ cross_sections:
 
 physics:
   angular_scattering:
-    model: momentum_power
+    # The compact benchmark table contains only one momentum-transfer elastic
+    # integral, so use the explicit isotropic closure rather than inventing a
+    # separate elastic-total input for an anisotropic closure.
+    model: isotropic
+    higher_moment_closure: zero
 
 solvers:
   multi_term:

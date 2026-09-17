@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swarm MC Run"
+  short_description: "Run and qualify bounded Monte Carlo campaigns"
+  default_prompt: "Use $swarm-mc-run to execute and statistically assess this bounded Monte Carlo campaign."

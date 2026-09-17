@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swarm Propagator Config"
+  short_description: "Configure bounded deterministic P1 swarm jobs"
+  default_prompt: "Use $swarm-propagator-config to create and validate a bounded Propagator calculation configuration."

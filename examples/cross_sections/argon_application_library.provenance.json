@@ -1,0 +1,30 @@
+{
+  "schema": "swarm.cross_section_provenance.v1",
+  "dataset": "Repository argon application cross-section library",
+  "source": {
+    "status": "legacy_repository_asset_with_unrecorded_external_origin",
+    "publisher": null,
+    "url": null,
+    "version": null,
+    "note": "The original external citation and version were not recorded when this table entered the repository; this artifact does not invent them."
+  },
+  "interpretation": {
+    "csv_elastic_role": "elastic_momentum_transfer",
+    "loader_contract": "A bare CSV type=elastic row is interpreted as the momentum-transfer integral.",
+    "isotropic_particle_closure": "For isotropic propagator and Monte Carlo use, the momentum-transfer integral is also used as the total event integral, so sigma_total=sigma_momentum and g=0.",
+    "angular_information": "ordinary_integral_cross_section_only",
+    "exact_dcs_based": false
+  },
+  "process_scope": [
+    "elastic_momentum_transfer",
+    "excitation",
+    "ionization"
+  ],
+  "output": {
+    "path": "argon_application_library.csv",
+    "sha256": "0c7666cc6b1ff86e1374e2adf30c48d6b04770ba564bc07b2bc4100e4735a5f2",
+    "bytes": 6713,
+    "process_rows": 132
+  },
+  "scope_note": "This maintained application table is suitable for the repository's declared ordinary-integral-XS closures. It is not raw DCS evidence and its unrecorded external origin limits independent physical provenance claims."
+}

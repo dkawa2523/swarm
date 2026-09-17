@@ -1,0 +1,46 @@
+# Canonical statistically qualified MC source for the GEC-CCP COMSOL target.
+# Collision counts are weighted-ensemble barriers.  The field-specific plan
+# bounds low-field relaxation and high-field correlation work explicitly.
+base_config: argon_gec_ccp_monte_carlo_weighted_branching.yaml
+database: ../outputs/argon_gec_ccp/monte_carlo_function_eedf_restricted_lmea.sqlite
+e_over_n_Td: [1.0, 2.0, 3.0, 5.0, 10.0, 20.0, 30.0, 35.0, 50.0, 100.0, 300.0, 1000.0, 1500.0, 2500.0, 4000.0]
+mixtures:
+  - Ar: 1.0
+mc:
+  e_over_n_Td: [1.0, 2.0, 3.0, 5.0, 10.0, 20.0, 30.0, 35.0, 50.0, 100.0, 300.0, 1000.0, 1500.0, 2500.0, 4000.0]
+  replicas: 4
+  base_seed: 20260857
+  workers: 16
+  convergence:
+    initial_replicas: 4
+    replica_increment: 4
+    maximum_replicas: 8
+    maximum_attempts: 2
+    time_extension_factor: 4
+    maximum_particle_barriers_per_replica: 500000000
+    maximum_total_particle_barriers: 10000000000
+  sampling_plan:
+    - {e_over_n_Td: 1.0, particles: 128, warmup_collisions: 1048576, max_collisions: 1048576, replicas: 4, transport_correlation_lag_barriers: 128, tail_max_collisions: 65536}
+    - {e_over_n_Td: 2.0, particles: 128, warmup_collisions: 262144, max_collisions: 262144, replicas: 4, transport_correlation_lag_barriers: 128, tail_max_collisions: 65536}
+    - {e_over_n_Td: 3.0, particles: 128, warmup_collisions: 262144, max_collisions: 262144, replicas: 4, transport_correlation_lag_barriers: 128, tail_max_collisions: 65536}
+    - {e_over_n_Td: 5.0, particles: 128, warmup_collisions: 131072, max_collisions: 262144, replicas: 4, transport_correlation_lag_barriers: 128, tail_max_collisions: 65536}
+    - {e_over_n_Td: 10.0, particles: 128, warmup_collisions: 65536, max_collisions: 262144, replicas: 4, transport_correlation_lag_barriers: 128}
+    - {e_over_n_Td: 20.0, particles: 512, warmup_collisions: 8192, max_collisions: 655360, replicas: 4, transport_correlation_lag_barriers: 256}
+    - {e_over_n_Td: 30.0, particles: 1024, warmup_collisions: 32768, max_collisions: 262144, replicas: 4, transport_correlation_lag_barriers: 256}
+    - {e_over_n_Td: 35.0, particles: 1024, warmup_collisions: 32768, max_collisions: 262144, replicas: 4, transport_correlation_lag_barriers: 256}
+    - {e_over_n_Td: 50.0, particles: 1024, warmup_collisions: 16384, max_collisions: 131072, replicas: 4, transport_correlation_lag_barriers: 128}
+    - {e_over_n_Td: 100.0, particles: 2048, warmup_collisions: 8192, max_collisions: 65536, replicas: 4, transport_correlation_lag_barriers: 128}
+    - {e_over_n_Td: 300.0, particles: 2048, warmup_collisions: 8192, max_collisions: 32768, replicas: 4, transport_correlation_lag_barriers: 64}
+    - {e_over_n_Td: 1000.0, particles: 2048, warmup_collisions: 8192, max_collisions: 32768, replicas: 4, transport_correlation_lag_barriers: 64}
+    - {e_over_n_Td: 1500.0, particles: 2048, warmup_collisions: 8192, max_collisions: 32768, replicas: 4, transport_correlation_lag_barriers: 64}
+    - {e_over_n_Td: 2500.0, particles: 2048, warmup_collisions: 8192, max_collisions: 32768, replicas: 4, transport_correlation_lag_barriers: 32}
+    - {e_over_n_Td: 4000.0, particles: 2048, warmup_collisions: 8192, max_collisions: 32768, replicas: 4, transport_correlation_lag_barriers: 16}
+quality:
+  mobility_rse: 0.08
+  diffusion_rse: 0.12
+  major_rate_rse: 0.12
+  required_rate_min_process_peak_fraction: 1.0e-5
+  required_rate_rse:
+    process_type:
+      excitation: 0.12
+      ionization: 0.12

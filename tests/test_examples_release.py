@@ -70,7 +70,7 @@ def test_readme_quickstart_target_runs() -> None:
     assert result.cases[0].solver == "two_term"
 
 
-def test_direct_lmax1_example_runs_as_gated_product_path() -> None:
+def test_direct_lmax1_example_runs_as_pn_product_path() -> None:
     result = run(load_config(ROOT / "examples" / "multi_term_direct_lmax1.yaml"), write=False)
     [case] = result.cases
     assert case.solver == "multi_term"
@@ -86,7 +86,9 @@ def test_direct_lmax4_example_runs_in_limited_product_scope() -> None:
     assert case.solver == "multi_term"
     assert case.metadata["solver_method"] == "pn_closure_direct"
     assert case.metadata["lmax"] == 4
-    assert case.metadata["transport_definition"] == "f0_gradient_reconstruction"
+    assert case.metadata["transport_definition"] == (
+        "pn_f1_flux_drift_f0_gradient_diffusion"
+    )
     assert set(case.metadata) <= PRODUCT_CASE_METADATA_KEYS
     assert case.metadata["exact_dcs_based"] is False
 

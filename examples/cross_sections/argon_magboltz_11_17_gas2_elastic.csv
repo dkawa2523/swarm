@@ -1,0 +1,435 @@
+species,process,type,threshold_eV,mass_amu,energy_eV,cross_section_m2
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0,7.491000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.0001,7.167168678875e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.0002,7.034000388273e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.0003,6.932398464699e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.0004,6.847192518647e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.0006,6.705272805461e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.0008,6.586695590500e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.001,6.483088115142e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.0012,6.390145160435e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.0014,6.305303514227e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.0017,6.189715631763e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.002,6.085003480631e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.0025,5.928602326257e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.003,5.789287423513e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.004,5.546926768654e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.005,5.338812545027e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.006,5.155095912879e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.008,4.839391319375e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.01,4.572435757455e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.012,4.340109079753e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.014,4.133987124822e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.017,3.862367727521e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.02,3.625501144980e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.025,3.288019750552e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.03,3.003843371595e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.035,2.759489543498e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.04,2.546178245295e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.045,2.357821876882e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.05,2.190000707334e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.055,2.039390568626e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.06,1.903420379564e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.065,1.780055865812e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.07,1.667656926043e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.075,1.564880150842e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.08,1.470610178753e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.085,1.383910113654e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.09,1.303984917166e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.095,1.230153860301e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.1,1.161829442148e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.11,1.039721903884e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.12,9.342851634921e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.13,8.428816339331e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.14,7.634128854985e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.15,6.941833035837e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.16,6.338045311902e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.17,5.811267841186e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.18,5.351883969689e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.19,4.951780532706e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.2,4.604060372505e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.21,4.302820280664e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.22,4.042977211006e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.23,3.820130659790e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.24,3.630452522720e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.25,3.470598089710e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.26,3.337633487047e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.27,3.228976051028e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.28,3.142344966050e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.29,3.075720121867e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.3,3.027307605689e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.31,2.995510590420e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.32,2.978904642217e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.33,2.976216670830e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.34,2.986306900823e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.35,3.008153362139e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.36,3.040838492856e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.37,3.083537521617e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.38,3.135508356593e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.39,3.196082755369e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.4,3.264658588487e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.41,3.340693040414e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.42,3.423696617042e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.43,3.513227849529e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.44,3.608888601372e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.45,3.710319899731e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.46,3.817198223711e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.47,3.929232192138e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.48,4.046159601510e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.49,4.167744771733e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.5,4.293776163037e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.51,4.424064232406e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.52,4.558439502025e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.53,4.696750815833e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.54,4.838863763297e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.55,4.984659252149e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.56,5.134032214085e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.57,5.286890429346e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.58,5.443153457785e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.59,5.602751665494e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.6,5.765625337297e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.61,5.931723866555e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.62,6.101005014641e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.63,6.273434233342e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.65,6.627633468869e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.67,6.994176656898e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.7,7.567033175303e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.75,8.583707895800e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.8,9.679858240005e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.85,1.085918495954e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.9,1.212632784198e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,0.95,1.348647170908e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,1,1.494506320626e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,1.2,1.800000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,1.5,2.250000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,1.7,2.630000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,2,3.200000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,2.5,4.150000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,3,5.100000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,4,7.050000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,5,8.900000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,6,1.110000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,7,1.340000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,8,1.580000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,9,1.810000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,10,2.030000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,11,2.190000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,12,2.300000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,13,2.340000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,14,2.350000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,15,2.320000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,16,2.220000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,18,1.940000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,20,1.700000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,25,1.330000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,30,1.100000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,40,8.440000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,50,7.160000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,60,6.280000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,70,5.780000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,80,5.250000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,90,4.890000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,100,4.500000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,125,3.950000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,150,3.510000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,200,3.030000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,250,2.700000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,300,2.480000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,350,2.300000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,400,2.100000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,500,1.900000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,600,1.720000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,700,1.580000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,800,1.470000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,1000,1.270000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,1500,9.800000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,2000,8.180000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,3000,6.200000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,4000,5.100000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,5000,4.340000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,6000,3.800000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,8000,3.130000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,10000,2.500000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,15000,1.800000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,20000,1.380000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,40000,7.600000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,60000,5.600000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,80000,4.500000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,100000,3.780000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,125000,3.220000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,150000,2.840000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,175000,2.570000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,200000,2.370000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,250000,2.090000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,300000,1.900000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,350000,1.770000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,400000,1.680000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,450000,1.600000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,500000,1.550000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,600000,1.460000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,700000,1.400000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,800000,1.360000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,900000,1.320000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,1000000,1.300000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,1250000,1.260000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,1500000,1.230000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,1750000,1.210000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,2000000,1.200000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,2500000,1.190000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,3000000,1.180000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,3500000,1.170000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,4000000,1.170000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,4500000,1.160000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,5000000,1.160000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,6000000,1.160000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,7000000,1.160000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,8000000,1.160000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,9000000,1.160000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,10000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,12500000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,15000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,17500000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,20000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,25000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,30000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,35000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,40000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,45000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,50000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,60000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,70000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,80000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,90000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,100000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,125000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,150000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,175000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,200000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,250000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,300000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,350000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,400000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,450000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,500000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,600000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,700000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,800000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,900000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic total,elastic_total,0.0,39.948,1000000000,1.150000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0,7.491000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.0001,7.104536344834e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.0002,6.946576185946e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.0003,6.826405477309e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.0004,6.725850545858e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.0006,6.558806020264e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.0008,6.419650243786e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.001,6.298365853414e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.0012,6.189804371446e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.0014,6.090901780579e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.0017,5.956457804939e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.002,5.834962714175e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.0025,5.654024444636e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.003,5.493390933772e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.004,5.215165453112e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.005,4.977516202710e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.006,4.768720983143e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.008,4.412176557229e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.01,4.113018007693e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.012,3.854505571675e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.014,3.626668220201e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.017,3.328755326887e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.02,3.071275581817e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.025,2.708527358788e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.03,2.407248479121e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.035,2.151644682944e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.04,1.931459647110e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.045,1.739601484014e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.05,1.570934836207e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.055,1.421607164707e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.06,1.288646171491e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.065,1.169705918199e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.07,1.062899621002e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.075,9.666855272062e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.08,8.797866558083e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.085,8.011328981198e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.09,7.298183229420e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.095,6.650690867039e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.1,6.062189064128e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.11,5.039782911051e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.12,4.192883278775e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.13,3.491891402970e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.14,2.913373974220e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.15,2.438490131291e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.16,2.051891470788e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.17,1.740933149131e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.18,1.495095651107e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.19,1.305552867844e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.2,1.164844053891e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.21,1.066620985214e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.22,1.005450504549e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.23,9.766584948832e-22
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.24,9.762052727857e-22
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.25,1.000585111816e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.26,1.046744509971e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.27,1.112015169546e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.28,1.194058635544e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.29,1.290820253971e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.3,1.400490641013e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.31,1.521473250678e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.32,1.652356928659e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.33,1.791892569429e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.34,1.938973170429e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.35,2.092616714611e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.36,2.251951420301e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.37,2.416202982361e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.38,2.584683496191e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.39,2.756781810140e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.4,2.931955095436e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.41,3.109721457921e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.42,3.289653444560e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.43,3.471372321169e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.44,3.654543017038e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.45,3.838869648126e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.46,4.024091543644e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.47,4.209979711941e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.48,4.396333690741e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.49,4.582978734578e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.5,4.769763298777e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.51,4.956556784825e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.52,5.143247516714e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.53,5.329740921759e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.54,5.515957892852e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.55,5.701833312013e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.56,5.887314717584e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.57,6.072361099616e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.58,6.256941809817e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.59,6.441035574079e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.6,6.624629596979e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.61,6.807718748891e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.62,6.990304827380e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.63,7.172395885519e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.65,7.535152816959e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.67,7.896157167578e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.7,8.434903930267e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.75,9.328059698584e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.8,1.022032189647e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.85,1.111818144470e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.9,1.202844397329e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,0.95,1.295792299122e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,1,1.391324185699e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,1.2,1.660000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,1.5,2.050000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,1.7,2.330000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,2,2.700000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,2.5,3.430000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,3,4.200000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,4,5.700000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,5,7.600000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,6,9.600000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,7,1.150000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,8,1.310000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,9,1.470000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,10,1.620000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,11,1.680000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,12,1.660000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,13,1.590000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,14,1.510000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,15,1.420000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,16,1.330000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,18,1.150000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,20,1.000000000000e-19
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,25,7.750000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,30,6.250000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,40,4.450000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,50,3.500000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,60,2.800000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,70,2.250000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,80,2.000000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,90,1.700000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,100,1.500000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,125,1.220000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,150,1.000000000000e-20
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,200,7.800000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,250,6.400000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,300,5.500000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,350,4.800000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,400,4.300000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,500,3.550000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,600,3.000000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,700,2.600000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,800,2.200000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,1000,1.600000000000e-21
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,1500,9.500000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,2000,6.300000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,3000,3.300000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,4000,2.100000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,5000,1.460000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,6000,1.080000000000e-22
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,8000,7.080000000000e-23
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,10000,4.840000000000e-23
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,15000,2.400000000000e-23
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,20000,1.450000000000e-23
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,40000,4.300000000000e-24
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,60000,2.100000000000e-24
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,80000,1.260000000000e-24
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,100000,8.640000000000e-25
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,125000,5.910000000000e-25
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,150000,4.350000000000e-25
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,175000,3.360000000000e-25
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,200000,2.700000000000e-25
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,250000,1.880000000000e-25
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,300000,1.410000000000e-25
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,350000,1.100000000000e-25
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,400000,8.940000000000e-26
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,450000,7.450000000000e-26
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,500000,6.340000000000e-26
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,600000,4.800000000000e-26
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,700000,3.800000000000e-26
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,800000,3.100000000000e-26
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,900000,2.590000000000e-26
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,1000000,2.210000000000e-26
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,1250000,1.560000000000e-26
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,1500000,1.180000000000e-26
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,1750000,9.320000000000e-27
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,2000000,7.560000000000e-27
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,2500000,5.300000000000e-27
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,3000000,3.950000000000e-27
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,3500000,3.070000000000e-27
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,4000000,2.460000000000e-27
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,4500000,2.020000000000e-27
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,5000000,1.690000000000e-27
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,6000000,1.240000000000e-27
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,7000000,9.490000000000e-28
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,8000000,7.520000000000e-28
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,9000000,6.120000000000e-28
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,10000000,5.080000000000e-28
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,12500000,3.410000000000e-28
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,15000000,2.460000000000e-28
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,17500000,1.860000000000e-28
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,20000000,1.460000000000e-28
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,25000000,9.650000000000e-29
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,30000000,6.880000000000e-29
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,35000000,5.160000000000e-29
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,40000000,4.010000000000e-29
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,45000000,3.210000000000e-29
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,50000000,2.620000000000e-29
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,60000000,1.850000000000e-29
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,70000000,1.370000000000e-29
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,80000000,1.060000000000e-29
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,90000000,8.370000000000e-30
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,100000000,6.800000000000e-30
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,125000000,4.370000000000e-30
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,150000000,3.040000000000e-30
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,175000000,2.230000000000e-30
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,200000000,1.710000000000e-30
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,250000000,1.100000000000e-30
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,300000000,7.610000000000e-31
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,350000000,5.590000000000e-31
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,400000000,4.280000000000e-31
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,450000000,3.380000000000e-31
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,500000000,2.740000000000e-31
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,600000000,1.900000000000e-31
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,700000000,1.400000000000e-31
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,800000000,1.070000000000e-31
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,900000000,8.450000000000e-32
+Ar,Magboltz 11.17 GAS2 argon elastic momentum transfer,elastic_momentum_transfer,0.0,39.948,1000000000,6.840000000000e-32

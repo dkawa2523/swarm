@@ -1,0 +1,39 @@
+schema_version: 2
+
+# Immutable topology contract for the repository Argon GEC-ICP model.
+# Run-specific output paths and Swarm bundles belong to the layered maps.
+model:
+  input_mph: ../argon_gec_icp.mph
+  output_mph: ../work/argon_gec_icp_contract_output.mph
+  component: comp1
+  geometry: geom1
+  mesh: mesh1
+  geometry_dimension: 2
+  axisymmetric: true
+  plasma_physics: plas
+  plasma_feature: pes1
+  magnetic_physics: mf
+  coil_feature: coil1
+  plasma_conductivity_coupling: pcc1
+  electron_heat_source_coupling: ehs1
+  study: std1
+  study_feature: ftrans
+  solution: sol1
+  dataset: dset1
+
+parameters:
+  power: Psp
+  gas_temperature: T0
+  pressure: p0
+
+species:
+  ground: Ar
+  excited: Ars
+  ion: Ar_1p
+
+reactions:
+  elastic: eir1
+  excitation: eir2
+  superelastic: eir3
+  ionization: eir4
+  stepwise_ionization: eir5

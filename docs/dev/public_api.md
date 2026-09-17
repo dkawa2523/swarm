@@ -10,7 +10,7 @@ Stable public entry points:
 Stable schema surface:
 
 - required `schema_version: 2`
-- solver ids: `two_term`, `multi_term`, `monte_carlo`
+- solver ids: `two_term`, `multi_term`, `monte_carlo`, `propagator`
 - `multi_term` methods: `pn_closure_direct`, `pn_dcs`
 - solver selection under `run.solvers`
 - physics requests under `physics.*`
@@ -21,11 +21,12 @@ Stable output files:
 - `<base>_summary.csv`
 - `<base>_rates.csv`
 - `<base>_eedf.csv`
+- `<base>_energy_angle_distribution.csv` when returned by a solver
 - `<base>_solver_plan.csv`
 - `<base>_comparison_summary.csv` when comparison is enabled
 
-Comparison summary rows include `angular_model_status`, scalar relative
-differences, and optional `eedf_l1_error`.
+Comparison summary rows include `angular_model_status`, per-observable
+availability, scalar relative differences, and optional `eedf_l1_error`.
 
 Stable summary metadata:
 
@@ -37,6 +38,7 @@ Stable summary metadata:
 - transport definition
 - magnetic treatment
 - tail refinement treatment
+- propagator velocity-space, scattering-role, recoil, and transport treatment
 
 Direct-PN residuals, negative-mass diagnostics, MC audit counters, benchmark
 failure categories, and solver-plan capability details are internal or

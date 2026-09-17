@@ -7,20 +7,20 @@ not as a product solver mode.
 Run:
 
 ```powershell
-py -3 tools\benchmark_ar_external_references.py --config configs\benchmarks\ar_bolsig_plus_equivalence.yaml --reference bolsig
+py -3 tools\benchmarks\benchmark_ar_external_references.py --config configs\benchmarks\ar_bolsig_plus_equivalence.yaml --reference bolsig
 ```
 
 Use an explicit output file when the config does not point to an existing
 reference:
 
 ```powershell
-py -3 tools\benchmark_ar_external_references.py --config configs\benchmarks\ar_bolsig_plus_equivalence.yaml --reference bolsig --bolsig-output data\references\ar_bolsig_plus_equivalence.csv
+py -3 tools\benchmarks\benchmark_ar_external_references.py --config configs\benchmarks\ar_bolsig_plus_equivalence.yaml --reference bolsig --bolsig-output data\references\ar_bolsig_plus_equivalence.csv
 ```
 
 Run a local BOLSIG+ binary first by passing an explicit command template:
 
 ```powershell
-py -3 tools\benchmark_ar_external_references.py --config configs\benchmarks\ar_bolsig_plus_equivalence.yaml --reference bolsig --run-bolsig '"C:\path\to\bolsig.exe" --input "{input}" --output "{output}"' --bolsig-input data\bolsig.in --bolsig-output data\references\ar_bolsig_plus_equivalence.csv --plot
+py -3 tools\benchmarks\benchmark_ar_external_references.py --config configs\benchmarks\ar_bolsig_plus_equivalence.yaml --reference bolsig --run-bolsig '"C:\path\to\bolsig.exe" --input "{input}" --output "{output}"' --bolsig-input data\bolsig.in --bolsig-output data\references\ar_bolsig_plus_equivalence.csv --plot
 ```
 
 The command must create the declared output file in a supported ingest format.
@@ -45,6 +45,7 @@ Outputs:
 - `ar_bolsig_plus_equivalence_failure_analysis.csv`
 - `ar_bolsig_plus_equivalence_report.md`
 
-Pass thresholds are mean energy `<1%`, major rates `<3%`, and EEDF relative L1
-`<5%` against BOLSIG+.  The existing strict `multi_term pn_closure_direct
-lmax=1` versus `two_term` gate is also checked.
+Pass thresholds for the two-term BOLSIG+ control are mean energy `<1%`, major
+rates `<3%`, and EEDF relative L1 `<5%`. Multi-term rows are independent PN
+comparisons; their numerical acceptance comes from full-system residual and
+lmax-convergence evidence rather than forced equality to the two-term model.

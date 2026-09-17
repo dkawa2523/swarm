@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swarm COMSOL Model Adapter"
+  short_description: "Add support for another COMSOL plasma model"
+  default_prompt: "Use $swarm-comsol-model-adapter to implement a complete adapter for this COMSOL plasma model."

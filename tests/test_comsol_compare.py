@@ -7,7 +7,10 @@ from pathlib import Path
 import pytest
 
 from swarm_workflow.cli import main as workflow_cli_main
-from swarm_workflow.comsol_compare import ComsolCompareError, compare_comsol_profiles
+from swarm_workflow.comsol.models.positive_column.comparison import (
+    ComsolCompareError,
+    compare_comsol_profiles,
+)
 
 
 def test_compare_comsol_profiles_writes_minimal_metrics(tmp_path: Path) -> None:
@@ -95,7 +98,7 @@ def test_compare_comsol_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) 
 
     workflow_cli_main(
         [
-            "compare-comsol",
+            "compare-positive-column",
             str(external),
             str(reference),
             "--output",

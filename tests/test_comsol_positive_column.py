@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from swarm_workflow.cli import main as workflow_cli_main
-from swarm_workflow.comsol_positive_column import (
+from swarm_workflow.comsol.models.positive_column.workflow import (
     PositiveColumnWorkflowError,
     execute_positive_column_run,
     generate_result_export_java,
@@ -235,7 +235,15 @@ def test_execute_positive_column_run_invokes_steps_in_order(
             summary_json=summary_json,
         )
 
-    def fake_export(mapping, java_path, *, operation, comsol_executable=None):
+    def fake_export(
+        context,
+        java_path,
+        *,
+        operation,
+        comsol_executable=None,
+        study,
+    ):
+        assert study == "std1"
         calls.append(operation)
         if operation == "positive_column_export":
             result = (
@@ -257,13 +265,18 @@ def test_execute_positive_column_run_invokes_steps_in_order(
             )
         return SimpleNamespace(log_dir=tmp_path / "logs" / "export")
 
-    monkeypatch.setattr("swarm_workflow.comsol_positive_column.execute_apply_comsol", fake_apply)
     monkeypatch.setattr(
-        "swarm_workflow.comsol_positive_column.execute_verify_comsol_functions",
+        "swarm_workflow.comsol.models.positive_column.workflow.execute_apply_comsol",
+        fake_apply,
+    )
+    monkeypatch.setattr(
+        "swarm_workflow.comsol.models.positive_column.workflow."
+        "execute_verify_comsol_functions",
         fake_verify,
     )
     monkeypatch.setattr(
-        "swarm_workflow.comsol_positive_column.execute_generated_comsol_java",
+        "swarm_workflow.comsol.models.positive_column.workflow."
+        "execute_generated_comsol_java",
         fake_export,
     )
 
@@ -324,7 +337,7 @@ def test_cli_run_positive_column_dry_run_prints_all_paths(
 
     workflow_cli_main(
         [
-            "run-comsol",
+            "run-positive-column",
             str(mapping_path),
             "--bundle",
             str(bundle),
@@ -361,6 +374,7 @@ def _write_positive_column_repo(
     mapping_path = maps_dir / "positive_column.yaml"
     mapping_path.write_text(
         """
+schema_version: 2
 model:
   input_mph: model/positive_column_1d.mph
   output_mph: model/work/positive_column_1d_swarm_tables.mph

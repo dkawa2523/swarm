@@ -7,19 +7,19 @@ product solver ids.
 Run:
 
 ```powershell
-py -3 tools\benchmark_ar_bolsig_mcig_triage.py --config configs\benchmarks\ar_bolsig_mcig_triage.yaml
+py -3 tools\benchmarks\benchmark_ar_bolsig_mcig_triage.py --config configs\benchmarks\ar_bolsig_mcig_triage.yaml
 ```
 
 Provide external files explicitly:
 
 ```powershell
-py -3 tools\benchmark_ar_bolsig_mcig_triage.py --config configs\benchmarks\ar_bolsig_mcig_triage.yaml --bolsig-output data\references\ar_bolsig_plus_equivalence.csv --mcig-output data\references\ar_mcig_reference.csv
+py -3 tools\benchmarks\benchmark_ar_bolsig_mcig_triage.py --config configs\benchmarks\ar_bolsig_mcig_triage.yaml --bolsig-output data\references\ar_bolsig_plus_equivalence.csv --mcig-output data\references\ar_mcig_reference.csv
 ```
 
 Or run installed external tools first and then ingest their output:
 
 ```powershell
-py -3 tools\benchmark_ar_bolsig_mcig_triage.py --config configs\benchmarks\ar_bolsig_mcig_triage.yaml --run-bolsig '"C:\path\to\bolsig.exe" --input "{input}" --output "{output}"' --bolsig-input data\bolsig.in --bolsig-output data\references\ar_bolsig_plus_equivalence.csv --run-mcig '"C:\path\to\mcig.exe" --input "{input}" --output "{output}"' --mcig-input data\mcig.in --mcig-output data\references\ar_mcig_reference.csv --plot
+py -3 tools\benchmarks\benchmark_ar_bolsig_mcig_triage.py --config configs\benchmarks\ar_bolsig_mcig_triage.yaml --run-bolsig '"C:\path\to\bolsig.exe" --input "{input}" --output "{output}"' --bolsig-input data\bolsig.in --bolsig-output data\references\ar_bolsig_plus_equivalence.csv --run-mcig '"C:\path\to\mcig.exe" --input "{input}" --output "{output}"' --mcig-input data\mcig.in --mcig-output data\references\ar_mcig_reference.csv --plot
 ```
 
 The external commands are templates. Supported placeholders are `{output}`,
@@ -36,7 +36,8 @@ Useful options:
 - `--plot`: write `ar_triage_eedf.png` when external reference files are
   available.
 - `--fail-on-code-regression`: fail the command when the triage detects a
-  product implementation regression such as the direct lmax=1 gate breaking.
+  product execution or numerical-contract regression. A difference between
+  independent two-term and multi-term results is not itself a code regression.
 - `--fail-on-physics-mismatch`: fail the command for physics-model mismatch
   rows as well; this is stricter and is intended for manual reference studies.
 
@@ -58,5 +59,5 @@ when angular metadata or statistical uncertainty are missing.
 For an internal-MC-only audit table, run:
 
 ```powershell
-py -3 tools\benchmark_internal_mc_audit.py --config configs\benchmarks\ar_bolsig_eedf_consistency_mc_manual.yaml
+py -3 tools\benchmarks\benchmark_internal_mc_audit.py --config configs\benchmarks\ar_bolsig_eedf_consistency_mc_manual.yaml
 ```

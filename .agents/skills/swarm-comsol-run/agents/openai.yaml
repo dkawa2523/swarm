@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swarm COMSOL Run"
+  short_description: "Preflight, run, and audit a COMSOL adapter"
+  default_prompt: "Use $swarm-comsol-run to preflight, execute, and audit this implemented COMSOL plasma-model adapter."

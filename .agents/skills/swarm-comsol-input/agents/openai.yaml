@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swarm COMSOL Input"
+  short_description: "Build model-independent qualified input bundles"
+  default_prompt: "Use $swarm-comsol-input to build and verify a model-independent COMSOL bundle from these qualified Swarm results."

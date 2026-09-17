@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swarm Multi-Term Run"
+  short_description: "Run and assess direct PN multi-term solves"
+  default_prompt: "Use $swarm-multi-term-run to execute and verify this configured multi-term calculation."

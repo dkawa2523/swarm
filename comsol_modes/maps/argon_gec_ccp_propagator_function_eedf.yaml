@@ -1,0 +1,73 @@
+schema_version: 2
+
+# P1 propagator Function-EEDF physical target. The external solver
+# owns f0, mobility, and its same-operator finite-temperature elastic energy-
+# loss moment. COMSOL owns Einstein particle diffusion and the standard local-
+# energy flux closure. Both the deterministic P0/P1 core evidence and the
+# 3000--4000 Td target-grid evidence are required by preflight. This GEC-CCP
+# downstream integration is accepted only when the core, target-grid, and
+# declared COMSOL closure audits all pass.
+
+model:
+  input_mph: ../argon_gec_ccp.mph
+  external_output_mph: ../work/argon_gec_ccp_propagator_function_eedf_restricted_lmea.mph
+  component: comp1
+  physics: ptp
+  plasma_feature: pes1
+  time_periodic_study: std1
+  time_periodic_feature: tper
+  external_time_periodic_study: std3
+  external_time_periodic_feature: tper1
+  external_solution: sol3
+  conversion_study: std2
+  expected_original_eedf: Druyvesteyn
+
+bundle:
+  path: ../../outputs/argon_gec_ccp/propagator_function_eedf_restricted_lmea_bundle/mixture_0000
+  expected_source: propagator
+  expected_field_type: dc
+  expected_transport_definition: propagator_flux_velocity_moment
+
+reactions:
+  - name: elastic
+    feature: eir1
+    process_type: elastic
+  - name: excitation
+    feature: eir2
+    process_type: excitation
+  - name: ionization
+    feature: eir3
+    process_type: ionization
+
+closure:
+  source_field: steady_dc
+  electron_transport: swarm_mobility_einstein
+  gradient_response_policy: standard_local_energy
+  thermal_diffusion_model: off_restricted_diagonal
+  reaction_model: function_eedf
+  elastic_energy_loss_model: external_solver_native
+  lookup_jacobian: exact
+  interpolation: differentiable_log_piecewise_cubic
+  function_eedf:
+    table: eedf_f0_comsol_2d.csv
+    function_tag: sw_eedf_propagator
+    interpolation: structured_spreadsheet_linear_projection
+    extrapolation: constant
+
+run:
+  power_parameter: P0
+  power_W: 1.0
+  source_stabilization: false
+  reaction_source_stabilization: false
+  axis_dataset: cln1
+  radial_dataset: cln2
+  external_period_dataset: dset4
+  phase_dataset: dset3
+  external_waveform_dataset: dset5
+
+results:
+  role: physical_target
+  output_directory: ../../outputs/argon_gec_ccp/comsol_propagator_function_eedf_restricted_lmea
+
+logs:
+  path: ../../outputs/argon_gec_ccp/comsol_propagator_function_eedf_restricted_lmea_logs

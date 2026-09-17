@@ -4,13 +4,13 @@ This repository implements electron swarm simulation tools for low-pressure plas
 
 ## Non-negotiable product direction
 
-- Treat `two_term`, `multi_term`, and `monte_carlo` as canonical solver modes.
+- Treat `two_term`, `multi_term`, `monte_carlo`, and `propagator` as canonical solver modes.
 - Treat e-e collisions, magnetic fields, angular scattering, state-resolved processes, superelastic processes, ionization source models, and tail refinement as physics features.
 - Separate solver-mode selection from physics-feature requests.
 - Do not preserve obsolete public YAML behavior if it blocks product architecture.
 - Require `schema_version: 2` for the new product schema.
 - Use `run.solvers`, not `run.mode`.
-- Use canonical solver ids `two_term`, `multi_term`, `monte_carlo`.
+- Use canonical solver ids `two_term`, `multi_term`, `monte_carlo`, `propagator`.
 - Do not keep public ids `boltzmann_two_term` or `multiterm_boltzmann` in product schema.
 - Do not keep `both`, `all`, `output.compatibility`, or legacy alias output files in product mode.
 - Do not silently ignore requested physics. Fail, skip, or explicitly approximate according to `feature_policy`.

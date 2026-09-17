@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
-from electron_swarm import load_config
+from electron_swarm import load_config, run
 from electron_swarm.collisions.ee_fp_energy import apply_fp_energy_operator
 from electron_swarm.collisions.electron_electron import mean_energy_eV
 from electron_swarm.physics.angular_scattering import (
@@ -16,12 +17,55 @@ from electron_swarm.physics.angular_scattering import (
     build_angular_model,
     expected_angular_metadata,
 )
-from electron_swarm.solvers._internal_mc.orbit import (
+from electron_swarm.solvers.monte_carlo.kinematics import (
     boris_push,
     magnetic_field_vector,
 )
+from electron_swarm.solvers.monte_carlo.orbit import _advance_to_trial_event
 
 from product_helpers import base_product_config, write_config
+
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    [
+        (("conditions", "gas_temperature_K"), float("nan")),
+        (("conditions", "gas_mixture", 0, "fraction"), float("nan")),
+        (("conditions", "gas_mixture", 0, "fraction"), 2.0),
+        (("conditions", "gas_mixture", 0, "mass_amu"), -1.0),
+        (("physics", "energy_grid_policy", "tail_probability_target"), -1.0),
+        (("physics", "energy_grid_policy", "max_eV_limit"), -5.0),
+        (("solvers", "two_term", "min_momentum_cross_section_m2"), True),
+        (("solvers", "multi_term", "lmax"), True),
+        (("solvers", "monte_carlo", "particles"), "256"),
+    ],
+)
+def test_config_rejects_nonphysical_or_implicitly_coerced_values(
+    tmp_path: Path,
+    path: tuple[object, ...],
+    value: object,
+) -> None:
+    data = base_product_config(tmp_path)
+    target: object = data
+    for key in path[:-1]:
+        target = target[key]  # type: ignore[index]
+    target[path[-1]] = value  # type: ignore[index]
+
+    with pytest.raises(ValueError):
+        load_config(write_config(tmp_path, data))
+
+
+def test_python_api_revalidates_mutated_config(tmp_path: Path) -> None:
+    config = load_config(write_config(tmp_path, base_product_config(tmp_path)))
+    config.conditions.gas_temperature_K = -300.0
+
+    with pytest.raises(ValueError, match="gas_temperature_K"):
+        run(config, write=False)
+
+    config.conditions.gas_temperature_K = 300.0
+    config.conditions.gas_mixture[0].fraction = 2.0
+    with pytest.raises(ValueError, match="fractions must sum to 1"):
+        run(config, write=False)
 
 
 def write_moment_table(path: Path, *, bad: str | None = None) -> Path:
@@ -107,6 +151,47 @@ def test_boris_push_pure_b_conserves_speed_and_zero_b_matches_e_acceleration() -
     expected = v.copy()
     expected[2] += -1.602176634e-19 / 9.1093837015e-31 * E[2] * dt
     assert np.allclose(pushed, expected)
+
+
+def test_zero_b_free_flight_position_uses_exact_constant_acceleration_step() -> None:
+    before = np.array([1.0e5, -2.0e5, 3.0e5])
+    field = np.array([0.0, 0.0, 100.0])
+    dt = 2.0e-12
+    after = boris_push(before, field, np.zeros(3), dt)
+    ensemble = SimpleNamespace(
+        positions=np.zeros((1, 3), dtype=float),
+        velocities=before.reshape(1, 3).copy(),
+        times=np.zeros(1, dtype=float),
+        weights=np.ones(1, dtype=float),
+    )
+    audit = SimpleNamespace(record_field_push=lambda *_args: None)
+    run_audit = SimpleNamespace(record_orbit_substep=lambda: None)
+
+    _advance_to_trial_event(
+        ensemble=ensemble,
+        particle_index=0,
+        trial_dt_s=dt,
+        electric_field_V_m=field,
+        magnetic_field_T=np.zeros(3),
+        magnetic_enabled=False,
+        magnetic_B_T=0.0,
+        audit=audit,
+        run_audit=run_audit,
+        edges=np.array([0.0, 1.0]),
+        counts=np.zeros(1, dtype=int),
+        weighted_hist=np.zeros(1),
+        weighted_square_hist=np.zeros(1),
+        reaction_rate_accumulator=None,
+        reaction_rate_block_index=None,
+        transport_observer=None,
+        sampling_enabled=False,
+        zero_high_energy_policy=False,
+        max_cross_section_energy_eV=1.0e9,
+        max_energy_limit_eV=1.0e9,
+    )
+
+    assert ensemble.velocities[0] == pytest.approx(after)
+    assert ensemble.positions[0] == pytest.approx(0.5 * (before + after) * dt)
 
 
 def test_momentum_power_angular_model_power_closure() -> None:

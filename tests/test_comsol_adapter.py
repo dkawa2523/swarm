@@ -8,24 +8,61 @@ import subprocess
 
 import pytest
 
-from swarm_workflow.comsol_adapter import (
-    ComsolAdapterError,
-    execute_apply_comsol,
-    execute_generated_comsol_java,
-    find_comsol_executable,
-    format_apply_plan,
-    plan_apply_comsol,
-    resolve_comsol_executable,
-    write_apply_comsol_java,
-)
-from swarm_workflow.comsol_java import generate_apply_java_source
-from swarm_workflow.comsol_mapping import (
+import swarm_workflow.comsol.runtime as comsol_runtime
+from swarm_workflow.comsol.java import compose_java_mains
+from swarm_workflow.comsol.models.positive_column.config import (
     ComsolMappingError,
+    comsol_run_context,
     load_comsol_mapping,
+    validate_comsol_mapping_files,
+)
+from swarm_workflow.comsol.models.positive_column.java import (
+    generate_apply_java_source,
+)
+from swarm_workflow.comsol.models.positive_column.workflow import execute_apply_comsol
+from swarm_workflow.comsol.runtime import (
+    ComsolAdapterError,
+    build_java_batch_command,
+    execute_generated_comsol_java,
+    resolve_comsol_executable,
 )
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_generated_java_stages_share_one_ordered_entry_point() -> None:
+    source = compose_java_mains(
+        "Combined",
+        (
+            (
+                "Apply",
+                "import com.comsol.model.Model;\npublic class Apply {\n  public static void main(String[] args) throws Exception {}\n}\n",
+            ),
+            (
+                "Verify",
+                "import com.comsol.model.Model;\npublic class Verify {\n  public static void main(String[] args) throws Exception {}\n}\n",
+            ),
+        ),
+    )
+
+    assert source.count("import com.comsol.model.Model;") == 1
+    assert "final class Apply" in source
+    assert "final class Verify" in source
+    assert source.count("public class ") == 1
+    assert source.index("Apply.main(args);") < source.index("Verify.main(args);")
+
+
+def test_adapter_exposes_execution_api_without_legacy_planning_facade() -> None:
+    obsolete = (
+        "ApplyComsolPlan",
+        "JavaWriteSummary",
+        "find_comsol_executable",
+        "format_apply_plan",
+        "plan_apply_comsol",
+        "write_apply_comsol_java",
+    )
+    assert all(not hasattr(comsol_runtime, name) for name in obsolete)
 
 
 def test_java_source_contains_mapping_functions_and_standard_properties(
@@ -71,55 +108,18 @@ def test_java_source_contains_mapping_driven_closure_and_reaction_lookup(
     assert "2.00000000000000000e+00" in source
     assert re.search(r"ytownratedata\", new double\[\]\{[^}]*e-2[12]", source)
 
-    dry_run = format_apply_plan(plan_apply_comsol(mapping_path))
-    assert "closure:" in dry_run
-    assert "written_transport: transport_vs_mean_energy.csv" in dry_run
-    assert "mean_energy_formulation: local_energy" in dry_run
-    assert "MeanElectronEnergyModel=LocalEnergyApproximationE" in dry_run
-    assert "inactive_written: mean_energy" in dry_run
-    assert "mean_energy_table: mean_energy_vs_en.csv" in dry_run
-    assert "reaction_lookups:" in dry_run
-    assert "excitation: plas.eir2" in dry_run
-    assert "source_model=townsend_flux" in dry_run
-
-
-def test_apply_comsol_dry_run_plan_reports_paths_and_functions(
-    tmp_path: Path,
-) -> None:
-    mapping_path = _write_valid_apply_repo(tmp_path)
-
-    plan = plan_apply_comsol(mapping_path)
-    text = format_apply_plan(plan)
-
-    assert plan.java_path.name == "fake_out.java"
-    assert "input_mph:" in text
-    assert "output_mph:" in text
-    assert "bundle:" in text
-    assert "sw_meanE" in text
-    assert "sw_muN" in text
-    assert "not executed" in text
-
-
-def test_apply_comsol_write_java_writes_source_without_comsol(
-    tmp_path: Path,
-) -> None:
-    mapping_path = _write_valid_apply_repo(tmp_path)
-    java_path = tmp_path / "generated" / "Apply.java"
-
-    summary = write_apply_comsol_java(mapping_path, java_path)
-
-    text = java_path.read_text(encoding="utf-8")
-    assert summary.java_path == java_path.resolve()
-    assert summary.bytes_written == len(text.encode("utf-8"))
-    assert "public class SwarmComsolApply" in text
-    assert "ModelUtil.loadCopy" in text
+    assert mapping.closure.mean_energy.table == "mean_energy_vs_en.csv"
+    assert mapping.closure.mean_energy_formulation.mode == "local_energy"
+    assert mapping.reaction_lookups[0].feature == "eir2"
+    assert mapping.reaction_lookups[0].source_model == "townsend_flux"
 
 
 def test_apply_comsol_rejects_missing_unit_metadata(tmp_path: Path) -> None:
     mapping_path = _write_valid_apply_repo(tmp_path, include_units=False)
+    mapping = load_comsol_mapping(mapping_path)
 
     with pytest.raises(ComsolMappingError, match="no unit metadata"):
-        plan_apply_comsol(mapping_path)
+        validate_comsol_mapping_files(mapping, require_unit_metadata=True)
 
 
 def test_apply_comsol_rejects_missing_required_mapping_field(tmp_path: Path) -> None:
@@ -128,7 +128,7 @@ def test_apply_comsol_rejects_missing_required_mapping_field(tmp_path: Path) -> 
     mapping_path.write_text(text, encoding="utf-8")
 
     with pytest.raises(ComsolMappingError, match="tag must be a non-empty string"):
-        plan_apply_comsol(mapping_path)
+        load_comsol_mapping(mapping_path)
 
 
 def test_resolve_comsol_executable_order(
@@ -144,7 +144,7 @@ def test_resolve_comsol_executable_order(
     monkeypatch.setenv("COMSOL_BATCH", str(batch))
     monkeypatch.setenv("COMSOL_EXECUTABLE", str(executable))
     monkeypatch.setattr(
-        "swarm_workflow.comsol_adapter.shutil.which",
+        "swarm_workflow.comsol.runtime.executable.shutil.which",
         lambda name: str(path_comsol if name == "comsol" else path_batch),
     )
 
@@ -166,9 +166,39 @@ def test_resolve_comsol_executable_order(
     assert resolved.path == str(path_comsol.resolve())
     assert resolved.source == "path:comsol"
 
-    monkeypatch.setattr("swarm_workflow.comsol_adapter.shutil.which", lambda _: None)
+    monkeypatch.setattr(
+        "swarm_workflow.comsol.runtime.executable.shutil.which", lambda _: None
+    )
     with pytest.raises(ComsolAdapterError, match="COMSOL executable not found"):
         resolve_comsol_executable()
+
+
+def test_installed_license_is_explicitly_passed_to_comsol_batch(
+    tmp_path: Path,
+) -> None:
+    installation = tmp_path / "Multiphysics"
+    batch = _fake_exe(installation / "bin" / "win64" / "comsolbatch.exe")
+    license_file = installation / "license" / "license.dat"
+    license_file.parent.mkdir(parents=True)
+    license_file.write_text("FEATURE test\n", encoding="utf-8")
+    class_file = tmp_path / "Apply.class"
+
+    resolved = resolve_comsol_executable(batch)
+    command = build_java_batch_command(
+        resolved.path,
+        class_file,
+        license_path=resolved.license_path,
+    )
+
+    assert resolved.license_path == str(license_file.resolve())
+    assert resolved.license_source == "installation:license/license.dat"
+    assert command == [
+        str(batch.resolve()),
+        "-c",
+        str(license_file.resolve()),
+        "-inputfile",
+        str(class_file),
+    ]
 
 
 def test_execute_apply_comsol_runs_subprocess_with_safe_arguments_and_logs(
@@ -190,7 +220,9 @@ def test_execute_apply_comsol_runs_subprocess_with_safe_arguments_and_logs(
             mapping.model.output_mph.write_bytes(b"output mph")
         return subprocess.CompletedProcess(args, 0, stdout="ok out", stderr="ok err")
 
-    monkeypatch.setattr("swarm_workflow.comsol_adapter.subprocess.run", fake_run)
+    monkeypatch.setattr(
+        "swarm_workflow.comsol.runtime.process.subprocess.run", fake_run
+    )
 
     summary = execute_apply_comsol(mapping_path, comsol_executable=comsol)
 
@@ -199,8 +231,10 @@ def test_execute_apply_comsol_runs_subprocess_with_safe_arguments_and_logs(
         assert isinstance(args, list)
         assert kwargs["shell"] is False
         assert kwargs["check"] is True
-        assert kwargs["capture_output"] is True
-        assert kwargs["text"] is True
+        assert "capture_output" not in kwargs
+        assert "text" not in kwargs
+        assert kwargs["stdout"] is not None
+        assert kwargs["stderr"] is not None
     assert calls[0][0][0] == str(comsol.with_name("comsolcompile.exe").resolve())
     assert calls[1][0][0] == str(comsol.with_name("comsolbatch.exe").resolve())
 
@@ -221,7 +255,7 @@ def test_execute_apply_comsol_runs_subprocess_with_safe_arguments_and_logs(
     assert provenance["generated_artifacts"]["staged_java"]["sha256"]
     assert provenance["generated_artifacts"]["compiled_class"]["sha256"]
     assert provenance["generated_artifacts"]["compiled_class"]["modified_at_utc"]
-    assert provenance["configured_voltage_sequence_V"] == [20.0, 50.0, 100.0, 200.0]
+    assert "configured_voltage_sequence_V" not in provenance
 
 
 def test_zero_exit_compile_error_does_not_execute_stale_class(
@@ -251,14 +285,17 @@ def test_zero_exit_compile_error_does_not_execute_stale_class(
             stderr="",
         )
 
-    monkeypatch.setattr("swarm_workflow.comsol_adapter.subprocess.run", fake_run)
+    monkeypatch.setattr(
+        "swarm_workflow.comsol.runtime.process.subprocess.run", fake_run
+    )
 
     with pytest.raises(ComsolAdapterError, match="batch step failed") as exc_info:
         execute_generated_comsol_java(
-            mapping,
+            comsol_run_context(mapping),
             java_path,
             operation="positive_column_run",
             comsol_executable=comsol,
+            study=mapping.model.study,
         )
 
     assert len(calls) == 1
@@ -311,13 +348,16 @@ def test_generated_java_uses_fresh_per_run_class_and_records_comsol_build(
             )
         return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
 
-    monkeypatch.setattr("swarm_workflow.comsol_adapter.subprocess.run", fake_run)
+    monkeypatch.setattr(
+        "swarm_workflow.comsol.runtime.process.subprocess.run", fake_run
+    )
 
     summary = execute_generated_comsol_java(
-        mapping,
+        comsol_run_context(mapping),
         java_path,
         operation="positive_column_run",
         comsol_executable=comsol,
+        study=mapping.model.study,
     )
 
     assert len(calls) == 2
@@ -327,16 +367,10 @@ def test_generated_java_uses_fresh_per_run_class_and_records_comsol_build(
     assert summary.java_path == summary.log_dir / java_path.name
     assert summary.comsol_version == "6.4"
     assert summary.comsol_build == "429"
-    assert summary.executed_voltage_sequence_V == (
-        200.0,
-        20.0,
-        50.0,
-        100.0,
-        200.0,
-    )
+    assert not hasattr(summary, "executed_voltage_sequence_V")
     provenance = json.loads(summary.provenance_json.read_text(encoding="utf-8"))
     assert provenance["comsol"]["progress_version"] == "6.4.0.429"
-    assert provenance["voltage_execution_mode"] == "direct_then_continuation"
+    assert "voltage_execution_mode" not in provenance
     assert provenance["generated_artifacts"]["source_origin"]["path"] == str(
         java_path.resolve()
     )
@@ -347,6 +381,67 @@ def test_generated_java_uses_fresh_per_run_class_and_records_comsol_build(
         provenance["generated_artifacts"]["source_origin"]["sha256"]
         == provenance["generated_artifacts"]["staged_java"]["sha256"]
     )
+
+
+def test_generated_java_compiles_support_classes_for_one_batch_process(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mapping_path = _write_valid_apply_repo(tmp_path)
+    mapping = load_comsol_mapping(mapping_path)
+    comsol = _fake_exe(tmp_path / "bin" / "comsol.exe")
+    source_dir = tmp_path / "generated"
+    source_dir.mkdir(parents=True)
+    entry = source_dir / "Combined.java"
+    support = source_dir / "Apply.java"
+    entry.write_text(
+        "public class Combined { public static void main(String[] args) { "
+        "Apply.main(args); } }\n",
+        encoding="utf-8",
+    )
+    support.write_text(
+        "public class Apply { public static void main(String[] args) {} }\n",
+        encoding="utf-8",
+    )
+    calls: list[list[str]] = []
+
+    def fake_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        del kwargs
+        calls.append(args)
+        if Path(args[0]).name == "comsolcompile.exe":
+            Path(args[1]).with_suffix(".class").write_bytes(b"fresh class")
+            stdout = "Compilation completed."
+        else:
+            stdout = "COMSOL Multiphysics 6.4 (Build: 429) starting in batch mode"
+        return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(
+        "swarm_workflow.comsol.runtime.process.subprocess.run", fake_run
+    )
+
+    summary = execute_generated_comsol_java(
+        comsol_run_context(mapping),
+        entry,
+        operation="combined",
+        comsol_executable=comsol,
+        study="not_applicable",
+        support_java_paths=(support,),
+    )
+
+    assert [Path(call[0]).name for call in calls] == [
+        "comsolcompile.exe",
+        "comsolcompile.exe",
+        "comsolbatch.exe",
+    ]
+    assert Path(calls[0][1]).name == "Combined.java"
+    assert Path(calls[1][1]).name == "Apply.java"
+    provenance = json.loads(summary.provenance_json.read_text(encoding="utf-8"))
+    artifacts = provenance["generated_artifacts"]["support_classes"]
+    assert len(artifacts) == 1
+    assert (
+        artifacts[0]["source_origin"]["sha256"] == artifacts[0]["staged_java"]["sha256"]
+    )
+    assert artifacts[0]["compiled_class"]["sha256"]
 
 
 def test_compile_success_without_new_class_is_rejected(
@@ -361,7 +456,9 @@ def test_compile_success_without_new_class_is_rejected(
         calls.append(args)
         return subprocess.CompletedProcess(args, 0, stdout="ok", stderr="")
 
-    monkeypatch.setattr("swarm_workflow.comsol_adapter.subprocess.run", fake_run)
+    monkeypatch.setattr(
+        "swarm_workflow.comsol.runtime.process.subprocess.run", fake_run
+    )
 
     with pytest.raises(ComsolAdapterError, match="did not produce a class file") as exc:
         execute_apply_comsol(mapping_path, comsol_executable=comsol)
@@ -388,7 +485,9 @@ def test_apply_rejects_unchanged_preexisting_output_mph(
             Path(args[1]).with_suffix(".class").write_bytes(b"fresh class")
         return subprocess.CompletedProcess(args, 0, stdout="ok", stderr="")
 
-    monkeypatch.setattr("swarm_workflow.comsol_adapter.subprocess.run", fake_run)
+    monkeypatch.setattr(
+        "swarm_workflow.comsol.runtime.process.subprocess.run", fake_run
+    )
 
     with pytest.raises(ComsolAdapterError, match="stale result") as exc:
         execute_apply_comsol(mapping_path, comsol_executable=comsol)
@@ -421,7 +520,9 @@ def test_execute_failure_reports_stdout_and_stderr_log_paths(
             stderr="bad stderr",
         )
 
-    monkeypatch.setattr("swarm_workflow.comsol_adapter.subprocess.run", fake_run)
+    monkeypatch.setattr(
+        "swarm_workflow.comsol.runtime.process.subprocess.run", fake_run
+    )
 
     with pytest.raises(ComsolAdapterError) as exc_info:
         execute_apply_comsol(mapping_path, comsol_executable=comsol)
@@ -440,20 +541,6 @@ def test_execute_failure_reports_stdout_and_stderr_log_paths(
     assert aggregate["status"] == "failed"
 
 
-def test_dry_run_does_not_invoke_subprocess(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    mapping_path = _write_valid_apply_repo(tmp_path)
-
-    def fail_run(*args: object, **kwargs: object) -> None:
-        raise AssertionError("dry-run must not call subprocess.run")
-
-    monkeypatch.setattr("swarm_workflow.comsol_adapter.subprocess.run", fail_run)
-
-    plan_apply_comsol(mapping_path)
-
-
 def test_electron_swarm_still_has_no_workflow_comsol_or_mph_dependency() -> None:
     forbidden = ["swarm_workflow", "sqlite3", "subprocess", "comsol", "mph"]
     for path in (ROOT / "electron_swarm").rglob("*.py"):
@@ -465,8 +552,9 @@ def test_electron_swarm_still_has_no_workflow_comsol_or_mph_dependency() -> None
 @pytest.mark.comsol
 @pytest.mark.slow
 def test_optional_comsol_apply_integration_requires_local_prerequisites() -> None:
-    resolved = find_comsol_executable()
-    if resolved is None:
+    try:
+        resolved = resolve_comsol_executable()
+    except ComsolAdapterError:
         pytest.skip(
             "COMSOL executable not found; set COMSOL_BATCH, COMSOL_EXECUTABLE, "
             "or put comsol/comsolbatch on PATH"
@@ -593,6 +681,7 @@ def _write_valid_apply_repo(root: Path, *, include_units: bool = True) -> Path:
     mapping_path = maps_dir / "valid.yaml"
     mapping_path.write_text(
         """
+schema_version: 2
 model:
   input_mph: model/fake.mph
   output_mph: model/work/fake_out.mph

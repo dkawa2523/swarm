@@ -19,7 +19,7 @@ saves its result under `Model/work/`.
 Run the complete external-table path with:
 
 ```powershell
-swarm-workflow run-comsol Model\maps\positive_column_external.yaml --bundle outputs\comsol_bundle\mixture_0000
+swarm-workflow run-positive-column Model\maps\positive_column_external.yaml --bundle outputs\positive_column\two_term_bundle\mixture_0000
 ```
 
 The external bundle supplies electron mobility, longitudinal diffusion,

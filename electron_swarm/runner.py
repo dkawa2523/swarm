@@ -9,8 +9,13 @@ from pathlib import Path
 from electron_swarm.collisions.ee_postprocess import (
     apply_electron_electron_relaxation_from_config,
 )
-from electron_swarm.core.config import MIGRATION_ERROR, SwarmConfig, load_config
-from electron_swarm.core.cross_sections import load_cross_sections
+from electron_swarm.core.config import SwarmConfig
+from electron_swarm.core.config_parser import load_config
+from electron_swarm.core.config_validation import validate_config
+from electron_swarm.core.cross_sections import (
+    ActiveMixtureInputs,
+    load_active_mixture_inputs,
+)
 from electron_swarm.core.result_metadata import normalize_product_metadata
 from electron_swarm.core.results import SwarmRunResult
 from electron_swarm.core.solver_configs import build_internal_solver_configs
@@ -30,19 +35,21 @@ def run(
     write: bool = True,
     collect_diagnostics: bool = False,
 ) -> SwarmRunResult:
-    if config.schema_version != 2:
-        raise ValueError(MIGRATION_ERROR)
-    cross_sections = load_cross_sections(config.cross_sections, config.conditions)
+    validate_config(config)
+    active_inputs: ActiveMixtureInputs = load_active_mixture_inputs(
+        config.cross_sections,
+        config.conditions,
+    )
     internal = build_internal_solver_configs(config.solvers, config.physics)
     internal.monte_carlo.collect_audit = collect_diagnostics
-    plan = build_solve_plan(config)
-    cases = execute_solve_plan(config, cross_sections, plan, internal)
+    plan = build_solve_plan(config, active_inputs)
+    cases = execute_solve_plan(config, active_inputs, plan, internal)
     cases = apply_electron_electron_relaxation_from_config(
         cases,
         config,
-        cross_sections,
+        active_inputs,
     )
-    cases = enrich_tail_metrics(cases, config, cross_sections)
+    cases = enrich_tail_metrics(cases, config, active_inputs)
     normalize_product_metadata(cases)
     result = SwarmRunResult(
         cases=cases,

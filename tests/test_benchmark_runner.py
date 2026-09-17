@@ -5,8 +5,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from benchmarks.run_product_benchmarks import main as benchmark_main
-from tools.benchmark_ar_external_references import load_benchmark_config
+from tools.benchmarks.run_product_benchmarks import main as benchmark_main
+from tools.benchmarks.benchmark_ar_external_references import load_benchmark_config
 
 
 @pytest.mark.regression

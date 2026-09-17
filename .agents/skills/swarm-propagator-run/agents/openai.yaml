@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swarm Propagator Run"
+  short_description: "Run and qualify deterministic P1 calculations"
+  default_prompt: "Use $swarm-propagator-run to execute and assess this bounded Propagator calculation."

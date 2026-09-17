@@ -4,7 +4,7 @@ import numpy as np
 
 from electron_swarm.core.results import SwarmCaseResult
 from electron_swarm.core.transport import ElectronTransport
-from tools.eedf_compare import (
+from tools.benchmarks.eedf_compare import (
     FAILURE_CATEGORIES,
     classify_eedf_failure,
     compare_eedf_cases,
@@ -45,7 +45,7 @@ def _case(
     )
 
 
-def test_eedf_compare_classifies_direct_reduction_mismatch_if_present() -> None:
+def test_eedf_compare_classifies_independent_pn_difference() -> None:
     ref = _case("two_term", np.array([0.7, 0.2, 0.08, 0.02]))
     cand = _case(
         "multi_term",
@@ -54,7 +54,7 @@ def test_eedf_compare_classifies_direct_reduction_mismatch_if_present() -> None:
     )
     comparison = compare_eedf_cases(ref, cand)
     categories = {row["category"] for row in comparison.failures}
-    assert "lmax1_reduction_failure" in categories
+    assert "expected_physics_difference" in categories
     assert categories <= set(FAILURE_CATEGORIES)
 
 
@@ -77,7 +77,6 @@ def test_eedf_compare_classifies_higher_l_direct_mismatch() -> None:
     assert "higher_l_field_coupling_error" in categories
     assert "matrix_conditioning_failure" in categories
     assert "nonphysical_negative_mass" in categories
-    assert "lmax1_reduction_failure" not in categories
     assert categories <= set(FAILURE_CATEGORIES)
 
 

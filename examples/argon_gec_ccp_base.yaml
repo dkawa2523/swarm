@@ -47,7 +47,9 @@ physics:
     tail_probability_target: 1.0e-9
     tail_metrics: true
     tail_rate_warning_fraction: 0.05
-    max_eV_limit: 10000.0
+    # The three Ar cross sections are tabulated through 1 MeV. Keep the safety
+    # bound above the observed high-field MC tail without expanding to 1 MeV.
+    max_eV_limit: 30000.0
 
 solvers:
   two_term:

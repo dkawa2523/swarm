@@ -1,0 +1,34 @@
+{
+  "schema": "swarm.cross_section_provenance.v1",
+  "dataset": "Magboltz 11.17 GAS2 argon elastic integrals",
+  "retrieved_on": "2026-09-07",
+  "source": {
+    "publisher": "CERN Magboltz",
+    "url": "https://magboltz.web.cern.ch/magboltz/magboltz-11.17.f",
+    "sha256": "ebbff60d64b01d439e6f495324b36692a413deefd49453ec8b998a73330e80a0",
+    "bytes": 4322701,
+    "fortran_entry_point": "GAS2",
+    "asserted_name": "ARGON ANISOTROPIC    2014"
+  },
+  "extraction": {
+    "energy_eV_at_or_below_1": "Evaluate the GAS2 phase-shift formulas on XEPS",
+    "energy_eV_above_1": "Read the GAS2 XEN, YEL, and YSEC tables",
+    "elastic_total": "YEL",
+    "elastic_momentum_transfer": "YSEC",
+    "source_cross_section_unit": "1e-16 cm2",
+    "output_cross_section_unit": "m2",
+    "physical_checks": [
+      "sigma_total >= 0",
+      "sigma_momentum >= 0",
+      "sigma_momentum <= 2 * sigma_total"
+    ]
+  },
+  "output": {
+    "path": "argon_magboltz_11_17_gas2_elastic.csv",
+    "sha256": "dead7643499875b463944957f8b557cb2ce61b4546c219a635b236b9c3953199",
+    "bytes": 45548,
+    "energy_points_per_process": 217,
+    "process_rows": 434
+  },
+  "scope_note": "The two ordinary integral cross sections support an explicit maxent_p1 angular closure; they do not constitute differential-scattering data."
+}

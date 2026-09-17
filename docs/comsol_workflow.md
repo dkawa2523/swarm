@@ -5,6 +5,15 @@ This workflow applies externally calculated electron-swarm data to the COMSOL
 electron-data interface, not a claim that a spatial plasma model is reduced to
 a homogeneous swarm calculation.
 
+The reusable execution layer lives in `swarm_workflow/comsol/runtime/` and
+owns executable discovery, command construction, process logs, and artifact
+provenance. Positive-column mapping, Java generation, verification, workflow,
+and comparison code live together in
+`swarm_workflow/comsol/models/positive_column/`. A new COMSOL model should add
+its own package under `models/` and pass concrete paths to the shared runtime;
+the runtime must not import a model package. The cross-model extension
+contract is documented in [COMSOL plasma-model adapters](comsol_model_adapters.md).
+
 ## Formulation contract
 
 Direct inspection of the archived MPH files found
@@ -75,13 +84,13 @@ feature_policy:
 Generate the Swarm result, canonical tables, COMSOL bundle, and spatial result:
 
 ```powershell
-swarm-workflow sweep examples\workflow_argon_comsol.yaml
-swarm-workflow build-tables outputs\argon_comsol\swarm.sqlite --output outputs\argon_comsol\tables --source two_term
-swarm-workflow export-comsol outputs\argon_comsol\tables\mixture_0000 --output outputs\comsol_bundle\mixture_0000
-swarm-workflow run-comsol Model\maps\positive_column_external.yaml --bundle outputs\comsol_bundle\mixture_0000
+swarm-workflow sweep examples\workflow_argon_positive_column_two_term.yaml
+swarm-workflow build-tables outputs\positive_column\two_term.sqlite --output outputs\positive_column\two_term_tables --source two_term
+swarm-workflow export-comsol outputs\positive_column\two_term_tables\mixture_0000 --output outputs\positive_column\two_term_bundle\mixture_0000
+swarm-workflow run-positive-column Model\maps\positive_column_external.yaml --bundle outputs\positive_column\two_term_bundle\mixture_0000
 ```
 
-`run-comsol` uses a new class-output directory for every invocation. It treats
+`run-positive-column` uses a new class-output directory for every invocation. It treats
 compiler error text as failure even when `comsolcompile` returns exit code
 zero, and it refuses to execute a stale class. The run records the Java and
 class SHA256 values, COMSOL build, source MPH, mapping, bundle, configuration,
@@ -119,7 +128,7 @@ local-equilibrium or drift-diffusion validity at high field.
 ## Profile comparison
 
 ```powershell
-swarm-workflow compare-comsol external.csv builtin.csv --output outputs\comsol_comparison --external-runtime 10 --reference-runtime 40 --plot
+swarm-workflow compare-positive-column external.csv builtin.csv --output outputs\comsol_comparison --external-runtime 10 --reference-runtime 40 --plot
 ```
 
 Both CSV files must contain constant, matching `applied_voltage` and
@@ -166,7 +175,5 @@ regions be identified as sheaths without additional diagnostics.
 - repeated independent processes for timing, with matched timer scopes and
   apply/verify/run/export stages retained separately.
 
-The present archive does not satisfy all of these criteria: its historical
-class provenance is stale, and the clean rerun is blocked by COMSOL license
-error `-10` (`Product has expired`). See `docs/comsol_benchmark.md` for the
-provisional numerical results and their interpretation limits.
+Historical run products are not version-controlled. A benchmark is accepted
+only from a fresh run whose generated provenance satisfies the criteria above.

@@ -1,0 +1,31 @@
+base_config: ../monte_carlo.yaml
+database: ../../../../outputs/lxcat_swarm_validation/mc_refinement_v7/ar_n2/p1024/monte_carlo.sqlite
+e_over_n_Td: [1.0, 10.0, 100.0, 1000.0]
+mixtures:
+  - {Ar: 0.9, O2: 0.0, N2: 0.1, Cl2: 0.0}
+mc:
+  e_over_n_Td: [1.0, 10.0, 100.0, 1000.0]
+  replicas: 4
+  base_seed: 2026091402
+  workers: 4
+  reuse_database: ../../../../outputs/lxcat_swarm_validation/mc_refinement_v7/ar_n2/p512/monte_carlo.sqlite
+  convergence:
+    initial_replicas: 4
+    replica_increment: 4
+    maximum_replicas: 4
+    maximum_attempts: 1
+    time_extension_factor: 2
+    maximum_particle_barriers_per_replica: 200000000
+    maximum_total_particle_barriers: 1500000000
+  sampling_plan:
+    - {e_over_n_Td: 1.0, particles: 128, warmup_collisions: 262144, max_collisions: 262144, tail_max_collisions: 65536, replicas: 4, transport_correlation_lag_barriers: 128, transport_estimator: single_field}
+    - {e_over_n_Td: 10.0, particles: 256, warmup_collisions: 65536, max_collisions: 131072, tail_max_collisions: 65536, replicas: 4, transport_correlation_lag_barriers: 128, transport_estimator: single_field}
+    - {e_over_n_Td: 100.0, particles: 512, warmup_collisions: 8192, max_collisions: 65536, tail_max_collisions: 16384, replicas: 4, transport_correlation_lag_barriers: 64, transport_estimator: single_field}
+    - {e_over_n_Td: 1000.0, particles: 1024, warmup_collisions: 8192, max_collisions: 65536, tail_max_collisions: 16384, replicas: 4, transport_correlation_lag_barriers: 64, transport_estimator: single_field}
+quality:
+  mobility_rse: 0.15
+  diffusion_rse: 0.25
+  major_rate_rse: 0.25
+  required_rate_min_process_peak_fraction: 1.0e-4
+  required_rate_rse:
+    process_type: {excitation: 0.30, ionization: 0.30}

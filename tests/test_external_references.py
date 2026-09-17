@@ -10,8 +10,8 @@ import pytest
 from electron_swarm import load_config, run
 from electron_swarm.core.results import RateResult, SwarmCaseResult
 from electron_swarm.core.transport import ElectronTransport
-from tools.references import load_bolsig_reference, load_mcig_reference
-from tools.references.common import (
+from tools.benchmarks.references import load_bolsig_reference, load_mcig_reference
+from tools.benchmarks.references.common import (
     ExternalReferenceConfig,
     ReferenceCaseResult,
     eepf_to_eedf,
@@ -19,17 +19,17 @@ from tools.references.common import (
     reference_comparison_metrics,
     reference_to_swarm_case,
 )
-from tools.references.runner import run_external_reference_command
+from tools.benchmarks.references.runner import run_external_reference_command
 from tests.product_helpers import base_product_config, write_config
-from tools.benchmark_ar_eedf_consistency import run_benchmark
-from tools.benchmark_ar_external_references import (
+from tools.benchmarks.benchmark_ar_eedf_consistency import run_benchmark
+from tools.benchmarks.benchmark_ar_external_references import (
     _classify_bolsig_mismatch,
     _classify_mcig_mismatch,
     _mc_confidence_status,
     load_benchmark_config,
     run_benchmark as run_external_benchmark,
 )
-from tools import benchmark_ar_bolsig_mcig_triage as triage
+from tools.benchmarks import benchmark_ar_bolsig_mcig_triage as triage
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures" / "references"
@@ -82,7 +82,9 @@ def test_mcig_canonical_csv_marks_uncertainty_unavailable() -> None:
     assert "scalar_ci95" in case.metadata
 
 
-def test_reference_missing_file_and_unsupported_format_fail_clearly(tmp_path: Path) -> None:
+def test_reference_missing_file_and_unsupported_format_fail_clearly(
+    tmp_path: Path,
+) -> None:
     with pytest.raises(FileNotFoundError, match="not found"):
         load_bolsig_reference(
             ExternalReferenceConfig(
@@ -150,7 +152,9 @@ def test_reference_comparison_metrics_against_swarm_case() -> None:
     assert metrics["diffusion_T_relative_difference"] == pytest.approx(0.0)
 
 
-def test_ar_benchmark_reports_missing_optional_external_reference(tmp_path: Path) -> None:
+def test_ar_benchmark_reports_missing_optional_external_reference(
+    tmp_path: Path,
+) -> None:
     data = base_product_config(tmp_path, ["two_term", "multi_term"])
     data["run"]["case_prefix"] = "ar_eedf"
     data["references"] = {
@@ -183,7 +187,11 @@ def test_ar_mcig_reference_config_parses() -> None:
         ROOT / "configs" / "benchmarks" / "ar_mcig_reference.yaml"
     )
     assert cfg.schema_version == 2
-    assert [item.id for item in cfg.run.solvers] == ["two_term", "multi_term", "monte_carlo"]
+    assert [item.id for item in cfg.run.solvers] == [
+        "two_term",
+        "multi_term",
+        "monte_carlo",
+    ]
     assert references[0].id == "mcig"
 
 
@@ -324,7 +332,9 @@ def test_mcig_confidence_interval_status() -> None:
     assert coverage == pytest.approx(1.0)
 
 
-def test_mcig_synthetic_reference_comparison_degraded_for_unknown_angular(tmp_path: Path) -> None:
+def test_mcig_synthetic_reference_comparison_degraded_for_unknown_angular(
+    tmp_path: Path,
+) -> None:
     data = base_product_config(tmp_path, ["two_term"])
     data["run"]["case_prefix"] = "ar_mcig_ref"
     seed_cfg = load_config(write_config(tmp_path, data, "seed_mcig.yaml"))
@@ -353,7 +363,9 @@ def test_mcig_synthetic_reference_comparison_degraded_for_unknown_angular(tmp_pa
             }
         ]
     }
-    run_external_benchmark(write_config(tmp_path, data, "mcig_degraded.yaml"), reference="mcig")
+    run_external_benchmark(
+        write_config(tmp_path, data, "mcig_degraded.yaml"), reference="mcig"
+    )
     summary = pd.read_csv(tmp_path / "prod_summary.csv")
     assert summary.loc[0, "status"] == "DEGRADED"
     assert summary.loc[0, "angular_model_status"] == "unknown"
@@ -457,13 +469,15 @@ def _run_synthetic_triage(
     data = base_product_config(tmp_path, ["two_term", "multi_term"])
     data["run"]["case_prefix"] = "triage"
     config_path = write_config(tmp_path, data, "triage.yaml")
-    monkeypatch.setattr(triage, "load_selected_references", lambda *args, **kwargs: (references, []))
+    monkeypatch.setattr(
+        triage, "load_selected_references", lambda *args, **kwargs: (references, [])
+    )
     monkeypatch.setattr(triage, "run_solver_variants", lambda cfg: (solver_cases, []))
     triage.run_triage(config_path)
     return pd.read_csv(tmp_path / "ar_triage_failure_analysis.csv")
 
 
-def test_triage_classifies_multi_term_lmax1_code_regression(
+def test_triage_classifies_multi_term_lmax1_model_difference(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -476,7 +490,7 @@ def test_triage_classifies_multi_term_lmax1_code_regression(
             _triage_swarm_case("multi_term", [0.2, 0.3, 0.5], lmax=1),
         ],
     )
-    assert "code_regression_multi_term_lmax1" in set(failures["category"])
+    assert "independent_solver_model_difference" in set(failures["category"])
 
 
 def test_triage_classifies_two_term_bolsig_mismatch(
@@ -519,10 +533,14 @@ def test_triage_classifies_angular_model_mismatch(
     failures = _run_synthetic_triage(
         tmp_path,
         monkeypatch,
-        references=[_triage_reference("mcig", [0.6, 0.3, 0.1], angular_model="mcig_default")],
+        references=[
+            _triage_reference("mcig", [0.6, 0.3, 0.1], angular_model="mcig_default")
+        ],
         solver_cases=[
             _triage_swarm_case("two_term", [0.6, 0.3, 0.1], angular_model="isotropic"),
-            _triage_swarm_case("multi_term", [0.6, 0.3, 0.1], lmax=1, angular_model="isotropic"),
+            _triage_swarm_case(
+                "multi_term", [0.6, 0.3, 0.1], lmax=1, angular_model="isotropic"
+            ),
         ],
     )
     assert "angular_model_mismatch" in set(failures["category"])
@@ -541,7 +559,9 @@ def test_triage_classifies_rate_only_mismatch(
             _triage_swarm_case("multi_term", [0.6, 0.3, 0.1], lmax=1, rate=1.0),
         ],
     )
-    assert "rate_convolution_or_cross_section_projection_issue" in set(failures["category"])
+    assert "rate_convolution_or_cross_section_projection_issue" in set(
+        failures["category"]
+    )
 
 
 def test_triage_classifies_tail_only_mismatch(

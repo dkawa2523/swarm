@@ -5,18 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 import numpy as np
+from scipy import sparse
 
 from electron_swarm.core.config import SwarmConfig
 from electron_swarm.core.cross_sections import CrossSectionSet
 from electron_swarm.core.results import RateResult
-from electron_swarm.core.solver_configs import (
-    MultiTermInternalConfig,
-    TwoTermInternalConfig,
-)
+from electron_swarm.core.solver_configs import MultiTermInternalConfig
 from electron_swarm.core.transport import ElectronTransport
+from electron_swarm.grids.energy import EnergyGrid
 
 from .diagnostics import SolverDiagnostics
-from .grid import EnergyGrid
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,7 +22,6 @@ class MultiTermCase:
     config: SwarmConfig
     cross_sections: CrossSectionSet
     multi_term_config: MultiTermInternalConfig
-    two_term_config: TwoTermInternalConfig
     grid: EnergyGrid
     e_over_n_Td: float
     gas_number_density_m3: float
@@ -43,6 +40,33 @@ class RateSet:
 
 
 @dataclass(frozen=True, slots=True)
+class PNOperator:
+    """Complete axisymmetric PN generator on one energy grid."""
+
+    matrix: sparse.csr_matrix
+    energy_eV: np.ndarray
+    edges_eV: np.ndarray
+    widths_eV: np.ndarray
+    speed_m_s: np.ndarray
+    angular_moments: np.ndarray
+    angular_damping_s_inv: np.ndarray
+    sigma_m_m2: np.ndarray
+    angular_metadata: dict[str, object]
+    lmax: int
+    moment_slices: tuple[slice, ...]
+    moment_energy_eV: tuple[np.ndarray, ...]
+    moment_weights_eV: tuple[np.ndarray, ...]
+    center_projections: tuple[sparse.csr_matrix, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class StationaryPNState:
+    coefficients: np.ndarray
+    raw_coefficients: tuple[np.ndarray, ...]
+    diagnostics: SolverDiagnostics
+
+
+@dataclass(frozen=True, slots=True)
 class MultiTermSolution:
     energy_eV: np.ndarray
     widths_eV: np.ndarray
@@ -51,7 +75,6 @@ class MultiTermSolution:
     rates: RateSet
     transport: ElectronTransport
     diagnostics: SolverDiagnostics
-    method_used: str
     metadata: dict[str, object] = field(default_factory=dict)
 
     @property

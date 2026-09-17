@@ -1,0 +1,63 @@
+schema_version: 2
+
+run:
+  solvers:
+    - id: propagator
+  e_over_n_Td: [1.0, 10.0, 100.0, 1000.0]
+  case_prefix: lxcat_mixture_propagator
+
+conditions:
+  gas_temperature_K: 300.0
+  pressure_Pa: 13.3
+  gas_mixture:
+    - {species: Ar, fraction: 0.9, mass_amu: 39.948}
+    - {species: O2, fraction: 0.1, mass_amu: 31.998}
+    - {species: N2, fraction: 0.0, mass_amu: 28.0134}
+    - {species: Cl2, fraction: 0.0, mass_amu: 70.906}
+
+cross_sections:
+  format: lxcat
+  high_energy_extrapolation: zero
+  files:
+    - path: ../../../outputs/lxcat_swarm_validation/raw_lxcat/Ar_Biagi_20260914.txt
+      species: Ar
+      format: lxcat
+    - path: ../../../outputs/lxcat_swarm_validation/raw_lxcat/O2_Biagi_no_attachment_20260914.txt
+      species: O2
+      format: lxcat
+    - path: ../../../outputs/lxcat_swarm_validation/raw_lxcat/N2_Biagi_20260914.txt
+      species: N2
+      format: lxcat
+    - path: ../../../outputs/lxcat_swarm_validation/raw_lxcat/Cl2_MuroranIT_no_attachment_20260914.txt
+      species: Cl2
+      format: lxcat
+
+physics:
+  field:
+    type: dc
+    magnetic_field: {enabled: false, B_T: 0.0, angle_EB_deg: 0.0}
+  angular_scattering: {model: isotropic, higher_moment_closure: zero}
+  electron_electron: {enabled: false, model: none}
+  ionization: {energy_sharing: equal}
+  energy_grid_policy:
+    adaptive: true
+    threshold_refinement: false
+    tail_probability_target: 1.0e-9
+    tail_metrics: true
+    tail_rate_warning_fraction: 0.05
+    max_eV_limit: 2000.0
+
+solvers:
+  propagator:
+    method: stationary_response
+    energy_cells: 300
+    polar_cells: 48
+    max_iterations: 2000
+    convergence_tolerance: 1.0e-8
+    max_memory_mb: 512
+
+comparison: {enabled: false}
+feature_policy: {unsupported: fail, degraded: record}
+output:
+  directory: ../../../outputs/lxcat_swarm_validation/cases/propagator
+  base_name: lxcat_mixture_propagator

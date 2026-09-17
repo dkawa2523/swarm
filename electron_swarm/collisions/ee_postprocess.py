@@ -11,9 +11,9 @@ from electron_swarm.collisions.electron_electron import mean_energy_eV, relaxati
 from electron_swarm.core.cross_sections import CrossSectionSet
 from electron_swarm.core.results import SwarmCaseResult
 from electron_swarm.core.numerics import widths_from_centers
-from electron_swarm.solvers.kinetic import (
+from electron_swarm.physics.kinetics import gas_number_density
+from electron_swarm.solvers.boltzmann_common.observables import (
     compute_rates_from_eedf,
-    gas_number_density,
 )
 
 

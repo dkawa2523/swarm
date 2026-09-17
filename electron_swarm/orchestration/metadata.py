@@ -3,59 +3,13 @@
 from __future__ import annotations
 
 from electron_swarm.core.config import SwarmConfig
-from electron_swarm.core.result_metadata import (
-    TRANSPORT_FLUX,
-    TRANSPORT_F0_GRADIENT_RECONSTRUCTION,
-    TRANSPORT_MC_FIXED_POPULATION,
-)
 from electron_swarm.core.results import SwarmCaseResult
 from electron_swarm.core.solver_registry import solver_method
 from electron_swarm.orchestration.plan import SolverPlanItem
+from electron_swarm.orchestration.solver_product_contracts import (
+    solver_product_contract,
+)
 from electron_swarm.physics.angular_scattering import expected_angular_metadata
-
-
-def _transport_definition(
-    case: SwarmCaseResult,
-    solver: str,
-) -> str:
-    if solver == "monte_carlo":
-        return str(
-            case.metadata.get(
-                "transport_definition",
-                TRANSPORT_MC_FIXED_POPULATION,
-            )
-        )
-    if case.transport is not None:
-        return case.transport.definition
-    return TRANSPORT_FLUX
-
-
-def _multi_term_metadata(
-    case: SwarmCaseResult,
-    config: SwarmConfig,
-    angular_metadata: dict[str, object],
-) -> dict[str, object]:
-    method = config.solvers.multi_term.method
-    is_pn_dcs = method == "pn_dcs"
-    is_pn_direct = method == "pn_closure_direct"
-    table = config.physics.angular_scattering.moment_table
-    exact_dcs_based = bool(
-        is_pn_dcs and table is not None and table.provenance == "dcs_derived"
-    )
-    return {
-        "lmax": config.solvers.multi_term.lmax,
-        "direct_pn_operator": bool(
-            (is_pn_direct or is_pn_dcs)
-            and case.metadata.get("direct_pn_operator") is True
-        ),
-        "angular_moment_source": str(angular_metadata["angular_moment_source"]),
-        "moment_table_provenance": (
-            str(table.provenance) if is_pn_dcs and table is not None else ""
-        ),
-        "exact_dcs_based": exact_dcs_based,
-        "ordinary_integral_xs_closure": not is_pn_dcs,
-        "transport_definition": TRANSPORT_F0_GRADIENT_RECONSTRUCTION,
-    }
 
 
 def attach_product_metadata(
@@ -66,16 +20,26 @@ def attach_product_metadata(
 ) -> SwarmCaseResult:
     """Attach the compact product metadata contract to one solver result."""
 
+    angular_metadata = expected_angular_metadata(config)
+    contract_metadata = solver_product_contract(item.solver).product_metadata(
+        case,
+        config=config,
+        item=item,
+        selected_angular_metadata=angular_metadata,
+    )
+
     case.solver = item.solver
     case.schema_version = "2"
     for rate in case.rates:
         rate.solver = item.solver
 
-    angular_metadata = expected_angular_metadata(config)
     metadata: dict[str, object] = {
         "schema_version": config.schema_version,
         "solver_method": solver_method(config, item.solver),
         **angular_metadata,
+        "angular_scattering_treatment": item.treatment("angular_scattering"),
+        "angular_scattering_fidelity": item.fidelity("angular_scattering"),
+        "angular_scattering_assumption": item.assumption("angular_scattering"),
         "direct_pn_operator": False,
         "electron_electron_treatment": item.treatment("electron_electron"),
         "electron_electron_transport_stale": False,
@@ -84,17 +48,22 @@ def attach_product_metadata(
         "ionization_secondary_electron_energy_eV": (
             config.physics.ionization.secondary_electron_energy_eV
         ),
-        "transport_definition": _transport_definition(case, item.solver),
+        "transport_definition": contract_metadata["transport_definition"],
         "tail_refinement_treatment": item.treatment("tail_refinement"),
-        "magnetic_field_treatment": str(
-            case.metadata.get(
-                "magnetic_field_treatment",
-                item.treatment("magnetic_field"),
-            )
+        "magnetic_field_treatment": item.treatment("magnetic_field"),
+        "rf_field_treatment": item.treatment("rf_field"),
+        "rf_frequency_Hz": (
+            config.physics.field.time_dependent.frequency_Hz
+            if config.physics.field.type == "time_dependent"
+            else None
+        ),
+        "rf_amplitude_definition": (
+            config.physics.field.time_dependent.amplitude_definition
+            if config.physics.field.type == "time_dependent"
+            else "none"
         ),
     }
-    if item.solver == "multi_term":
-        metadata.update(_multi_term_metadata(case, config, angular_metadata))
+    metadata.update(contract_metadata)
 
     case.metadata.update(metadata)
     return case

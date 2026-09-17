@@ -7,7 +7,7 @@ from typing import Any
 
 MIGRATION_ERROR = (
     "schema v2 is required; use schema_version: 2 and run.solvers with "
-    "two_term, multi_term, or monte_carlo"
+    "two_term, multi_term, monte_carlo, or propagator"
 )
 
 OBSOLETE_PUBLIC_NAMES = {

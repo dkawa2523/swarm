@@ -2,6 +2,8 @@
 # COMSOL retains its local-energy formulation and solves the mean-energy PDE.
 # Seven x-y lookup quantities (14 property arrays) are written for audit;
 # activity is formulation-dependent.
+schema_version: 2
+
 model:
   input_mph: Model/positive_column_1d.mph
   output_mph: Model/work/positive_column_external_applied.mph
@@ -10,7 +12,7 @@ model:
   physics: plas
 
 bundle:
-  path: outputs/comsol_bundle/mixture_0000
+  path: outputs/positive_column/two_term_bundle/mixture_0000
 
 logs:
   path: Model/logs

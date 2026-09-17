@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swarm Two-Term Config"
+  short_description: "Configure schema v2 two-term swarm jobs"
+  default_prompt: "Use $swarm-two-term-config to create and validate a two-term calculation configuration for this repository."

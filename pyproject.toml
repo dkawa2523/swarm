@@ -7,9 +7,11 @@ requires-python = ">=3.10"
 dependencies = [
   "numpy",
   "scipy",
+  "threadpoolctl",
   "pandas",
   "pyyaml",
   "lxcat_data_parser",
+  "numba>=0.60",
 ]
 
 [project.scripts]
@@ -28,6 +30,7 @@ build-backend = "setuptools.build_meta"
 include = ["electron_swarm*", "swarm_workflow*"]
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 markers = [
   "slow: tests that are too heavy for the default CI path",
   "mc: Monte Carlo backend or stochastic integration tests",

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swarm MC Config"
+  short_description: "Configure bounded Monte Carlo swarm jobs"
+  default_prompt: "Use $swarm-mc-config to create and budget a reproducible Monte Carlo calculation configuration."

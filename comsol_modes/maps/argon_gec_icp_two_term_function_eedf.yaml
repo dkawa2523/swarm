@@ -1,0 +1,45 @@
+schema_version: 2
+model_mapping: argon_gec_icp_model.yaml
+
+bundle:
+  path: ../../outputs/argon_gec_icp/two_term_bundle/mixture_0000
+  expected_source: two_term
+  expected_field_type: dc
+  expected_transport_definition: flux
+
+closure:
+  source_field: steady_dc
+  electron_transport: swarm_mobility_comsol_einstein
+  reaction_model: function_eedf
+  elastic_energy_loss_model: comsol_cross_section_integral
+  chemistry_owner: comsol_embedded_cross_sections
+  rf_owner: comsol_frequency_transient
+  function_eedf:
+    table: eedf_f0_comsol_2d.csv
+    function_tag: sw_icp_eedf_two_term
+    interpolation: structured_spreadsheet_linear_projection
+    extrapolation: constant
+
+run:
+  output_mph: ../work/argon_gec_icp_two_term_function_eedf.mph
+  power_W: 1500.0
+  frequency_Hz: 13560000.0
+  gas_temperature_K: 300.0
+  pressure_Pa: 2.66644
+  final_time_s: 0.01
+  output_points_per_decade: 4
+  clear_saved_solution: true
+  convergence:
+    electron_inventory_relative_change: 0.02
+    ion_inventory_relative_change: 0.02
+    metastable_inventory_relative_change: 0.03
+    mean_energy_relative_change: 0.01
+    absorbed_power_relative_change: 0.01
+    coil_power_relative_error: 0.005
+    mean_energy_support_relative_guard: 0.10
+
+results:
+  path: ../../outputs/argon_gec_icp/comsol_two_term_function_eedf
+
+logs:
+  path: ../../outputs/argon_gec_icp/comsol_two_term_function_eedf_logs

@@ -1,91 +1,65 @@
-# Direct PN Closure Operator
+# Direct PN Operator
 
-`multi_term.method: pn_closure_direct` is the product path for the direct PN
-closure. The protected `lmax: 1` path is the SG-reduction gate. Higher `lmax`
-values run in a limited ordinary-XS angular-closure scope documented below.
+`multi_term.method: pn_closure_direct` solves the axisymmetric homogeneous-DC
+PN equations directly. The implementation is divided by responsibility:
 
-## Unknown Vector Layout
+- `case.py`: product-to-numerical case construction
+- `grid.py`: multi-term energy grid
+- `operator.py`: collision damping and bidirectional adjacent-moment field
+  blocks
+- `steady.py`: normalized stationary eigenmode and full-system convergence
+- `observables.py`: rates, F1 drift, and F0 diffusion approximation
+- `result.py`: canonical product result
+- `solver.py`: thin composition entry point
 
-The product layout is:
+## Unknown layout
 
-```text
-index(ell, i) = ell * n_energy + i
-sum_i F0_i * delta_E_i = 1
-```
-
-The `lmax: 1` implementation solves a sparse block system for `[F0, G1]`, where
-`G1` is the validated SG energy-flux auxiliary. `G1` is not treated as a
-physical Legendre coefficient. The direct path uses shared kinetic projection
-data from `electron_swarm.solvers.kinetic` and does not instantiate
-`TwoTermSolver`, copy the two-term EEDF, or reuse two-term rates.
-
-## Current lmax=1 Equation
-
-For `lmax: 1`, the block is the conservative reduction of the native
-Scharfetter-Gummel balance:
+Even `F_l` values use the `n` energy-cell centers. Odd values use the `n-1`
+internal faces; their two boundary values are zero. Blocks are concatenated in
+increasing `l`, and `F0` obeys
 
 ```text
-collision(F0) + G1 = gamma F0
-G1 = energy_flux(F0)
-normalization(F0) = 1
+sum_i F0_i * DeltaE_i = 1.
 ```
 
-Eliminating `G1` gives the native two-term SG energy-space balance. Keeping
-`G1` inside the sparse solve fixes the direct reduction gate without post-hoc
-construction.
-
-## lmax>1 Coefficient-Space Scope
-
-Higher `lmax` solves coefficient blocks `F_l(E_i), l=0..L` in one sparse
-system. The accepted coefficient-space equation form is:
+For an energy-density coefficient, electric acceleration contains the radial
+operators
 
 ```text
-0 = C_l[F_l] + S_l
-    + E_{l,l-1}[F_{l-1}] + E_{l,l+1}[F_{l+1}]
-    - gamma F_l
+-E c eps^((l+1)/2) d/deps [eps^(-l/2) F_(l-1)]
+-E c eps^(-l/2) d/deps [eps^((l+1)/2) F_(l+1)],
+c = sqrt(2 e / m_e),
 ```
 
-where the `E` blocks use documented Legendre recurrence coefficients. Fitted
-field-coupling scale factors are not allowed. A runnable `lmax > 1` product
-path uses:
+multiplied by the Legendre recurrence factors `l/(2l-1)` and
+`(l+1)/(2l+3)`. Every available neighbor is assembled; in particular, higher
+moments feed back through the chain to `F1` and `F0`.
 
-- `ell=1` damping exactly consistent with the shared momentum frequency.
-- `ell>=2` damping from angular-closure moments and shared `sigma_total_like`,
-  `nu_l = N * v * sigma_total_like * (1 - m_l) + nu_inelastic_loss`, with no
-  silent fallback when `sigma_total_like` is unavailable.
-- `l=0` source/sink from shared kinetic projection.
-- `l>0` inelastic source/sink policy fixed to sink-only for the first accepted
-  ordinary-XS scope.
-- low/high energy boundary conditions for every `l>0` block.
-- residuals computed separately from the normalization row.
+`F0` contains the conservative inelastic/nonconservative energy redistribution
+and finite-temperature elastic energy relaxation. `F_l`, `l>0`, uses angular
+damping
 
-Unsupported conditions still fail fast: magnetic PN, non-DC fields,
-superelastic lmax>1 treatment, invalid moments/damping, non-finite solves, or
-excessive negative `F0` mass. `pn_dcs` is the moment-table entry point for the
-same block; `pn_closure_direct` remains the ordinary-XS angular-closure entry
-point.
+```text
+nu_l = N v sigma_total (1 - m_l) + nu_inelastic_loss.
+```
 
-## lmax=1 Regression Condition
+An effective-momentum-only input is usable only with the explicitly isotropic
+ordinary-XS closure, where its effective damping is applied consistently. It
+cannot normalize DCS moments.
 
-The direct implementation is accepted only if it passes the Ar/BOLSIG
-regression against the two-term native SG solver:
+## Stationary solve and evidence
 
-- coupled sparse block solve
-- no two-term EEDF copy
-- no post-hoc `G1` construction to match drift
-- rates recomputed from solved `F0`
-- EEDF relative L1 below 0.01
-- mean energy within 0.5%
-- drift velocity within 1%
-- major rates within 2%
-- normalization error below `1e-8`
-- negative mass fraction below `1e-8`
+The solver finds `A F = gamma F`, replaces one `F0` equation by normalization,
+and updates the temporal growth eigenvalue from the conservative `F0` balance.
+The accepted residual is evaluated afterward on every original PN row, not on
+the normalization-replaced matrix. Iteration-limit, non-finite, singular,
+excess-negative-mass, or residual failures raise errors; coefficients are not
+clipped or repaired.
 
-## Required Tests
+The result reports:
 
-- schema v2 accepts `pn_closure_direct`
-- `lmax: 1` reports `solver_method=pn_closure_direct`
-- `lmax: 1` reports `direct_pn_operator=true`
-- `lmax > 1` smoke runs for the supported ordinary-XS scope
-- `pn_dcs` runs only with validated moment-table input
-- Ar/BOLSIG lmax=1 two-term SG regression harness
+- the actual multi-term grid and cell widths;
+- `pn_full_relative_residual` and iteration/eigenvalue changes;
+- `field_coupling=bidirectional_adjacent_legendre_moments`;
+- `drift_observable=F1_velocity_moment`;
+- `diffusion_observable=F0_gradient_reconstruction`.
