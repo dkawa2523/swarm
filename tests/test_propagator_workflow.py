@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from product_helpers import campaign_config
+
 import json
 from pathlib import Path
 import sqlite3
@@ -14,7 +16,7 @@ from swarm_workflow.comsol.models.gec_ccp import (
     prepare_gec_ccp_run,
 )
 from swarm_workflow.campaign.sweep import run_sweep
-from swarm_workflow.quality.propagator_source import (
+from electron_swarm.core.source_identity import (
     PROPAGATOR_SOLVER_SOURCE_METADATA_KEY,
 )
 from swarm_workflow.tables.contracts import TableBuildError
@@ -39,12 +41,7 @@ def test_propagator_workflow_persists_null_transport_and_exports_bundle(
     workflow = tmp_path / "propagator_workflow.yaml"
     workflow.write_text(
         yaml.safe_dump(
-            {
-                "base_config": base.name,
-                "database": "propagator.sqlite",
-                "e_over_n_Td": [10.0, 30.0, 100.0],
-                "mixtures": [{"Ar": 1.0}],
-            },
+            campaign_config(base, database='propagator.sqlite', e_over_n_Td=[10.0, 30.0, 100.0], mixtures=[{'Ar': 1.0}]),
             sort_keys=False,
         ),
         encoding="utf-8",
@@ -96,7 +93,7 @@ def test_propagator_workflow_persists_null_transport_and_exports_bundle(
             / "docs"
             / "dev"
             / "results"
-            / "propagator_p1_deterministic_qualification_20260908.json"
+            / "propagator_p1_core_qualification.json"
         ),
     )
     assert table_summary.unqualified_mixtures == 0
@@ -108,7 +105,8 @@ def test_propagator_workflow_persists_null_transport_and_exports_bundle(
     assert table_manifest["hashes"][PROPAGATOR_SOLVER_SOURCE_METADATA_KEY] == (
         propagator_source
     )
-    transport = pd.read_csv(mixture_tables / "transport_vs_mean_energy.csv")
+    assert table_manifest["format_version"] == 3
+    transport = pd.read_csv(mixture_tables / "transport_vs_en.csv")
     assert transport["reduced_mobility_m2_V_s_m3"].notna().all()
     assert transport["reduced_diffusion_L_m2_s_m3"].isna().all()
     assert transport["reduced_diffusion_T_m2_s_m3"].isna().all()
@@ -129,7 +127,7 @@ def test_propagator_workflow_persists_null_transport_and_exports_bundle(
                 / "docs"
                 / "dev"
                 / "results"
-                / "propagator_p1_deterministic_qualification_20260908.json"
+                / "propagator_p1_core_qualification.json"
             ),
         )
 
@@ -141,6 +139,7 @@ def test_propagator_workflow_persists_null_transport_and_exports_bundle(
         (mixture_bundle / "manifest.json").read_text(encoding="utf-8")
     )
     assert bundle_manifest["source"] == "propagator"
+    assert bundle_manifest["format_version"] == 2
     assert bundle_manifest["hashes"][PROPAGATOR_SOLVER_SOURCE_METADATA_KEY] == (
         propagator_source
     )

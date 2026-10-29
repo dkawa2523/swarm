@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import partial
 from typing import TYPE_CHECKING, Callable
 
 from electron_swarm.core.capabilities import SolverCapabilities, SupportLevel
 from electron_swarm.core.feature_resolution import (
     FeatureTreatment,
-    monte_carlo_feature_resolver,
-    multi_term_feature_resolver,
-    propagator_feature_resolver,
-    two_term_feature_resolver,
+    resolve_solver_features,
 )
 from electron_swarm.core.solver_ids import CANONICAL_SOLVER_IDS
 
@@ -102,7 +100,7 @@ SOLVER_DESCRIPTORS: dict[str, SolverDescriptor] = {
         ),
         method_label=lambda config: str(config.solvers.two_term.backend),
         factory=_two_term_factory,
-        feature_resolver=two_term_feature_resolver,
+        feature_resolver=partial(resolve_solver_features, "two_term"),
     ),
     "multi_term": SolverDescriptor(
         id="multi_term",
@@ -117,12 +115,13 @@ SOLVER_DESCRIPTORS: dict[str, SolverDescriptor] = {
         ),
         method_label=lambda config: str(config.solvers.multi_term.method),
         factory=_multi_term_factory,
-        feature_resolver=multi_term_feature_resolver,
+        feature_resolver=partial(resolve_solver_features, "multi_term"),
     ),
     "monte_carlo": SolverDescriptor(
         id="monte_carlo",
         capabilities=SolverCapabilities(
             solver="monte_carlo",
+            unsupported_processes=frozenset({"attachment"}),
             angular_scattering=SupportLevel.EXACT,
             ionization_source=SupportLevel.UNSUPPORTED,
             electron_electron=SupportLevel.UNSUPPORTED,
@@ -132,12 +131,13 @@ SOLVER_DESCRIPTORS: dict[str, SolverDescriptor] = {
         ),
         method_label=lambda config: "internal",
         factory=_monte_carlo_factory,
-        feature_resolver=monte_carlo_feature_resolver,
+        feature_resolver=partial(resolve_solver_features, "monte_carlo"),
     ),
     "propagator": SolverDescriptor(
         id="propagator",
         capabilities=SolverCapabilities(
             solver="propagator",
+            unsupported_processes=frozenset({"superelastic"}),
             angular_scattering=SupportLevel.EXACT,
             ionization_source=SupportLevel.EXACT,
             electron_electron=SupportLevel.UNSUPPORTED,
@@ -147,7 +147,7 @@ SOLVER_DESCRIPTORS: dict[str, SolverDescriptor] = {
         ),
         method_label=lambda config: str(config.solvers.propagator.method),
         factory=_propagator_factory,
-        feature_resolver=propagator_feature_resolver,
+        feature_resolver=partial(resolve_solver_features, "propagator"),
     ),
 }
 

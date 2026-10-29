@@ -1,5 +1,9 @@
 # Testing and Benchmarks
 
+Build release wheels with `py -3 tools/build_wheel.py --output dist`.
+This stages the current runtime packages in an owned temporary directory so
+stale files under a workspace build directory cannot enter the wheel.
+
 The default developer path stays lightweight. Heavier Monte Carlo and manual
 external-reference checks are opt-in.
 
@@ -84,11 +88,30 @@ It records the code revision and dirty state, Python/NumPy/SciPy and hardware,
 cross-section SHA-256, per-case grid/work/memory/timing diagnostics, maxent-P1
 and inelastic medium--fine differences, mixed-gas angular refinement,
 energy-ceiling independence, and weak-transfer conservation in
-`docs/dev/results/propagator_p1_deterministic_qualification_20260908.json`.
+`docs/dev/results/propagator_p1_core_qualification.json`.
 It never instantiates another solver and explicitly excludes COMSOL and P2.
 The current artifact records `p1_deterministic_core_qualified: true` and no
 blocking gates. `--quick` is a smoke run and is not a replacement for the full
 matrix.
+
+Target checks can be reproduced at the three required anchors using
+`configs/benchmarks/argon_gec_ccp_propagator_refinement.yaml` or
+`configs/benchmarks/argon_gec_icp_propagator_refinement.yaml` with
+`python -m swarm_workflow.cli run`. These bounded workflows write under
+`outputs/qualification/`; they provide refinement evidence rather than a
+complete interpolation table. Run `tools/qualify_propagator_target.py` against
+that database, the corresponding example config, and the current core artifact.
+The CCP anchors are `3000,3500,4000 Td`; the ICP anchors are
+`1500,2500,2744.2936035 Td`. Both compare `300 x 48` against `600 x 72`, with
+1% scalar and 2% cell-density EEDF L1 limits. Production table sweeps and
+COMSOL acceptance remain documented in the model-specific workflow pages.
+
+Standard figure behavior is covered by `tests/test_standard_figures.py`:
+configuration/plan errors, native values and units, independent MC intervals,
+distinct transport quantities and stale flags, angular/RF grids, read-only
+historical analysis, image recovery, atomic rollback and stale-file cleanup.
+These are data/behavior checks; pixel snapshots and duplicated solver-physics
+tests are not used. The complete suite remains `py -3 -m pytest -q`.
 
 External BOLSIG+ / MCIG output files can also be ingested by benchmark-only
 `references.external` entries. Product YAML loaded by

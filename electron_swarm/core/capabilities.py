@@ -37,3 +37,4 @@ class SolverCapabilities:
     magnetic_field: SupportLevel
     rf_field: SupportLevel
     tail_refinement: SupportLevel
+    unsupported_processes: frozenset[str] = frozenset()

@@ -82,9 +82,7 @@ class InelasticCollisionConfig(Protocol):
     """Solver-neutral inelastic and ionization collision settings."""
 
     nonconservative_model: Literal["growth", "ignore"]
-    ionization_energy_sharing: Literal[
-        "equal", "primary_secondary", "loss_only"
-    ]
+    ionization_energy_sharing: Literal["equal", "primary_secondary", "loss_only"]
     secondary_electron_energy_eV: float
 
 
@@ -127,14 +125,37 @@ class MonteCarloAdapterConfig:
     ] = "fixed_particle_single_daughter"
     seed: int | None = None
     particles: int | None = None
-    warmup_collisions: int | None = None
-    max_collisions: int | None = None
-    tail_max_collisions: int | None = None
+    warmup_trial_periods: int | None = None
+    production_trial_periods: int | None = None
+    tail_trial_periods: int | None = None
     tail_rate_rse_trigger: float = 0.25
     transport_correlation_lag_barriers: int = 64
     transport_estimator: Literal["single_field", "paired_field_parity"] = "single_field"
     numeric_kernel: Literal["auto", "python", "numba"] = "auto"
     collect_audit: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class MonteCarloSampling:
+    particles: int
+    warmup_trial_periods: int
+    production_trial_periods: int
+    tail_trial_periods: int
+
+
+def resolve_monte_carlo_sampling(settings: object) -> MonteCarloSampling:
+    return MonteCarloSampling(
+        particles=256 if settings.particles is None else settings.particles,
+        warmup_trial_periods=0
+        if settings.warmup_trial_periods is None
+        else settings.warmup_trial_periods,
+        production_trial_periods=100
+        if settings.production_trial_periods is None
+        else settings.production_trial_periods,
+        tail_trial_periods=0
+        if settings.tail_trial_periods is None
+        else settings.tail_trial_periods,
+    )
 
 
 @dataclass(slots=True)
@@ -185,7 +206,6 @@ def build_internal_solver_configs(
         two_term=TwoTermInternalConfig(
             energy_grid=EnergyGridConfig(refine=refinement_config()),
             adaptive_grid=adaptive,
-            nonconservative_model=solvers.two_term.nonconservative_model,
             ionization_energy_sharing=physics.ionization.energy_sharing,
             secondary_electron_energy_eV=(
                 physics.ionization.secondary_electron_energy_eV
@@ -204,12 +224,12 @@ def build_internal_solver_configs(
             ),
         ),
         monte_carlo=MonteCarloAdapterConfig(
-            population_model=solvers.monte_carlo.population_model,
+            population_model=physics.ionization.population_model,
             seed=solvers.monte_carlo.seed,
             particles=solvers.monte_carlo.particles,
-            warmup_collisions=solvers.monte_carlo.warmup_collisions,
-            max_collisions=solvers.monte_carlo.max_collisions,
-            tail_max_collisions=solvers.monte_carlo.tail_max_collisions,
+            warmup_trial_periods=solvers.monte_carlo.warmup_trial_periods,
+            production_trial_periods=solvers.monte_carlo.production_trial_periods,
+            tail_trial_periods=solvers.monte_carlo.tail_trial_periods,
             tail_rate_rse_trigger=solvers.monte_carlo.tail_rate_rse_trigger,
             transport_correlation_lag_barriers=(
                 solvers.monte_carlo.transport_correlation_lag_barriers

@@ -8,15 +8,18 @@ from .comparison import (
 )
 from .config import ComsolMappingError
 from .verify import ComsolVerifyError
-from .workflow import (
+from .contracts import (
     PositiveColumnPlan,
     PositiveColumnRunSummary,
     PositiveColumnWorkflowError,
+)
+from .workflow import (
     execute_positive_column_run,
     format_positive_column_plan,
     format_positive_column_summary,
     prepare_positive_column_run,
 )
+
 __all__ = (
     "ComsolCompareError",
     "ComsolComparisonSummary",

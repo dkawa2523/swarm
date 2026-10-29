@@ -74,7 +74,7 @@ def _new_energy_audit(
 def _new_run_audit(
     setup: _MonteCarloRunSetup,
     *,
-    production_collisions: int,
+    production_trial_periods: int,
 ) -> _RunAudit:
     if not setup.collect_audit:
         return _audits._NullMonteCarloRunAudit()
@@ -82,8 +82,8 @@ def _new_run_audit(
         seed=setup.cfg.seed,
         particles=setup.particles,
         population_model=setup.population_model,
-        warmup_collisions=setup.warmup_collisions,
-        production_collisions=production_collisions,
+        warmup_trial_periods=setup.warmup_trial_periods,
+        production_trial_periods=production_trial_periods,
         trial_collision_frequency_s_inv=setup.trial_frequency,
         max_cross_section_energy_eV=setup.max_cross_section_energy,
         tail_threshold_eV=setup.tail_threshold,
@@ -110,7 +110,7 @@ def _initialize_monte_carlo_case(
     )
     run_audit = _new_run_audit(
         setup,
-        production_collisions=setup.collisions,
+        production_trial_periods=setup.collisions,
     )
     reaction_rate_accumulator = TrajectoryReactionRateAccumulator(
         processes=tuple(item.process for item in setup.projected),

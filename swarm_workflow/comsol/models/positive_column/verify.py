@@ -19,6 +19,9 @@ from .config import (
     load_comsol_mapping,
 )
 from .java import java_path, java_string
+from .lookup import ReactionIdentity, LookupValidationError, read_lookup
+from .bundle import validate_positive_column_bundle
+from .contracts import PositiveColumnWorkflowError
 
 
 EXPECTED_CSV = "function_values_expected.csv"
@@ -109,6 +112,10 @@ class VerifyComsolSummary:
 
 def plan_verify_comsol_functions(mapping_path: str | Path) -> VerifyComsolPlan:
     mapping = load_comsol_mapping(mapping_path)
+    try:
+        validate_positive_column_bundle(mapping.bundle.path, mapping=mapping)
+    except PositiveColumnWorkflowError as exc:
+        raise ComsolVerifyError(str(exc)) from exc
     _validate_verify_sources(mapping)
     output_dir = mapping.verify.output_path
     return VerifyComsolPlan(
@@ -134,7 +141,9 @@ def execute_verify_comsol_functions(
 ) -> VerifyComsolSummary:
     plan = plan_verify_comsol_functions(mapping_path)
     if not plan.mapping.model.output_mph.exists():
-        write_verify_manifest(plan, status="failed", failure_reason="missing_output_mph")
+        write_verify_manifest(
+            plan, status="failed", failure_reason="missing_output_mph"
+        )
         raise ComsolVerifyError(
             f"COMSOL output .mph does not exist: {plan.mapping.model.output_mph}"
         )
@@ -206,7 +215,8 @@ def write_verify_manifest(
         function_points = [
             point
             for point in plan.points
-            if point.function_name == function.name and point.function_tag == function.tag
+            if point.function_name == function.name
+            and point.function_tag == function.tag
         ]
         functions.append(
             {
@@ -227,9 +237,7 @@ def write_verify_manifest(
             }
         )
     closure_items = []
-    for quantity in _ordered_unique(
-        point.quantity for point in plan.feature_points
-    ):
+    for quantity in _ordered_unique(point.quantity for point in plan.feature_points):
         quantity_points = [
             point for point in plan.feature_points if point.quantity == quantity
         ]
@@ -378,7 +386,9 @@ def compare_function_values(plan: VerifyComsolPlan) -> VerifyComsolSummary:
         absolute_error = abs(comsol_value - expected_value)
         denominator = abs(expected_value)
         relative_error = (
-            0.0 if denominator == 0.0 and absolute_error == 0.0 else absolute_error / denominator
+            0.0
+            if denominator == 0.0 and absolute_error == 0.0
+            else absolute_error / denominator
         )
         scale_key = (
             expected_row.get("verification_kind", ""),
@@ -389,12 +399,9 @@ def compare_function_values(plan: VerifyComsolPlan) -> VerifyComsolSummary:
             plan.absolute_tolerance,
             max(scale * plan.relative_tolerance, 1.0e-300),
         )
-        ok = (
-            not negative_or_nan
-            and (
-                absolute_error <= effective_absolute_tolerance
-                or relative_error <= plan.relative_tolerance
-            )
+        ok = not negative_or_nan and (
+            absolute_error <= effective_absolute_tolerance
+            or relative_error <= plan.relative_tolerance
         )
         if ok:
             passed += 1
@@ -469,12 +476,7 @@ def compare_function_values(plan: VerifyComsolPlan) -> VerifyComsolSummary:
             "absolute_tolerance": plan.absolute_tolerance,
             "max_relative_error": max_relative_error,
             "max_absolute_error": max_absolute_error,
-            "functions": sorted(
-                {
-                    str(row["function_tag"])
-                    for row in summary_rows
-                }
-            ),
+            "functions": sorted({str(row["function_tag"]) for row in summary_rows}),
             "closure_items": _closure_item_summary(summary_rows),
             "rows": summary_rows,
         },
@@ -606,21 +608,21 @@ def generate_verify_java_source(plan: VerifyComsolPlan) -> str:
             "  }",
             "",
             "  private static double tableValue(Model model, String tag, double argument) {",
-            "    String table = model.func(tag).getString(\"table\");",
-            "    String[] rows = table.split(\";\");",
+            '    String table = model.func(tag).getString("table");',
+            '    String[] rows = table.split(";");',
             "    double[] xs = new double[rows.length];",
             "    double[] ys = new double[rows.length];",
             "    int n = 0;",
             "    for (String row : rows) {",
             "      String trimmed = row.trim();",
             "      if (trimmed.length() == 0) continue;",
-            "      String[] parts = trimmed.split(\",\");",
+            '      String[] parts = trimmed.split(",");',
             "      if (parts.length < 2) continue;",
             "      xs[n] = Double.parseDouble(parts[0].trim());",
             "      ys[n] = Double.parseDouble(parts[1].trim());",
             "      n++;",
             "    }",
-            "    if (n == 0) throw new RuntimeException(\"empty function table: \" + tag);",
+            '    if (n == 0) throw new RuntimeException("empty function table: " + tag);',
             "    if (argument <= xs[0]) return ys[0];",
             "    for (int i = 1; i < n; i++) {",
             "      if (argument <= xs[i]) {",
@@ -641,29 +643,29 @@ def generate_verify_java_source(plan: VerifyComsolPlan) -> str:
             "    double[] ys = model.component(component).physics(physics).feature(feature)",
             "        .getDoubleArray(yProperty);",
             "    if (xs.length != ys.length || xs.length != expectedLength) {",
-            "      throw new RuntimeException(\"feature table length mismatch: \"",
-            "          + feature + \".\" + xProperty + \"/\" + yProperty);",
+            '      throw new RuntimeException("feature table length mismatch: "',
+            '          + feature + "." + xProperty + "/" + yProperty);',
             "    }",
             "    if (index < 0 || index >= xs.length) {",
-            "      throw new RuntimeException(\"feature table row missing: \"",
-            "          + feature + \".\" + yProperty + \" index=\" + index);",
+            '      throw new RuntimeException("feature table row missing: "',
+            '          + feature + "." + yProperty + " index=" + index);',
             "    }",
             "    double tolerance = Math.max(1e-15, Math.abs(expectedArgument) * 1e-12);",
             "    if (Math.abs(xs[index] - expectedArgument) > tolerance) {",
-            "      throw new RuntimeException(\"feature table argument mismatch: \"",
-            "          + feature + \".\" + xProperty + \" index=\" + index);",
+            '      throw new RuntimeException("feature table argument mismatch: "',
+            '          + feature + "." + xProperty + " index=" + index);',
             "    }",
             "    return ys[index];",
             "  }",
             "",
             "  private static void writeValue(String name, "
             + "String tag, double argument, double value) {",
-            "    System.out.println(csv(name) + \",\" + csv(tag) + \",\" + "
-            + "Double.toString(argument) + \",\" + Double.toString(value));",
+            '    System.out.println(csv(name) + "," + csv(tag) + "," + '
+            + 'Double.toString(argument) + "," + Double.toString(value));',
             "  }",
             "",
             "  private static String csv(String value) {",
-            "    return \"\\\"\" + value.replace(\"\\\"\", \"\\\"\\\"\") + \"\\\"\";",
+            '    return "\\"" + value.replace("\\"", "\\"\\"") + "\\"";',
             "  }",
             "}",
             "",
@@ -870,7 +872,7 @@ def _feature_table_points(
                 value_column=lookup.y_column,
                 argunit="eV",
                 fununit="m^2",
-                process_type=lookup.process_type,
+                reaction=lookup.identity,
             )
         )
     return points
@@ -890,35 +892,17 @@ def _points_from_table(
     value_column: str,
     argunit: str,
     fununit: str,
-    process_type: str | None = None,
+    reaction: ReactionIdentity | None = None,
 ) -> list[FeatureTableControlPoint]:
     if not path.exists():
         raise ComsolVerifyError(
             f"required closure verification table does not exist: {path}"
         )
-    values: dict[float, float] = {}
-    with path.open("r", encoding="utf-8-sig", newline="") as stream:
-        for source_index, row in enumerate(csv.DictReader(stream)):
-            if process_type is not None and row.get("process_type") != process_type:
-                continue
-            argument = _float_or_none(row.get(argument_column))
-            value = _float_or_none(row.get(value_column))
-            if argument is None or value is None:
-                raise ComsolVerifyError(
-                    f"required closure quantity {quantity} has a nonnumeric row "
-                    f"in {file} row {source_index}"
-                )
-            if argument < 0.0 or value < 0.0:
-                raise ComsolVerifyError(
-                    f"required closure quantity {quantity} has a negative value "
-                    f"in {file} row {source_index}"
-                )
-            values[argument] = value
-    if len(values) < 2:
-        raise ComsolVerifyError(
-            f"required closure quantity {quantity} needs at least two rows in {file}"
-        )
-    ordered = sorted(values.items())
+    try:
+        data = read_lookup(path, argument_column, value_column, reaction=reaction)
+    except LookupValidationError as exc:
+        raise ComsolVerifyError(str(exc)) from exc
+    ordered = tuple(zip(data.x, data.y, strict=True))
     table_length = len(ordered)
     return [
         FeatureTableControlPoint(
@@ -1017,7 +1001,9 @@ def _assert_same_identity(
             )
     expected_argument = _required_float(expected_row, "argument")
     comsol_argument = _required_float(comsol_row, "argument")
-    if not math.isclose(expected_argument, comsol_argument, rel_tol=1.0e-12, abs_tol=0.0):
+    if not math.isclose(
+        expected_argument, comsol_argument, rel_tol=1.0e-12, abs_tol=0.0
+    ):
         raise ComsolVerifyError(
             f"COMSOL verification row {index} does not match expected argument: "
             f"{expected_argument!r} != {comsol_argument!r}"
@@ -1042,7 +1028,7 @@ def _read_manifest(path: Path) -> dict[str, Any]:
 def _missing_bundle_hint(path: Path) -> str:
     return (
         "Generate the Ar-only bundle first, for example: "
-        "swarm-workflow sweep examples/workflow_argon_comsol.yaml; "
+        "swarm-workflow run examples/workflow_argon_comsol.yaml; "
         "swarm-workflow aggregate outputs/argon_comsol/swarm.sqlite --output "
         "outputs/argon_comsol/aggregate; "
         "swarm-workflow build-tables outputs/argon_comsol/swarm.sqlite --output "

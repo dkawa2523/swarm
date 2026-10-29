@@ -79,7 +79,11 @@ def tail_probability(
 ) -> float:
     energy = np.asarray(energy_eV, dtype=float)
     eedf = np.asarray(eedf_eV_inv, dtype=float)
-    widths = widths_from_centers(energy) if widths_eV is None else np.asarray(widths_eV, dtype=float)
+    widths = (
+        widths_from_centers(energy)
+        if widths_eV is None
+        else np.asarray(widths_eV, dtype=float)
+    )
     if len(energy) == 0 or len(eedf) != len(energy) or len(widths) != len(energy):
         return float("nan")
     mask = energy >= float(threshold_eV)
@@ -97,7 +101,11 @@ def rate_tail_fraction(
 ) -> float:
     energy = np.asarray(energy_eV, dtype=float)
     eedf = np.asarray(eedf_eV_inv, dtype=float)
-    widths = widths_from_centers(energy) if widths_eV is None else np.asarray(widths_eV, dtype=float)
+    widths = (
+        widths_from_centers(energy)
+        if widths_eV is None
+        else np.asarray(widths_eV, dtype=float)
+    )
     if len(energy) == 0 or len(eedf) != len(energy) or len(widths) != len(energy):
         return float("nan")
     speed = np.sqrt(np.maximum(2.0 * energy * EV_TO_J / ELECTRON_MASS_KG, 0.0))
@@ -172,7 +180,9 @@ def attach_tail_metrics(
         if proc is None:
             rate.tail_fraction = None
             continue
-        fraction = rate_tail_fraction(case.energy_eV, case.eedf, proc, threshold, widths)
+        fraction = rate_tail_fraction(
+            case.energy_eV, case.eedf, proc, threshold, widths
+        )
         cutoff_fraction = rate_tail_fraction(
             case.energy_eV, case.eedf, proc, cutoff_threshold, widths
         )

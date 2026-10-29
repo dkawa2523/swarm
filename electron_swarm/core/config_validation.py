@@ -82,7 +82,10 @@ def validate_config(config: SwarmConfig) -> None:
         raise ValueError("run.e_over_n_Td must not be empty")
     for index, value in enumerate(config.run.e_over_n_Td):
         _positive(value, f"run.e_over_n_Td[{index}]")
-    if not isinstance(config.run.case_prefix, str) or not config.run.case_prefix.strip():
+    if (
+        not isinstance(config.run.case_prefix, str)
+        or not config.run.case_prefix.strip()
+    ):
         raise ValueError("run.case_prefix must be a non-empty string")
 
     conditions = config.conditions
@@ -92,13 +95,15 @@ def validate_config(config: SwarmConfig) -> None:
         conditions.gas_number_density_m3,
         "conditions.gas_number_density_m3",
     )
-    _optional_positive(conditions.length_scale_m, "conditions.length_scale_m")
     if conditions.pressure_Pa is None and conditions.gas_number_density_m3 is None:
         raise ValueError(
             "either conditions.pressure_Pa or conditions.gas_number_density_m3 "
             "must be set"
         )
-    if conditions.pressure_Pa is not None and conditions.gas_number_density_m3 is not None:
+    if (
+        conditions.pressure_Pa is not None
+        and conditions.gas_number_density_m3 is not None
+    ):
         raise ValueError(
             "set only one of conditions.pressure_Pa and "
             "conditions.gas_number_density_m3"
@@ -144,7 +149,9 @@ def validate_config(config: SwarmConfig) -> None:
     )
     angle = _finite(magnetic.angle_EB_deg, "physics.field.magnetic_field.angle_EB_deg")
     if not 0.0 <= angle <= 180.0:
-        raise ValueError("physics.field.magnetic_field.angle_EB_deg must be in [0, 180]")
+        raise ValueError(
+            "physics.field.magnetic_field.angle_EB_deg must be in [0, 180]"
+        )
 
     periodic = field.time_dependent
     _choice(
@@ -166,9 +173,17 @@ def validate_config(config: SwarmConfig) -> None:
         _positive(periodic.frequency_Hz, "physics.field.time_dependent.frequency_Hz")
     elif periodic.frequency_Hz is not None:
         _positive(periodic.frequency_Hz, "physics.field.time_dependent.frequency_Hz")
-    phase_steps = _integer(periodic.phase_steps, "physics.field.time_dependent.phase_steps")
+        if field.type == "dc":
+            raise ValueError(
+                "frequency_Hz requires physics.field.type=time_dependent; DC does not use a frequency"
+            )
+    phase_steps = _integer(
+        periodic.phase_steps, "physics.field.time_dependent.phase_steps"
+    )
     if phase_steps < 8 or phase_steps % 2:
-        raise ValueError("physics.field.time_dependent.phase_steps must be even and >= 8")
+        raise ValueError(
+            "physics.field.time_dependent.phase_steps must be even and >= 8"
+        )
     if _integer(periodic.max_periods, "physics.field.time_dependent.max_periods") <= 0:
         raise ValueError("physics.field.time_dependent.max_periods must be positive")
     tolerance = _positive(
@@ -242,19 +257,17 @@ def validate_config(config: SwarmConfig) -> None:
         {"simple_relaxation", "density_based"},
     )
     if electron_electron.enabled and electron_electron_model == "none":
-        raise ValueError(
-            "physics.electron_electron.model is required when enabled"
-        )
+        raise ValueError("physics.electron_electron.model is required when enabled")
     if not electron_electron.enabled and electron_electron_model != "none":
-        raise ValueError(
-            "physics.electron_electron.model must be none when disabled"
-        )
+        raise ValueError("physics.electron_electron.model must be none when disabled")
     relaxation = _finite(
         electron_electron.relaxation_fraction,
         "physics.electron_electron.relaxation_fraction",
     )
     if not 0.0 <= relaxation <= 1.0:
-        raise ValueError("physics.electron_electron.relaxation_fraction must be in [0, 1]")
+        raise ValueError(
+            "physics.electron_electron.relaxation_fraction must be in [0, 1]"
+        )
     _positive(
         electron_electron.fallback_temperature_eV,
         "physics.electron_electron.fallback_temperature_eV",
@@ -288,7 +301,9 @@ def validate_config(config: SwarmConfig) -> None:
         "physics.energy_grid_policy.tail_probability_target",
     )
     if tail_target >= 1.0:
-        raise ValueError("physics.energy_grid_policy.tail_probability_target must be < 1")
+        raise ValueError(
+            "physics.energy_grid_policy.tail_probability_target must be < 1"
+        )
     _optional_positive(
         grid.tail_threshold_eV,
         "physics.energy_grid_policy.tail_threshold_eV",
@@ -299,7 +314,9 @@ def validate_config(config: SwarmConfig) -> None:
         "physics.energy_grid_policy.tail_rate_warning_fraction",
     )
     if not 0.0 <= warning_fraction <= 1.0:
-        raise ValueError("physics.energy_grid_policy.tail_rate_warning_fraction must be in [0, 1]")
+        raise ValueError(
+            "physics.energy_grid_policy.tail_rate_warning_fraction must be in [0, 1]"
+        )
     _positive(grid.max_eV_limit, "physics.energy_grid_policy.max_eV_limit")
 
     finite_k = config.physics.finite_k
@@ -311,11 +328,6 @@ def validate_config(config: SwarmConfig) -> None:
 
     two_term = config.solvers.two_term
     _choice(two_term.backend, "solvers.two_term.backend", {"native_sg"})
-    _choice(
-        two_term.nonconservative_model,
-        "solvers.two_term.nonconservative_model",
-        {"growth", "ignore"},
-    )
     _positive(
         two_term.min_momentum_cross_section_m2,
         "solvers.two_term.min_momentum_cross_section_m2",
@@ -332,8 +344,8 @@ def validate_config(config: SwarmConfig) -> None:
 
     monte_carlo = config.solvers.monte_carlo
     population_model = _choice(
-        monte_carlo.population_model,
-        "solvers.monte_carlo.population_model",
+        config.physics.ionization.population_model,
+        "physics.ionization.population_model",
         {"fixed_particle_single_daughter", "weighted_branching"},
     )
     _choice(
@@ -350,15 +362,19 @@ def validate_config(config: SwarmConfig) -> None:
         seed = _integer(monte_carlo.seed, "solvers.monte_carlo.seed")
         if seed < 0:
             raise ValueError("solvers.monte_carlo.seed must be nonnegative")
-    for name in ("particles", "max_collisions", "tail_max_collisions"):
+    for name in ("particles", "production_trial_periods", "tail_trial_periods"):
         value = getattr(monte_carlo, name)
         if value is not None and _integer(value, f"solvers.monte_carlo.{name}") <= 0:
             raise ValueError(f"solvers.monte_carlo.{name} must be positive")
-    if monte_carlo.warmup_collisions is not None and _integer(
-        monte_carlo.warmup_collisions,
-        "solvers.monte_carlo.warmup_collisions",
-    ) < 0:
-        raise ValueError("solvers.monte_carlo.warmup_collisions must be nonnegative")
+    if (
+        monte_carlo.warmup_trial_periods is not None
+        and _integer(
+            monte_carlo.warmup_trial_periods,
+            "solvers.monte_carlo.warmup_trial_periods",
+        )
+        < 0
+    ):
+        raise ValueError("solvers.monte_carlo.warmup_trial_periods must be nonnegative")
     tail_rse = _positive(
         monte_carlo.tail_rate_rse_trigger,
         "solvers.monte_carlo.tail_rate_rse_trigger",
@@ -375,9 +391,9 @@ def validate_config(config: SwarmConfig) -> None:
             "power of two >= 4"
         )
     if population_model == "fixed_particle_single_daughter":
-        if monte_carlo.tail_max_collisions is not None:
+        if monte_carlo.tail_trial_periods is not None:
             raise ValueError(
-                "solvers.monte_carlo.tail_max_collisions requires "
+                "solvers.monte_carlo.tail_trial_periods requires "
                 "population_model=weighted_branching"
             )
         if lag != 64:
@@ -394,7 +410,9 @@ def validate_config(config: SwarmConfig) -> None:
     )
     energy_cells = _integer(propagator.energy_cells, "solvers.propagator.energy_cells")
     polar_cells = _integer(propagator.polar_cells, "solvers.propagator.polar_cells")
-    iterations = _integer(propagator.max_iterations, "solvers.propagator.max_iterations")
+    iterations = _integer(
+        propagator.max_iterations, "solvers.propagator.max_iterations"
+    )
     memory = _integer(propagator.max_memory_mb, "solvers.propagator.max_memory_mb")
     convergence = _positive(
         propagator.convergence_tolerance,
@@ -407,7 +425,9 @@ def validate_config(config: SwarmConfig) -> None:
     if not 10 <= iterations <= 20000:
         raise ValueError("solvers.propagator.max_iterations must be in [10, 20000]")
     if not 1.0e-12 <= convergence <= 1.0e-4:
-        raise ValueError("solvers.propagator.convergence_tolerance must be in [1e-12, 1e-4]")
+        raise ValueError(
+            "solvers.propagator.convergence_tolerance must be in [1e-12, 1e-4]"
+        )
     if memory < 128:
         raise ValueError("solvers.propagator.max_memory_mb must be >= 128")
 
@@ -423,6 +443,35 @@ def validate_config(config: SwarmConfig) -> None:
     for index, solver in enumerate(comparison.candidate_solvers):
         if solver not in CANONICAL_SOLVER_IDS:
             raise ValueError(f"comparison.candidate_solvers[{index}] is not canonical")
+    if comparison.required and not comparison.enabled:
+        raise ValueError("comparison.required requires comparison.enabled=true")
+    if len(set(comparison.candidate_solvers)) != len(comparison.candidate_solvers):
+        raise ValueError("comparison.candidate_solvers must be unique")
+    enabled = {item.id for item in config.run.solvers if item.enabled}
+    if comparison.enabled:
+        if len(enabled) < 2:
+            raise ValueError("comparison requires at least two enabled run solvers")
+        if (
+            comparison.reference_solver is not None
+            and comparison.reference_solver not in enabled
+        ):
+            raise ValueError(
+                "comparison.reference_solver must be an enabled run solver"
+            )
+        if any(solver not in enabled for solver in comparison.candidate_solvers):
+            raise ValueError("comparison.candidate_solvers must be enabled run solvers")
+        if comparison.reference_solver in comparison.candidate_solvers:
+            raise ValueError("comparison reference solver cannot also be a candidate")
+    config.output.validate()
+    if config.output.export is not None:
+        if config.output.export.solver not in {
+            item.id for item in config.run.solvers if item.enabled
+        }:
+            raise ValueError("output.export.solver must be enabled in run.solvers")
+        if config.physics.field.type != "dc":
+            raise NotImplementedError(
+                "reaction_rates export currently requires DC E/N; RF RMS/phase export is unsupported"
+            )
 
     _choice(
         config.feature_policy.unsupported,

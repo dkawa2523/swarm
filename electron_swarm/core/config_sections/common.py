@@ -69,9 +69,7 @@ def string_value(value: Any, field_name: str) -> str:
     return value
 
 
-def bool_field(
-    raw: dict[str, Any], key: str, default: bool, field_name: str
-) -> bool:
+def bool_field(raw: dict[str, Any], key: str, default: bool, field_name: str) -> bool:
     value = raw[key] if key in raw else default
     if not isinstance(value, bool):
         raise ValueError(f"{field_name} must be a boolean")

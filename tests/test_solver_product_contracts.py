@@ -63,7 +63,7 @@ def _solver_evidence(solver: str) -> dict[str, object]:
         return {
             "magnetic_field_treatment": "none",
             "ionization_source_model": "equal",
-            "ionization_source_treatment": "equal",
+            "ionization_source_treatment": "temporal_growth_two_daughters:equal",
             "angular_model": "isotropic",
             "angular_moment_source": "isotropic_closure",
             "moment_table_provenance": "",
@@ -180,7 +180,7 @@ def test_solver_catalogs_have_identical_canonical_keys_and_identities() -> None:
                     "mc_flux_particle_tracking_fixed_population"
                 ),
                 "magnetic_field_treatment": "none",
-                "ionization_source_treatment": "equal",
+                "ionization_source_treatment": "temporal_growth_two_daughters:equal",
                 "tail_refinement_treatment": "disabled",
                 "monte_carlo_base_seed": 17,
                 "monte_carlo_case_seed": 123456,

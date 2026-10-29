@@ -78,8 +78,7 @@ class SolverProductContract:
     ) -> dict[str, object]:
         if case.solver != self.solver:
             raise ProductMetadataContractError(
-                f"{self.solver} product contract received result from "
-                f"{case.solver!r}"
+                f"{self.solver} product contract received result from {case.solver!r}"
             )
 
         transport = case.transport
@@ -111,7 +110,10 @@ class SolverProductContract:
 
         if self.transport_evidence is TransportEvidence.RESULT_AND_SOLVER_METADATA:
             metadata_definition = _required_metadata(case, "transport_definition")
-            if type(metadata_definition) is not str or metadata_definition != definition_text:
+            if (
+                type(metadata_definition) is not str
+                or metadata_definition != definition_text
+            ):
                 raise ProductMetadataContractError(
                     f"{self.solver} metadata transport_definition "
                     f"{metadata_definition!r} does not match transport result "
@@ -236,7 +238,7 @@ def _monte_carlo_metadata(
             "uint32 integer"
         )
     tail_treatment = _required_metadata(case, "tail_refinement_treatment")
-    configured = config.solvers.monte_carlo.tail_max_collisions is not None
+    configured = config.solvers.monte_carlo.tail_trial_periods is not None
     allowed_tail_treatments = (
         {"configured_not_triggered", "executed"} if configured else {"disabled"}
     )

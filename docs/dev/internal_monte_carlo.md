@@ -66,7 +66,10 @@ exact energy-bin crossings and integrates every piecewise-linear
 `sigma(E) v(E)` kernel after splitting at cross-section knots and thresholds.
 Magnetic flights retain an endpoint-energy rule that preserves magnetic no-work
 behavior. The canonical EEDF CSV includes bin widths plus nullable
-`sample_count`, `effective_sample_count`, and `relative_standard_error`.
+`sample_count` and `weight_effective_count`. These describe histogram support,
+not an independent sample count or standard error. Workflow qualification uses
+independent replicas. Triage bands do not add binwise Kish counts into a false
+band ESS or infer uncertainty from them.
 
 When a reaction rate remains unresolved, the independent tail ensemble keeps
 exact statistical weight in every occupied energy stratum and allocates its
@@ -74,7 +77,7 @@ exploration particles from the independently normalized reaction kernels as
 well as the advancing threshold front. No deterministic solver distribution is
 imported or blended into the MC estimate.
 
-Tail sampling is enabled by an explicit Monte Carlo `tail_max_collisions`
+Tail sampling is enabled by an explicit Monte Carlo `tail_trial_periods`
 budget. It is independent of `physics.energy_grid_policy.threshold_refinement`,
 which belongs to deterministic energy-grid construction. A configured MC tail
 budget can therefore never be silently disabled by a grid setting from another
@@ -119,3 +122,13 @@ only, preserving the primary case result relative to `single_field`.
 Detailed MC diagnostics are available through `tools/benchmarks/benchmark_internal_mc_audit.py`
 and `tools/benchmarks/benchmark_internal_mc_physics_triage.py`. Product summary outputs keep
 only interpretation metadata.
+
+## Population request in 0.5
+
+Population choice belongs to `physics.ionization.population_model`, not the MC
+numerical settings. `weighted_branching` is the default common two-daughter
+physical problem. Request `fixed_particle_single_daughter` explicitly for a
+fixed-population experiment; other solver modes report it unsupported. Particle
+and energy density-packet diffusion in weighted growth has its own observable
+definition and is not equated with fixed-population flux diffusion. All campaign
+seeds, budgets, uncertainty gates, and population-specific limitations still apply.

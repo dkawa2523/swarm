@@ -111,9 +111,9 @@ def elastic_binary_collision_velocity_m_s(
     target_mass = mass_amu * AMU_KG
     relative = electron - target
     relative_speed = float(np.linalg.norm(relative))
-    center_of_mass = (
-        ELECTRON_MASS_KG * electron + target_mass * target
-    ) / (ELECTRON_MASS_KG + target_mass)
+    center_of_mass = (ELECTRON_MASS_KG * electron + target_mass * target) / (
+        ELECTRON_MASS_KG + target_mass
+    )
     if relative_speed <= 0.0:
         return center_of_mass.copy()
 
@@ -129,15 +129,12 @@ def elastic_binary_collision_velocity_m_s(
     sine = math.sqrt(max(1.0 - cosine * cosine, 0.0))
     rotated_relative = relative_speed * (
         cosine * axis
-        + sine
-        * (
-            math.cos(azimuth) * transverse_1
-            + math.sin(azimuth) * transverse_2
-        )
+        + sine * (math.cos(azimuth) * transverse_1 + math.sin(azimuth) * transverse_2)
     )
-    return center_of_mass + (
-        target_mass / (ELECTRON_MASS_KG + target_mass)
-    ) * rotated_relative
+    return (
+        center_of_mass
+        + (target_mass / (ELECTRON_MASS_KG + target_mass)) * rotated_relative
+    )
 
 
 @dataclass(frozen=True, slots=True)

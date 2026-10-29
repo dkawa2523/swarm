@@ -124,8 +124,8 @@ def _base_affine_response(
     # together so LAPACK factors the small dense matrix exactly once.
     right_hand = np.zeros((cells, 2 * cells), dtype=float)
     right_hand[:, :cells] = right
-    right_hand[diagonal[0], cells + diagonal[1]] = (
-        1.0 / (2.0 * np.pi * mu_widths * shell_width)
+    right_hand[diagonal[0], cells + diagonal[1]] = 1.0 / (
+        2.0 * np.pi * mu_widths * shell_width
     )
     raw = np.linalg.solve(left, right_hand)
     raw_scattering = raw[:, :cells]
@@ -137,9 +137,7 @@ def _base_affine_response(
         * raw_scattering[np.ix_(boundary_order, boundary_order)]
         / ordered_flux[None, :]
     )
-    source_to_outflow = (
-        ordered_flux[:, None] * raw_source[boundary_order, :]
-    )
+    source_to_outflow = ordered_flux[:, None] * raw_source[boundary_order, :]
 
     inverse_order = np.empty_like(boundary_order)
     inverse_order[boundary_order] = np.arange(boundary_order.size)
@@ -151,13 +149,10 @@ def _base_affine_response(
     )
     population_scale = np.pi * width * mu_widths
     incoming_to_population = population_scale[:, None] * (
-        ordered_to_density
-        + ordered_to_density @ scattering
+        ordered_to_density + ordered_to_density @ scattering
     )
     source_to_population = (
-        population_scale[:, None]
-        * ordered_to_density
-        @ source_to_outflow
+        population_scale[:, None] * ordered_to_density @ source_to_outflow
     )
     # ``inverse_order`` is constructed here as an explicit audit of the
     # permutation; retaining only ``boundary_order`` avoids duplicate state.
@@ -226,8 +221,7 @@ def compose_affine_responses(
     interface_rhs[:, :half] = a1
     interface_rhs[:, half:cells] = b1 @ d2
     interface_rhs[:, cells:] = (
-        left.source_to_outflow[:half]
-        + b1 @ right.source_to_outflow[half:]
+        left.source_to_outflow[:half] + b1 @ right.source_to_outflow[half:]
     )
     interface_maps = np.linalg.solve(interface, interface_rhs)
     interface_positive = interface_maps[:, :cells]
@@ -235,9 +229,7 @@ def compose_affine_responses(
 
     interface_negative = c2 @ interface_positive
     interface_negative[:, half:] += d2
-    source_negative = (
-        c2 @ source_positive + right.source_to_outflow[half:]
-    )
+    source_negative = c2 @ source_positive + right.source_to_outflow[half:]
 
     scattering = np.empty((cells, cells), dtype=float)
     scattering[:half] = a2 @ interface_positive
@@ -246,23 +238,15 @@ def compose_affine_responses(
     scattering[half:, :half] += c1
 
     source_to_outflow = np.empty((cells, cells), dtype=float)
-    source_to_outflow[:half] = (
-        a2 @ source_positive + right.source_to_outflow[:half]
-    )
-    source_to_outflow[half:] = (
-        d1 @ source_negative + left.source_to_outflow[half:]
-    )
+    source_to_outflow[:half] = a2 @ source_positive + right.source_to_outflow[:half]
+    source_to_outflow[half:] = d1 @ source_negative + left.source_to_outflow[half:]
 
     incoming_to_population = (
         left.incoming_to_population[:, half:] @ interface_negative
         + right.incoming_to_population[:, :half] @ interface_positive
     )
-    incoming_to_population[:, :half] += (
-        left.incoming_to_population[:, :half]
-    )
-    incoming_to_population[:, half:] += (
-        right.incoming_to_population[:, half:]
-    )
+    incoming_to_population[:, :half] += left.incoming_to_population[:, :half]
+    incoming_to_population[:, half:] += right.incoming_to_population[:, half:]
     source_to_population = (
         left.incoming_to_population[:, half:] @ source_negative
         + left.source_to_population
@@ -275,9 +259,7 @@ def compose_affine_responses(
         incoming_to_population=incoming_to_population,
         source_to_population=source_to_population,
         boundary_order=left.boundary_order,
-        conceptual_sublayers=(
-            left.conceptual_sublayers + right.conceptual_sublayers
-        ),
+        conceptual_sublayers=(left.conceptual_sublayers + right.conceptual_sublayers),
         # Internal doubling/segmentation uses only the final composed response.
         # Deferring its four full-array reductions avoids rescanning every
         # discarded intermediate.  The public/default path remains audited.
@@ -302,9 +284,7 @@ def compose_affine_responses(
             left.coefficient_error_estimate,
             right.coefficient_error_estimate,
         ),
-        coefficient_segments=(
-            left.coefficient_segments + right.coefficient_segments
-        ),
+        coefficient_segments=(left.coefficient_segments + right.coefficient_segments),
     )
 
 
@@ -361,9 +341,7 @@ def _response_distance(
         (left.incoming_to_population, right.incoming_to_population),
         (left.source_to_population, right.source_to_population),
     ):
-        difference = float(
-            np.max(np.sum(np.abs(coarse - fine), axis=0), initial=0.0)
-        )
+        difference = float(np.max(np.sum(np.abs(coarse - fine), axis=0), initial=0.0))
         scale = max(
             float(np.max(np.sum(np.abs(fine), axis=0), initial=0.0)),
             float(np.max(np.sum(np.abs(coarse), axis=0), initial=0.0)),
@@ -409,8 +387,7 @@ def _converged_segment_response(
             return replace(fine, rational_error_estimate=estimate)
         coarse = fine
     raise FloatingPointError(
-        "stationary shell Cayley response did not meet its bounded "
-        "Richardson tolerance"
+        "stationary shell Cayley response did not meet its bounded Richardson tolerance"
     )
 
 
@@ -429,22 +406,16 @@ def _segmented_shell_response(
 ) -> AffineShellResponse:
     responses: list[AffineShellResponse] = []
     for segment in range(coefficient_segments):
-        segment_left = (
-            left_speed_m_s
-            + segment * shell_width_m_s / coefficient_segments
-        )
+        segment_left = left_speed_m_s + segment * shell_width_m_s / coefficient_segments
         segment_right = (
-            left_speed_m_s
-            + (segment + 1) * shell_width_m_s / coefficient_segments
+            left_speed_m_s + (segment + 1) * shell_width_m_s / coefficient_segments
         )
         segment_width = segment_right - segment_left
         # The only radial coefficient in the shell matrix is the spherical
         # streaming factor 1/v.  Use its exact cell average rather than a
         # midpoint sample; the remaining refinement error is therefore the
         # genuine non-commutativity with collisions/local loss.
-        inverse_speed_average = (
-            np.log(segment_right / segment_left) / segment_width
-        )
+        inverse_speed_average = np.log(segment_right / segment_left) / segment_width
         speed = 1.0 / inverse_speed_average
         matrix = (
             spherical_angular_streaming_matrix(
@@ -475,9 +446,7 @@ def _segmented_shell_response(
         )
     return replace(
         response,
-        rational_error_estimate=max(
-            item.rational_error_estimate for item in responses
-        ),
+        rational_error_estimate=max(item.rational_error_estimate for item in responses),
         coefficient_segments=coefficient_segments,
     )
 
@@ -573,9 +542,7 @@ def build_shell_response(
         effective_contraction = max(float(contraction), 0.25)
         if effective_contraction < 0.8:
             estimate = (
-                difference
-                * effective_contraction
-                / (1.0 - effective_contraction)
+                difference * effective_contraction / (1.0 - effective_contraction)
             )
         else:
             estimate = float("inf")

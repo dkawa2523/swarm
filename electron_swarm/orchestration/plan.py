@@ -15,6 +15,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 DEGRADED_SUPPORT = {SupportLevel.APPROXIMATE}
 POLICY_FEATURE_ORDER = (
+    "collision_processes",
     "ionization_source",
     "electron_electron",
     "magnetic_field",
@@ -24,6 +25,7 @@ POLICY_FEATURE_ORDER = (
     "tail_refinement",
 )
 FEATURE_ORDER = (
+    "collision_processes",
     "angular_scattering",
     "ionization_source",
     "electron_electron",
@@ -66,6 +68,11 @@ class SolverPlanItem:
     def to_metadata(self) -> dict[str, Any]:
         row: dict[str, Any] = {
             "solver": self.solver,
+            "state": "disabled"
+            if not self.requested
+            else "skipped"
+            if self.skipped
+            else "ready",
             "requested": self.requested,
             "runnable": self.runnable,
             "skipped": self.skipped,
@@ -85,9 +92,7 @@ class SolverPlanItem:
             row.update(
                 {
                     "angular_scattering_support": angular.support.value,
-                    "angular_scattering_fidelity": self.fidelity(
-                        "angular_scattering"
-                    ),
+                    "angular_scattering_fidelity": self.fidelity("angular_scattering"),
                     "angular_scattering_assumption": self.assumption(
                         "angular_scattering"
                     ),
@@ -102,10 +107,7 @@ def _unsupported_message(
 ) -> str:
     if treatment.reason:
         return treatment.reason
-    return (
-        f"{solver} does not support requested "
-        f"{treatment.feature.replace('_', ' ')}"
-    )
+    return f"{solver} does not support requested {treatment.feature.replace('_', ' ')}"
 
 
 def _skip_treatment(feature: str, treatment: str) -> str:
@@ -142,14 +144,9 @@ def _apply_requested_feature_policy(
                 False,
                 msg,
             )
-        raise ValueError(
-            f"{msg}; unsupported policy {unsupported_policy!r} is invalid"
-        )
+        raise ValueError(f"{msg}; unsupported policy {unsupported_policy!r} is invalid")
     if treatment.support in DEGRADED_SUPPORT:
-        msg = (
-            f"{solver} handles requested {treatment.feature} "
-            f"as {treatment.treatment}"
-        )
+        msg = f"{solver} handles requested {treatment.feature} as {treatment.treatment}"
         if degraded_policy == "fail":
             raise ValueError(msg)
         warnings.append(msg)
@@ -164,6 +161,11 @@ def build_solve_plan(
     """Resolve the complete finite solver plan before executing any solver."""
 
     validate_unique_solver_ids(config)
+    if config.physics.angular_scattering.model == "moment_table":
+        import numpy as np
+        from electron_swarm.physics.angular_scattering import build_angular_model
+
+        build_angular_model(config).moments(np.array([]), 0)
 
     plan: list[SolverPlanItem] = []
     unsupported_policy = config.feature_policy.unsupported
@@ -175,11 +177,8 @@ def build_solve_plan(
             plan.append(
                 SolverPlanItem(
                     solver=solver,
-                    requested=True,
+                    requested=False,
                     runnable=False,
-                    skipped=True,
-                    skip_reason="solver disabled",
-                    warnings=("solver disabled",),
                 )
             )
             continue
@@ -233,9 +232,7 @@ def validate_unique_solver_ids(config: object) -> None:
 
     solver_ids = [item.id for item in config.run.solvers]
     duplicate_solver_ids = sorted(
-        solver_id
-        for solver_id in set(solver_ids)
-        if solver_ids.count(solver_id) > 1
+        solver_id for solver_id in set(solver_ids) if solver_ids.count(solver_id) > 1
     )
     if duplicate_solver_ids:
         raise ValueError(

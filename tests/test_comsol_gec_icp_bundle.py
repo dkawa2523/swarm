@@ -10,9 +10,7 @@ import numpy as np
 import pytest
 
 import electron_swarm.solvers.monte_carlo.evidence as mc_evidence
-from electron_swarm.solvers.monte_carlo.source_identity import (
-    monte_carlo_source_sha256,
-)
+from electron_swarm.core.source_identity import solver_source_fingerprint
 
 from swarm_workflow.comsol.input.export.contracts import (
     COMSOL_FUNCTION_EEDF_TABLE,
@@ -45,14 +43,14 @@ CORE_QUALIFICATION = (
     / "docs"
     / "dev"
     / "results"
-    / "propagator_p1_deterministic_qualification_20260908.json"
+    / "propagator_p1_core_qualification.json"
 )
 ICP_TARGET_QUALIFICATION = (
     ROOT
     / "docs"
     / "dev"
     / "results"
-    / "propagator_gec_icp_mean_energy_guarded_qualification_20260913.json"
+    / "propagator_gec_icp_target_qualification.json"
 )
 PRESSURE_PA = 2.66644
 TEMPERATURE_K = 300.0
@@ -222,7 +220,7 @@ def test_gec_icp_accepts_required_generic_icp_target_qualification(
     )
 
     target = evidence["provenance"]["target_qualification"]
-    assert target["schema"] == "swarm.propagator_target_qualification.v1"
+    assert target["schema"] == "swarm.propagator_target_qualification.v2"
     assert target["target"] == "argon_gec_icp_restricted_local_mean_energy"
     assert target["fields_Td"] == [1500.0, 2500.0, 2744.2936035]
 
@@ -346,7 +344,7 @@ def _write_bundle(root: Path, source: str) -> Path:
     }
     hashes: dict[str, str] = {
         "workflow_config_sha256": "c" * 64,
-        "base_config_sha256": "a" * 64,
+        "calculation_sha256": "a" * 64,
         "cross_sections_sha256": _canonical_cross_sections_hash(),
     }
     mc_sampling_plan = None
@@ -363,9 +361,9 @@ def _write_bundle(root: Path, source: str) -> Path:
             {
                 "e_over_n_Td": field,
                 "particles": 128,
-                "warmup_collisions": 16,
-                "max_collisions": 32,
-                "tail_max_collisions": 32,
+                "warmup_trial_periods": 16,
+                "production_trial_periods": 32,
+                "tail_trial_periods": 32,
                 "replicas": 4,
                 "transport_correlation_lag_barriers": 4,
                 "transport_estimator": "single_field",
@@ -383,7 +381,7 @@ def _write_bundle(root: Path, source: str) -> Path:
                 "mc_eedf_estimator_schema_version": (
                     mc_evidence.MC_EEDF_ESTIMATOR_SCHEMA_VERSION
                 ),
-                "mc_solver_source_sha256": monte_carlo_source_sha256(),
+                "mc_solver_source_sha256": solver_source_fingerprint("monte_carlo")["sha256"],
             }
         )
         mc_sampling_plan = {
@@ -441,12 +439,12 @@ def _write_bundle(root: Path, source: str) -> Path:
         solver_qualification = qualification.manifest_entry(file=target.name)
 
     manifest = {
-        "format_version": 1,
+        "format_version": 2,
         "stage": "export-comsol",
         "status": "ok",
         "source": source,
         "physical_context": {
-            "schema": "swarm_physical_context.v1",
+            "schema": "swarm_physical_context.v2",
             "gas_temperature_K": TEMPERATURE_K,
             "gas_number_density_m3": (PRESSURE_PA / (BOLTZMANN_J_K * TEMPERATURE_K)),
             "field": {"type": "dc", "magnetic_field": {"enabled": False}},
@@ -530,7 +528,7 @@ def _add_target_qualification(bundle: Path, *, mutation: str | None = None) -> N
         if key != "file"
     }
     for name in (
-        "base_config_sha256",
+        "calculation_sha256",
         "workflow_config_sha256",
         "cross_sections_sha256",
         "propagator_solver_source_sha256",

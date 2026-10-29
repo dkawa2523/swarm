@@ -22,14 +22,14 @@ QUALIFICATION = (
     / "docs"
     / "dev"
     / "results"
-    / "propagator_p1_deterministic_qualification_20260908.json"
+    / "propagator_p1_core_qualification.json"
 )
 TARGET_QUALIFICATION = (
     ROOT
     / "docs"
     / "dev"
     / "results"
-    / "propagator_gec_icp_mean_energy_guarded_qualification_20260913.json"
+    / "propagator_gec_icp_target_qualification.json"
 )
 TARGET_REQUIREMENT = PropagatorTargetRequirement(
     target="argon_gec_icp_restricted_local_mean_energy",
@@ -113,6 +113,16 @@ def test_propagator_qualification_rejects_stale_implementation(
         validate_propagator_core_qualification(path)
 
 
+def test_propagator_qualification_rejects_altered_input_snapshot(tmp_path: Path) -> None:
+    payload = json.loads(QUALIFICATION.read_text(encoding="utf-8"))
+    inputs = payload["environment"]["input_artifacts"]
+    inputs[next(iter(inputs))] += "\n# changed\n"
+    path = tmp_path / "altered-input.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(SolverQualificationError, match="input snapshot changed"):
+        validate_propagator_core_qualification(path)
+
+
 def test_current_propagator_target_qualification_is_internally_valid() -> None:
     payload = json.loads(TARGET_QUALIFICATION.read_text(encoding="utf-8"))
     core = _target_bound_core(payload)
@@ -162,8 +172,25 @@ def test_propagator_target_qualification_rejects_bundle_provenance() -> None:
             core_qualification=core,
             requirement=TARGET_REQUIREMENT,
             provenance_hashes={
-                "base_config_sha256": "0" * 64,
+                "calculation_sha256": "0" * 64,
                 "workflow_config_sha256": "0" * 64,
                 "cross_sections_sha256": "0" * 64,
             },
+        )
+
+
+@pytest.mark.parametrize("damage", ["nan", "missing_gate", "negative"])
+def test_target_refinement_rejects_invalid_numerical_evidence(tmp_path: Path, damage: str) -> None:
+    payload = json.loads(TARGET_QUALIFICATION.read_text(encoding="utf-8"))
+    row = payload["medium_fine_refinement"][0]
+    if damage == "missing_gate":
+        row["gated_scalars"] = ["mean_energy"]
+    else:
+        row["eedf_weighted_L1"] = float("nan") if damage == "nan" else -1.0
+    artifact = tmp_path / "invalid-target.json"
+    artifact.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(SolverQualificationError, match="refinement (is malformed|failed)"):
+        validate_propagator_target_qualification(
+            artifact, core_qualification=_target_bound_core(payload),
+            requirement=TARGET_REQUIREMENT,
         )

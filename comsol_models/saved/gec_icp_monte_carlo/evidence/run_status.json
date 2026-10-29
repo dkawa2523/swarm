@@ -1,0 +1,618 @@
+{
+  "closure": {
+    "chemistry_owner": "comsol_embedded_cross_sections",
+    "elastic_energy_loss_model": "comsol_cross_section_integral",
+    "electron_transport": "swarm_mobility_comsol_einstein",
+    "function_eedf": {
+      "extrapolation": "constant",
+      "function_tag": "sw_icp_eedf_monte_carlo",
+      "interpolation": "structured_spreadsheet_linear_projection",
+      "table": "eedf_f0_comsol_2d.csv"
+    },
+    "reaction_model": "function_eedf",
+    "rf_owner": "comsol_frequency_transient",
+    "source_field": "steady_dc"
+  },
+  "closure_readback": {
+    "contract": {
+      "expected": {
+        "ElectronProperties.IncludeThermalDiffusion": "false",
+        "ElectronProperties.MeanElectronEnergyModel": "LocalEnergyApproximationE",
+        "ElectronProperties.ReducedProps": "true",
+        "ElectronProperties.TensorElectronProps": "false",
+        "anchor_count": "14",
+        "model_path": "C:/Users/user/Desktop/swarm_5/comsol_modes/work/argon_gec_icp_monte_carlo_function_eedf.mph",
+        "pes1.SpecifyElectronDensityAndEnergy": "SpecifyMueOnly",
+        "pes1.muN": "exp(sw_icp_log_muN(sw_icp_logeps))*1[1/(V*m*s)]|0[1/(V*m*s)]|exp(sw_icp_log_muN(sw_icp_logeps))*1[1/(V*m*s)]|0[1/(V*m*s)]|0[1/(V*m*s)]|exp(sw_icp_log_muN(sw_icp_logeps))*1[1/(V*m*s)]",
+        "reaction.elastic.eir1.SpecifyReactionUsing": "UseCrossSectionData",
+        "reaction.elastic.eir1.UseTownsendTwoTermsBoltzmann": "false",
+        "reaction.elastic.eir1.eedf": "FromPhysicsInterfaceProperty",
+        "reaction.excitation.eir2.SpecifyReactionUsing": "UseCrossSectionData",
+        "reaction.excitation.eir2.UseTownsendTwoTermsBoltzmann": "false",
+        "reaction.excitation.eir2.eedf": "FromPhysicsInterfaceProperty",
+        "reaction.ionization.eir4.SpecifyReactionUsing": "UseCrossSectionData",
+        "reaction.ionization.eir4.UseTownsendTwoTermsBoltzmann": "false",
+        "reaction.ionization.eir4.eedf": "FromPhysicsInterfaceProperty",
+        "reaction.stepwise_ionization.eir5.SpecifyReactionUsing": "UseCrossSectionData",
+        "reaction.stepwise_ionization.eir5.UseTownsendTwoTermsBoltzmann": "false",
+        "reaction.stepwise_ionization.eir5.eedf": "FromPhysicsInterfaceProperty",
+        "reaction.superelastic.eir3.SpecifyReactionUsing": "UseCrossSectionData",
+        "reaction.superelastic.eir3.UseTownsendTwoTermsBoltzmann": "false",
+        "reaction.superelastic.eir3.eedf": "FromPhysicsInterfaceProperty",
+        "source": "monte_carlo",
+        "swIcpClosureVars.sw_icp_logeps": "(En-Ne)",
+        "sw_icp_log_muN.argunit": "1",
+        "sw_icp_log_muN.extrap": "const",
+        "sw_icp_log_muN.fununit": "1",
+        "sw_icp_log_muN.interp": "piecewisecubic",
+        "sw_icp_log_muN.source": "table",
+        "sw_icp_log_muN.table_rows": "14",
+        "transport_path": "C:/Users/user/Desktop/swarm_5/outputs/argon_gec_icp/monte_carlo_bundle/mixture_0000/transport_vs_mean_energy.csv",
+        "transport_sha256": "92a62f5cd726b045e8ceb592d122b774cb0b8292f95dce48bb20d5b31a82c806"
+      },
+      "readback": {
+        "ElectronProperties.IncludeThermalDiffusion": "false",
+        "ElectronProperties.MeanElectronEnergyModel": "LocalEnergyApproximationE",
+        "ElectronProperties.ReducedProps": "true",
+        "ElectronProperties.TensorElectronProps": "false",
+        "anchor_count": "14",
+        "model_path": "C:/Users/user/Desktop/swarm_5/comsol_modes/work/argon_gec_icp_monte_carlo_function_eedf.mph",
+        "pes1.SpecifyElectronDensityAndEnergy": "SpecifyMueOnly",
+        "pes1.muN": "exp(sw_icp_log_muN(sw_icp_logeps))*1[1/(V*m*s)]|0[1/(V*m*s)]|exp(sw_icp_log_muN(sw_icp_logeps))*1[1/(V*m*s)]|0[1/(V*m*s)]|0[1/(V*m*s)]|exp(sw_icp_log_muN(sw_icp_logeps))*1[1/(V*m*s)]",
+        "reaction.elastic.eir1.SpecifyReactionUsing": "UseCrossSectionData",
+        "reaction.elastic.eir1.UseTownsendTwoTermsBoltzmann": "false",
+        "reaction.elastic.eir1.eedf": "FromPhysicsInterfaceProperty",
+        "reaction.excitation.eir2.SpecifyReactionUsing": "UseCrossSectionData",
+        "reaction.excitation.eir2.UseTownsendTwoTermsBoltzmann": "false",
+        "reaction.excitation.eir2.eedf": "FromPhysicsInterfaceProperty",
+        "reaction.ionization.eir4.SpecifyReactionUsing": "UseCrossSectionData",
+        "reaction.ionization.eir4.UseTownsendTwoTermsBoltzmann": "false",
+        "reaction.ionization.eir4.eedf": "FromPhysicsInterfaceProperty",
+        "reaction.stepwise_ionization.eir5.SpecifyReactionUsing": "UseCrossSectionData",
+        "reaction.stepwise_ionization.eir5.UseTownsendTwoTermsBoltzmann": "false",
+        "reaction.stepwise_ionization.eir5.eedf": "FromPhysicsInterfaceProperty",
+        "reaction.superelastic.eir3.SpecifyReactionUsing": "UseCrossSectionData",
+        "reaction.superelastic.eir3.UseTownsendTwoTermsBoltzmann": "false",
+        "reaction.superelastic.eir3.eedf": "FromPhysicsInterfaceProperty",
+        "saved_solution.mean_energy_relative_error_max": "3.9198877750417323E-16",
+        "saved_solution.support_log_difference_max": "4.440892098500626E-16",
+        "source": "monte_carlo",
+        "swIcpClosureVars.sw_icp_logeps": "(En-Ne)",
+        "sw_icp_log_muN.argunit": "1",
+        "sw_icp_log_muN.extrap": "const",
+        "sw_icp_log_muN.fununit": "1",
+        "sw_icp_log_muN.interp": "piecewisecubic",
+        "sw_icp_log_muN.source": "table",
+        "sw_icp_log_muN.table_rows": "14",
+        "transport_path": "C:/Users/user/Desktop/swarm_5/outputs/argon_gec_icp/monte_carlo_bundle/mixture_0000/transport_vs_mean_energy.csv",
+        "transport_sha256": "92a62f5cd726b045e8ceb592d122b774cb0b8292f95dce48bb20d5b31a82c806"
+      }
+    },
+    "failure_reasons": [],
+    "gates": {
+      "mobility_evaluated_anchors": true,
+      "mobility_table_anchors": true,
+      "saved_contract": true,
+      "saved_solution_mean_energy_identity": true,
+      "transport_provenance": true
+    },
+    "mobility_anchor_audit": {
+      "absolute_tolerance": 1e-10,
+      "maximum_evaluated_log_error": 0.0,
+      "maximum_table_log_error": 0.0,
+      "rows": [
+        {
+          "evaluated_log_mean_energy": 0.9029464455451812,
+          "evaluated_log_reduced_mobility": 56.38275968961251,
+          "expected_log_mean_energy": 0.9029464455451812,
+          "expected_log_reduced_mobility": 56.38275968961251,
+          "index": 0,
+          "mean_energy_eV": 2.466860884853499,
+          "table_log_mean_energy": 0.9029464455451812,
+          "table_log_reduced_mobility": 56.38275968961251
+        },
+        {
+          "evaluated_log_mean_energy": 1.2336517972581782,
+          "evaluated_log_reduced_mobility": 55.86174219062913,
+          "expected_log_mean_energy": 1.2336517972581782,
+          "expected_log_reduced_mobility": 55.86174219062913,
+          "index": 1,
+          "mean_energy_eV": 3.4337460128376827,
+          "table_log_mean_energy": 1.2336517972581782,
+          "table_log_reduced_mobility": 55.86174219062913
+        },
+        {
+          "evaluated_log_mean_energy": 1.4306203204479313,
+          "evaluated_log_reduced_mobility": 55.49528715752767,
+          "expected_log_mean_energy": 1.4306203204479313,
+          "expected_log_reduced_mobility": 55.49528715752767,
+          "index": 2,
+          "mean_energy_eV": 4.181292128620431,
+          "table_log_mean_energy": 1.4306203204479313,
+          "table_log_reduced_mobility": 55.49528715752767
+        },
+        {
+          "evaluated_log_mean_energy": 1.6063781853590553,
+          "evaluated_log_reduced_mobility": 55.3003148771684,
+          "expected_log_mean_energy": 1.6063781853590553,
+          "expected_log_reduced_mobility": 55.3003148771684,
+          "index": 3,
+          "mean_energy_eV": 4.984724745596666,
+          "table_log_mean_energy": 1.6063781853590553,
+          "table_log_reduced_mobility": 55.3003148771684
+        },
+        {
+          "evaluated_log_mean_energy": 1.6781306381216277,
+          "evaluated_log_reduced_mobility": 55.32836840228972,
+          "expected_log_mean_energy": 1.6781306381216277,
+          "expected_log_reduced_mobility": 55.32836840228972,
+          "index": 4,
+          "mean_energy_eV": 5.355535174499036,
+          "table_log_mean_energy": 1.6781306381216277,
+          "table_log_reduced_mobility": 55.32836840228972
+        },
+        {
+          "evaluated_log_mean_energy": 1.7273968362273815,
+          "evaluated_log_reduced_mobility": 55.27025526572278,
+          "expected_log_mean_energy": 1.7273968362273815,
+          "expected_log_reduced_mobility": 55.27025526572278,
+          "index": 5,
+          "mean_energy_eV": 5.625989457784442,
+          "table_log_mean_energy": 1.7273968362273815,
+          "table_log_reduced_mobility": 55.27025526572278
+        },
+        {
+          "evaluated_log_mean_energy": 1.7688023730142568,
+          "evaluated_log_reduced_mobility": 55.22075073181764,
+          "expected_log_mean_energy": 1.7688023730142568,
+          "expected_log_reduced_mobility": 55.22075073181764,
+          "index": 6,
+          "mean_energy_eV": 5.863826477600385,
+          "table_log_mean_energy": 1.7688023730142568,
+          "table_log_reduced_mobility": 55.22075073181764
+        },
+        {
+          "evaluated_log_mean_energy": 1.8314115793217718,
+          "evaluated_log_reduced_mobility": 55.13862856905079,
+          "expected_log_mean_energy": 1.8314115793217718,
+          "expected_log_reduced_mobility": 55.13862856905079,
+          "index": 7,
+          "mean_energy_eV": 6.242692497634181,
+          "table_log_mean_energy": 1.8314115793217718,
+          "table_log_reduced_mobility": 55.13862856905079
+        },
+        {
+          "evaluated_log_mean_energy": 1.9344045850850529,
+          "evaluated_log_reduced_mobility": 55.043485088669605,
+          "expected_log_mean_energy": 1.9344045850850529,
+          "expected_log_reduced_mobility": 55.043485088669605,
+          "index": 8,
+          "mean_energy_eV": 6.919922603384709,
+          "table_log_mean_energy": 1.9344045850850529,
+          "table_log_reduced_mobility": 55.043485088669605
+        },
+        {
+          "evaluated_log_mean_energy": 2.1613765496653397,
+          "evaluated_log_reduced_mobility": 54.91525910616632,
+          "expected_log_mean_energy": 2.1613765496653397,
+          "expected_log_reduced_mobility": 54.91525910616632,
+          "index": 9,
+          "mean_energy_eV": 8.68308212929787,
+          "table_log_mean_energy": 2.1613765496653397,
+          "table_log_reduced_mobility": 54.91525910616632
+        },
+        {
+          "evaluated_log_mean_energy": 2.7209193302689085,
+          "evaluated_log_reduced_mobility": 54.74579946338926,
+          "expected_log_mean_energy": 2.7209193302689085,
+          "expected_log_reduced_mobility": 54.74579946338926,
+          "index": 10,
+          "mean_energy_eV": 15.194284391614124,
+          "table_log_mean_energy": 2.7209193302689085,
+          "table_log_reduced_mobility": 54.74579946338926
+        },
+        {
+          "evaluated_log_mean_energy": 3.05421014922481,
+          "evaluated_log_reduced_mobility": 54.67650384670109,
+          "expected_log_mean_energy": 3.05421014922481,
+          "expected_log_reduced_mobility": 54.67650384670109,
+          "index": 11,
+          "mean_energy_eV": 21.204430574900137,
+          "table_log_mean_energy": 3.05421014922481,
+          "table_log_reduced_mobility": 54.67650384670109
+        },
+        {
+          "evaluated_log_mean_energy": 3.5777336956513843,
+          "evaluated_log_reduced_mobility": 54.5721000319202,
+          "expected_log_mean_energy": 3.5777336956513843,
+          "expected_log_reduced_mobility": 54.5721000319202,
+          "index": 12,
+          "mean_energy_eV": 35.792332541566836,
+          "table_log_mean_energy": 3.5777336956513843,
+          "table_log_reduced_mobility": 54.5721000319202
+        },
+        {
+          "evaluated_log_mean_energy": 3.676222297668866,
+          "evaluated_log_reduced_mobility": 54.55298745196734,
+          "expected_log_mean_energy": 3.676222297668866,
+          "expected_log_reduced_mobility": 54.55298745196734,
+          "index": 13,
+          "mean_energy_eV": 39.496904338902326,
+          "table_log_mean_energy": 3.676222297668866,
+          "table_log_reduced_mobility": 54.55298745196734
+        }
+      ]
+    },
+    "output_mph": "C:\\Users\\user\\Desktop\\swarm_5\\comsol_modes\\work\\argon_gec_icp_monte_carlo_function_eedf.mph",
+    "passed": true,
+    "saved_solution_mean_energy_identity": {
+      "limit": 1e-10,
+      "relative_error_max": 3.9198877750417323e-16,
+      "support_log_difference_max": 4.440892098500626e-16
+    },
+    "schema": "swarm.gec_icp_closure_readback.v1",
+    "source": "monte_carlo",
+    "stage": "audit-gec-icp-closure-readback",
+    "status": "passed",
+    "transport": {
+      "current_anchor_count": 14,
+      "current_sha256": "92a62f5cd726b045e8ceb592d122b774cb0b8292f95dce48bb20d5b31a82c806",
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_icp\\monte_carlo_bundle\\mixture_0000\\transport_vs_mean_energy.csv",
+      "planned_anchor_count": 14,
+      "planned_sha256": "92a62f5cd726b045e8ceb592d122b774cb0b8292f95dce48bb20d5b31a82c806"
+    }
+  },
+  "coefficient_sweep": false,
+  "convergence": {
+    "comparison_times_s": [
+      0.0017782794100389228,
+      0.003162277660168378,
+      0.005623413251903494,
+      0.01
+    ],
+    "final_values": {
+      "absorbed_power_W": 1393.035089786223,
+      "axisymmetric_volume_m3": 0.005492535578962569,
+      "coil_power_W": 1499.9999999999998,
+      "electron_inventory": 191435237181013.56,
+      "electron_weighted_mean_energy_eV": 7.487304820979502,
+      "ion_inventory": 191470896522062.2,
+      "maximum_mean_energy_eV": 8.785989457976912,
+      "metastable_inventory": 3131000815948197.5,
+      "minimum_mean_energy_eV": 3.7865359696030403
+    },
+    "gates": {
+      "absorbed_power_relative_change": {
+        "limit": 0.01,
+        "passed": true,
+        "value": 8.279247284413418e-09
+      },
+      "coil_power_relative_error": {
+        "limit": 0.005,
+        "passed": true,
+        "value": 1.5158245029548803e-16
+      },
+      "electron_inventory_relative_change": {
+        "limit": 0.02,
+        "passed": true,
+        "value": 1.29973524754451e-05
+      },
+      "final_time_reached": {
+        "expected_s": 0.01,
+        "passed": true,
+        "value_s": 0.01
+      },
+      "ion_inventory_relative_change": {
+        "limit": 0.02,
+        "passed": true,
+        "value": 1.300326731832545e-05
+      },
+      "mean_energy_relative_change": {
+        "limit": 0.01,
+        "passed": true,
+        "value": 5.416549299549046e-06
+      },
+      "mean_energy_support": {
+        "observed_eV": [
+          3.375330825604635,
+          35.44961885916699
+        ],
+        "passed": true,
+        "relative_guard": 0.1,
+        "required_upper_eV": 38.99458074508369,
+        "table_eV": [
+          2.466860884853499,
+          39.496904338902326
+        ]
+      },
+      "metastable_inventory_relative_change": {
+        "limit": 0.03,
+        "passed": true,
+        "value": 0.0006972832066684957
+      },
+      "passive_absorbed_power": {
+        "absorbed_power_W": 1393.035089786223,
+        "coil_power_W": 1499.9999999999998,
+        "passed": true,
+        "relative_allowance": 0.005
+      },
+      "physical_values": {
+        "passed": true
+      },
+      "planned_time_axis": {
+        "expected_points": 26,
+        "passed": true,
+        "points": 26
+      }
+    },
+    "metrics": {
+      "absorbed_power_relative_change": 8.279247284413418e-09,
+      "coil_power_relative_error": 1.5158245029548803e-16,
+      "electron_inventory_relative_change": 1.29973524754451e-05,
+      "ion_inventory_relative_change": 1.300326731832545e-05,
+      "mean_energy_relative_change": 5.416549299549046e-06,
+      "metastable_inventory_relative_change": 0.0006972832066684957
+    },
+    "passed": true,
+    "schema": "swarm.gec_icp_convergence.v1",
+    "source": "monte_carlo",
+    "stationarity_contract": "maximum adjacent relative change over the final four output times",
+    "status": "passed",
+    "thresholds": {
+      "absorbed_power_relative_change": 0.01,
+      "coil_power_relative_error": 0.005,
+      "electron_inventory_relative_change": 0.02,
+      "ion_inventory_relative_change": 0.02,
+      "mean_energy_relative_change": 0.01,
+      "metastable_inventory_relative_change": 0.03
+    }
+  },
+  "executions": [
+    {
+      "comsol_build": "429",
+      "comsol_version": "6.4",
+      "log_dir": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_icp\\comsol_monte_carlo_function_eedf_logs\\gec_icp_closure_20260914_015408",
+      "operation": "gec_icp_closure",
+      "provenance": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_icp\\comsol_monte_carlo_function_eedf_logs\\gec_icp_closure_20260914_015408\\provenance.json",
+      "result": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_icp\\comsol_monte_carlo_function_eedf_logs\\gec_icp_closure_20260914_015408\\result.json",
+      "total_time_s": 36.93385270005092
+    },
+    {
+      "comsol_build": "429",
+      "comsol_version": "6.4",
+      "log_dir": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_icp\\comsol_monte_carlo_function_eedf_logs\\gec_icp_solve_20260914_015445",
+      "operation": "gec_icp_solve",
+      "provenance": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_icp\\comsol_monte_carlo_function_eedf_logs\\gec_icp_solve_20260914_015445\\provenance.json",
+      "result": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_icp\\comsol_monte_carlo_function_eedf_logs\\gec_icp_solve_20260914_015445\\result.json",
+      "total_time_s": 68.89780589996371
+    }
+  ],
+  "expected_artifacts": {
+    "closure_readback": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_icp\\comsol_monte_carlo_function_eedf\\closure_readback.json",
+    "convergence": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_icp\\comsol_monte_carlo_function_eedf\\convergence.json",
+    "native_function_eedf": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_icp\\comsol_monte_carlo_function_eedf\\comsol_eedf_audit.json"
+  },
+  "model_adapter": "gec_icp",
+  "native_function_eedf": {
+    "active_table_binding": {
+      "comparison": "strict COMSOL-evaluated saved Function values at table nodes, one-coordinate midpoints, derivative probes, and constant extrapolation probes",
+      "failed_samples": 0,
+      "maximum_candidate_relative_error": 5.0158778524390946e-11,
+      "passed": true,
+      "samples": 1850,
+      "strict_kinds": [
+        "anchor",
+        "energy_midpoint",
+        "derivative",
+        "outside"
+      ],
+      "table_path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_icp\\monte_carlo_bundle\\mixture_0000\\eedf_f0_comsol_2d.csv",
+      "table_sha256": "955729d2da58e27694a930c42b6fd609dd31de02e6e133b550192bf1802f6eb8"
+    },
+    "derivatives": {
+      "continuity_contract": "C0; finite one-sided slopes may jump at mean-energy anchors",
+      "groups": 91,
+      "maximum_observed_slope_jump": 0.024223639313916592,
+      "maximum_relative_one_sided_slope_error": 3.8515724701763457e-10,
+      "passed": true
+    },
+    "method": "COMSOL parameter-engine evaluation of the saved component Function",
+    "moments": {
+      "maximum_error": 9.740616989545271e-14,
+      "passed": true,
+      "rows": [
+        {
+          "group": "moment_anchor_0000",
+          "mean_energy_relative_error": 5.3106487564882943e-14,
+          "normalization": 0.9999999999999909,
+          "normalization_error": 9.103828801926284e-15,
+          "reconstructed_mean_energy_eV": 2.46686088485363,
+          "requested_mean_energy_eV": 2.466860884853499
+        },
+        {
+          "group": "moment_anchor_0028",
+          "mean_energy_relative_error": 9.740616989545271e-14,
+          "normalization": 1.0,
+          "normalization_error": 0.0,
+          "reconstructed_mean_energy_eV": 5.625989457783894,
+          "requested_mean_energy_eV": 5.625989457784442
+        },
+        {
+          "group": "moment_anchor_0056",
+          "mean_energy_relative_error": 8.992707604407026e-14,
+          "normalization": 0.9999999999999996,
+          "normalization_error": 4.440892098500626e-16,
+          "reconstructed_mean_energy_eV": 7.526008690416681,
+          "requested_mean_energy_eV": 7.526008690417358
+        },
+        {
+          "group": "moment_anchor_0085",
+          "mean_energy_relative_error": 8.471884812201467e-14,
+          "normalization": 0.9999999999999993,
+          "normalization_error": 6.661338147750939e-16,
+          "reconstructed_mean_energy_eV": 23.483790257189817,
+          "requested_mean_energy_eV": 23.483790257191806
+        },
+        {
+          "group": "moment_anchor_0113",
+          "mean_energy_relative_error": 9.58858129514508e-14,
+          "normalization": 0.9999999999999998,
+          "normalization_error": 2.220446049250313e-16,
+          "reconstructed_mean_energy_eV": 39.49690433890611,
+          "requested_mean_energy_eV": 39.496904338902326
+        },
+        {
+          "group": "moment_mid_0000",
+          "mean_energy_relative_error": 1.707299392391849e-14,
+          "normalization": 0.9999999999999922,
+          "normalization_error": 7.771561172376096e-15,
+          "reconstructed_mean_energy_eV": 2.4970760451030474,
+          "requested_mean_energy_eV": 2.4970760451030047
+        },
+        {
+          "group": "moment_mid_0037",
+          "mean_energy_relative_error": 2.857692336373899e-14,
+          "normalization": 0.9999999999999992,
+          "normalization_error": 7.771561172376096e-16,
+          "reconstructed_mean_energy_eV": 6.216053480600732,
+          "requested_mean_energy_eV": 6.2160534806005545
+        },
+        {
+          "group": "moment_mid_0075",
+          "mean_energy_relative_error": 6.8264798902631495e-15,
+          "normalization": 0.9999999999999991,
+          "normalization_error": 8.881784197001252e-16,
+          "reconstructed_mean_energy_eV": 16.133369732752673,
+          "requested_mean_energy_eV": 16.133369732752563
+        },
+        {
+          "group": "moment_mid_0112",
+          "mean_energy_relative_error": 6.152655018528415e-14,
+          "normalization": 0.9999999999999993,
+          "normalization_error": 6.661338147750939e-16,
+          "reconstructed_mean_energy_eV": 39.14960073290453,
+          "requested_mean_energy_eV": 39.14960073290212
+        }
+      ],
+      "tolerance": 1e-07
+    },
+    "native_projection_fidelity": {
+      "all_point_normalized_rmse": 7.065992660423096e-14,
+      "interpretation": "fidelity of COMSOL's structured tensor-product linear grid at dense moment rows and two-coordinate interior probes",
+      "kinds": [
+        "cell_center",
+        "moment_anchor",
+        "moment_mid"
+      ],
+      "maximum_relative_error_limit": 0.1,
+      "maximum_relative_error_significant": 4.5337567606217366e-12,
+      "normalized_rmse_limit": 0.02,
+      "passed": true,
+      "samples": 7264,
+      "significance_fraction_of_peak": 1e-05,
+      "significant_samples": 5937
+    },
+    "passed": true,
+    "point_values": {
+      "kinds": [
+        "anchor",
+        "cell_center",
+        "derivative",
+        "energy_midpoint",
+        "moment",
+        "outside"
+      ],
+      "minimum_value": 0.0,
+      "passed": true,
+      "projection_fidelity_samples": 7264,
+      "samples": 9114,
+      "strict_samples": 1850
+    },
+    "provenance": {
+      "contract_sha256": "bea3887813a9874ee5378e863cece45abf83fa10fc6dce32de0e0d6399d5afa8",
+      "model_path": "C:\\Users\\user\\Desktop\\swarm_5\\comsol_modes\\work\\argon_gec_icp_monte_carlo_function_eedf.mph",
+      "model_sha256": "d83f30a32f92a7ebd16fb870a3e5abd06829f99fac5d549880e65aa7303defa6",
+      "query_sha256": "8fc23c6742563acf4034cfb8905b630965853b38a98f240b271e5c775a43dc34",
+      "table_sha256": "955729d2da58e27694a930c42b6fd609dd31de02e6e133b550192bf1802f6eb8",
+      "values_sha256": "6c20fbe802455def63523fadfeb12f89920efc82c7b71fcfd8e055732e4cee40"
+    },
+    "rates": {
+      "passed": true,
+      "processes": {
+        "elastic": {
+          "normalized_rmse": 1.5811120251361112e-15,
+          "passed": true,
+          "samples": 9
+        },
+        "excitation": {
+          "normalized_rmse": 1.0416459933952086e-15,
+          "passed": true,
+          "samples": 9
+        },
+        "ionization": {
+          "normalized_rmse": 6.886624016746303e-16,
+          "passed": true,
+          "samples": 9
+        }
+      },
+      "status": "evaluated"
+    },
+    "saved_function_contract": {
+      "expected": {
+        "argunit": "eV|eV",
+        "audit_queries_sha256": "8fc23c6742563acf4034cfb8905b630965853b38a98f240b271e5c775a43dc34",
+        "audit_table_sha256": "955729d2da58e27694a930c42b6fd609dd31de02e6e133b550192bf1802f6eb8",
+        "eedf_selection": "sw_icp_eedf_monte_carlo",
+        "extrap": "const",
+        "function_names": "sw_icp_eedf_monte_carlo",
+        "fununit": "1",
+        "interp": "linear",
+        "problem_count": "0",
+        "source": "file",
+        "struct": "spreadsheet"
+      },
+      "mismatches": {},
+      "passed": true,
+      "settings": {
+        "argunit": "eV|eV",
+        "audit_queries_sha256": "8fc23c6742563acf4034cfb8905b630965853b38a98f240b271e5c775a43dc34",
+        "audit_table_sha256": "955729d2da58e27694a930c42b6fd609dd31de02e6e133b550192bf1802f6eb8",
+        "eedf_selection": "sw_icp_eedf_monte_carlo",
+        "extrap": "const",
+        "filename": "C:/Users/user/Desktop/swarm_5/outputs/argon_gec_icp/monte_carlo_bundle/mixture_0000/eedf_f0_comsol_2d.csv",
+        "function_names": "sw_icp_eedf_monte_carlo",
+        "fununit": "1",
+        "imported_name": "eedf_f0_comsol_2d.csv",
+        "interp": "linear",
+        "problem_count": "0",
+        "problems": "",
+        "source": "file",
+        "struct": "spreadsheet"
+      }
+    },
+    "status": "passed"
+  },
+  "output_mph": "C:\\Users\\user\\Desktop\\swarm_5\\comsol_modes\\work\\argon_gec_icp_monte_carlo_function_eedf.mph",
+  "physical_target_accepted": true,
+  "physics_feature_handling": {
+    "anchor_fallback": "not_requested",
+    "electron_energy_transport": "comsol_local_mean_energy",
+    "function_eedf": "external_swarm_direct",
+    "ground_state_reactions": "comsol_integral_of_external_function_eedf",
+    "homogeneous_solver_field": "steady_dc_local_mean_energy_closure",
+    "metastable_superelastic_and_stepwise_ionization": "comsol_embedded_cross_sections_with_external_function_eedf",
+    "particle_diffusion": "comsol_SpecifyMueOnly_Einstein_closure",
+    "reduced_mobility": "external_swarm_direct",
+    "rf_and_magnetic_field": "comsol_frequency_transient"
+  },
+  "plan": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_icp\\comsol_monte_carlo_function_eedf\\gec_icp_plan.json",
+  "quality_acceptance_scope": "declared_restricted_lmea_closure",
+  "quality_accepted_for_declared_closure": true,
+  "reason": null,
+  "result_role": "physical_target",
+  "schema": "swarm.gec_icp_comsol_run.v1",
+  "solve_status": "completed",
+  "source": "monte_carlo",
+  "stage": "run-gec-icp",
+  "status": "passed"
+}

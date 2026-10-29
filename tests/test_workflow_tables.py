@@ -76,6 +76,19 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(fp))
 
 
+def test_stale_postprocess_transport_cannot_be_qualified(tmp_path: Path) -> None:
+    database = tmp_path / "workflow.sqlite"
+    with WorkflowStore(database) as store:
+        insert_workflow_case(store.connection, solver="two_term", metadata={
+            "electron_electron_treatment": "relaxation_postprocess",
+            "electron_electron_transport_stale": True,
+        })
+        store.connection.commit()
+    with pytest.raises(TableBuildError, match="stale transport"):
+        build_tables(database, tmp_path / "tables", source="two_term")
+    assert not (tmp_path / "tables").exists()
+
+
 def _mc_rate_diagnostics(
     *,
     event_count: int,
@@ -177,9 +190,9 @@ def _mc_transport_diagnostic(
         "mc_run_provenance": {
             "seed": seed,
             "particles": 128,
-            "warmup_collisions": 100,
-            "production_collisions": 2000,
-            "tail_max_collisions": 2000,
+            "warmup_trial_periods": 100,
+            "production_trial_periods": 2000,
+            "tail_trial_periods": 2000,
             "tail_rate_rse_trigger": 0.25,
             "tail_collisions_executed": 0,
             "population_model": "fixed_particle_single_daughter",
@@ -338,11 +351,11 @@ def _weighted_mc_transport_diagnostic(
         "mc_run_provenance": {
             "seed": seed,
             "particles": 512,
-            "warmup_collisions": 100,
-            "production_collisions": (
+            "warmup_trial_periods": 100,
+            "production_trial_periods": (
                 transport_block_barriers * WEIGHTED_MC_TRANSPORT_MIN_BLOCKS
             ),
-            "tail_max_collisions": (
+            "tail_trial_periods": (
                 transport_block_barriers * WEIGHTED_MC_TRANSPORT_MIN_BLOCKS
             ),
             "tail_rate_rse_trigger": 0.25,
@@ -510,7 +523,7 @@ def test_weighted_mc_transport_accepts_configured_lag_256() -> None:
 def test_weighted_mc_transport_rejects_partial_production_block() -> None:
     diagnostics = [_weighted_mc_transport_diagnostic(seed) for seed in (11, 12, 13)]
     for item in diagnostics:
-        item["mc_run_provenance"]["production_collisions"] += 1
+        item["mc_run_provenance"]["production_trial_periods"] += 1
 
     summary = summarize_weighted_mc_transport_diagnostics(diagnostics)
 
@@ -1063,7 +1076,7 @@ def test_mc_transport_run_provenance_allows_additive_execution_metadata() -> Non
 def test_weighted_mc_tail_activation_may_differ_between_replicas() -> None:
     diagnostics = [_weighted_mc_transport_diagnostic(seed) for seed in (11, 12, 13)]
     provenance = diagnostics[-1]["mc_run_provenance"]
-    provenance["tail_collisions_executed"] = provenance["tail_max_collisions"]
+    provenance["tail_collisions_executed"] = provenance["tail_trial_periods"]
 
     summary = summarize_weighted_mc_transport_diagnostics(diagnostics)
 
@@ -1310,7 +1323,7 @@ def test_two_term_temporal_growth_transport_provenance_is_exported(
 
     build_tables(database, tmp_path / "tables", source="two_term")
     mixture = tmp_path / "tables" / "mixture_0000"
-    rows = _read_csv(mixture / "transport_vs_mean_energy.csv")
+    rows = _read_csv(mixture / "transport_vs_en.csv")
     assert (
         tuple(
             name
@@ -1424,7 +1437,7 @@ def test_two_term_elastic_energy_loss_table_has_operator_contract(
     ] == pytest.approx([1.0e-18, 2.0e-18])
     manifest = json.loads((mixture / "manifest.json").read_text())
     table = manifest["tables"][ELASTIC_ENERGY_LOSS_TABLE]
-    assert table["artifact_role"] == ("canonical_comsol_elastic_energy_loss_input")
+    assert table["artifact_role"] == "swarm_elastic_energy_loss"
     assert table["physics_contract"]["gas_temperature_terms_included"] is True
 
 
@@ -1524,7 +1537,7 @@ def test_build_tables_two_term_writes_two_mixture_directories(tmp_path: Path) ->
                         if number is not None:
                             assert math.isfinite(number)
         manifest = json.loads((mixture_dir / "manifest.json").read_text())
-        assert manifest["table_argument"]["secondary"] == "mean_energy_eV"
+        assert manifest["table_argument"]["primary"] == "E_over_N_Td"
         assert (
             manifest["source_policy"]["transport_definition"] == "fixed_particle_flux"
         )
@@ -1541,8 +1554,8 @@ def test_rebuild_removes_stale_mean_energy_tables_when_nonmonotonic(
 
     build_tables(database, output, source="two_term")
     mixture_dir = output / "mixture_0000"
-    assert (mixture_dir / "transport_vs_mean_energy.csv").exists()
-    assert (mixture_dir / "rates_vs_mean_energy.csv").exists()
+    (mixture_dir / "transport_vs_mean_energy.csv").write_text("obsolete\n")
+    (mixture_dir / "rates_vs_mean_energy.csv").write_text("obsolete\n")
     (mixture_dir / "unlisted_stale.csv").write_text("stale\n", encoding="utf-8")
 
     with sqlite3.connect(database) as connection:
@@ -1558,8 +1571,8 @@ def test_rebuild_removes_stale_mean_energy_tables_when_nonmonotonic(
     assert not (mixture_dir / "rates_vs_mean_energy.csv").exists()
     assert not (mixture_dir / "unlisted_stale.csv").exists()
     manifest = json.loads((mixture_dir / "manifest.json").read_text())
-    assert manifest["table_argument"]["secondary"] is None
-    assert manifest["monotonicity"]["mean_energy_strictly_monotonic"] is False
+    assert "secondary" not in manifest["table_argument"]
+    assert "monotonicity" not in manifest
 
 
 def test_build_tables_refreshes_partial_aggregate_after_new_case_commit(
@@ -1710,8 +1723,8 @@ def test_build_tables_nonmonotonic_mean_energy_skips_mean_energy_tables(
 
     mixture_dir = tmp_path / "tables" / "mixture_0000"
     manifest = json.loads((mixture_dir / "manifest.json").read_text())
-    assert manifest["table_argument"]["secondary"] is None
-    assert manifest["monotonicity"]["reason"] == "mean_energy_not_strictly_monotonic"
+    assert "secondary" not in manifest["table_argument"]
+    assert "monotonicity" not in manifest
     assert not (mixture_dir / "transport_vs_mean_energy.csv").exists()
 
 
@@ -2031,8 +2044,8 @@ def test_build_tables_monte_carlo_uses_only_qualified_mc_evidence(
     )
 
     mixture_dir = tmp_path / "tables" / "mixture_0000"
-    transport = _read_csv(mixture_dir / "transport_vs_mean_energy.csv")
-    rates = _read_csv(mixture_dir / "rates_vs_mean_energy.csv")
+    transport = _read_csv(mixture_dir / "transport_vs_en.csv")
+    rates = _read_csv(mixture_dir / "rates_vs_en.csv")
     assert all(float(row["reduced_mobility_m2_V_s_m3"]) > 0.0 for row in transport)
     direct_energy_fields = (
         "reduced_electron_energy_mobility_m2_V_s_m3",
@@ -2431,16 +2444,23 @@ def test_mc_transport_lag_failure_retains_independently_qualified_eedf_and_rates
     mixture_dir = tmp_path / "tables" / "mixture_0000"
     transport_e = {
         float(row["E_over_N_Td"])
-        for row in _read_csv(mixture_dir / "transport_vs_mean_energy.csv")
+        for row in _read_csv(mixture_dir / "transport_vs_en.csv")
     }
     eedf_e = {float(row["E_over_N_Td"]) for row in _read_csv(mixture_dir / "eedf.csv")}
     rate_e = {
         float(row["E_over_N_Td"])
-        for row in _read_csv(mixture_dir / "rates_vs_mean_energy.csv")
+        for row in _read_csv(mixture_dir / "rates_vs_en.csv")
     }
     assert transport_e == {40.0, 60.0, 80.0, 100.0}
     assert eedf_e == {20.0, 40.0, 60.0, 80.0, 100.0}
     assert rate_e == eedf_e
+
+    from swarm_workflow.comsol.input import export_comsol_bundle
+    bundle = tmp_path / "bundle"
+    export_comsol_bundle(mixture_dir, bundle)
+    assert {float(row["E_over_N_Td"]) for row in _read_csv(bundle / "transport_vs_mean_energy.csv")} == transport_e
+    assert {float(row["E_over_N_Td"]) for row in _read_csv(bundle / "rates_vs_mean_energy.csv")} == rate_e
+    assert {float(row["mean_energy_eV"]) for row in _read_csv(bundle / "rates_vs_mean_energy.csv")} == {1, 2, 3, 4, 5}
 
     policy = json.loads((mixture_dir / "manifest.json").read_text())["source_policy"]
     assert policy["transport_eligible_anchor_points"] == 4
@@ -2451,23 +2471,26 @@ def test_mc_transport_lag_failure_retains_independently_qualified_eedf_and_rates
     ]
 
 
-def test_qualified_monte_carlo_rejects_nonmonotonic_mean_energy(
+def test_native_mc_points_preserve_nonmonotonic_energy_but_comsol_rejects_it(
     tmp_path: Path,
 ) -> None:
     with WorkflowStore(tmp_path / "workflow.sqlite") as store:
         _insert_qualified_mc_with_decoy_two_term(
             store,
-            mc_means=(1.0, 4.0, 1.5, 5.0, 6.0),
+            mc_means=(1.0, 7.0, 1.5, 5.0, 6.0),
             decoy_two_term_means=(0.8, 2.0, 3.5, 5.5, 7.0),
         )
         store.connection.commit()
 
-    with pytest.raises(TableBuildError, match="strictly increasing"):
-        build_tables(
-            tmp_path / "workflow.sqlite",
-            tmp_path / "tables",
-            source="monte_carlo",
-        )
+    build_tables(tmp_path / "workflow.sqlite", tmp_path / "tables", source="monte_carlo")
+    source = tmp_path / "tables/mixture_0000"
+    means = {float(row["E_over_N_Td"]): float(row["mean_energy_eV"]) for row in _read_csv(source / "rates_vs_en.csv")}
+    assert [means[field] for field in sorted(means)] == [1.0, 7.0, 1.5, 5.0, 6.0]
+    manifest = json.loads((source / "manifest.json").read_text())
+    assert manifest["source_policy"]["component_mean_energy_range_eV"]["eedf_rate"] == [1.0, 7.0]
+    from swarm_workflow.comsol.input import ComsolExportError, export_comsol_bundle
+    with pytest.raises(ComsolExportError, match="single-valued"):
+        export_comsol_bundle(source, tmp_path / "bundle")
 
 
 def test_pure_monte_carlo_ignores_decoy_two_term_coverage(

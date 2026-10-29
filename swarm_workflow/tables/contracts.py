@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-FORMAT_VERSION = 1
+FORMAT_VERSION = 3
 TD_TO_V_M2 = 1.0e-21
 TWO_TERM_SOLVER = "two_term"
 PROPAGATOR_SOLVER = "propagator"
@@ -19,7 +19,7 @@ MC_QUALIFICATION_PROFILES = (
     MC_QUALIFICATION_FUNCTION_EEDF_RESTRICTED_LMEA,
 )
 RATE_EVIDENCE_TABLE = "rate_evidence.csv"
-ELASTIC_ENERGY_LOSS_TABLE = "elastic_energy_loss_vs_mean_energy.csv"
+ELASTIC_ENERGY_LOSS_TABLE = "elastic_energy_loss.csv"
 COLLISION_RATE_KERNEL_TABLE = "collision_rate_kernels.csv"
 COLLISION_RATE_KERNEL_COLUMNS = (
     "species",
@@ -54,6 +54,7 @@ CASE_COLUMNS = (
 RATE_COLUMNS = (
     "E_over_N_Td",
     "E_over_N_V_m2",
+    "mean_energy_eV",
     "species",
     "process",
     "process_type",
@@ -110,9 +111,9 @@ RATE_EVIDENCE_COLUMNS = (
     "pooled_zero_event_status",
 )
 ELASTIC_ENERGY_LOSS_COLUMNS = (
-    "mean_energy_eV",
     "E_over_N_Td",
     "E_over_N_V_m2",
+    "mean_energy_eV",
     "elastic_energy_loss_rate_coefficient_eV_m3_s",
     "elastic_energy_loss_standard_error_eV_m3_s",
     "elastic_energy_loss_relative_standard_error",

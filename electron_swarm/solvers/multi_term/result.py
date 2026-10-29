@@ -55,9 +55,7 @@ def to_case_result(
         "pn_full_relative_residual": diagnostic.full_pn_relative_residual,
         "pn_shape_change": diagnostic.shape_change,
         "pn_eigenvalue_change": diagnostic.eigenvalue_change,
-        "normalization_integral": weighted_integral(
-            eedf, solution.widths_eV
-        ),
+        "normalization_integral": weighted_integral(eedf, solution.widths_eV),
         "convolution_ionization_rate_coefficient_m3_s": float(
             sum(
                 rate.mixture_weighted_rate_m3_s

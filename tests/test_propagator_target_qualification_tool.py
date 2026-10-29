@@ -23,14 +23,14 @@ CORE_QUALIFICATION = (
     / "docs"
     / "dev"
     / "results"
-    / "propagator_p1_deterministic_qualification_20260908.json"
+    / "propagator_p1_core_qualification.json"
 )
 ICP_QUALIFICATION = (
     ROOT
     / "docs"
     / "dev"
     / "results"
-    / "propagator_gec_icp_mean_energy_guarded_qualification_20260913.json"
+    / "propagator_gec_icp_target_qualification.json"
 )
 
 
@@ -291,7 +291,7 @@ def test_generic_runner_uses_icp_fields_grids_and_family(
         lambda _database, selected: (
             {field: object() for field in selected.fields_Td},
                 {
-                    "base_config_sha256": "a" * 64,
+                    "calculation_sha256": "a" * 64,
                     "workflow_config_sha256": "b" * 64,
                     "cross_sections_sha256": "d" * 64,
                     "propagator_solver_source_sha256": "f" * 64,
@@ -300,7 +300,8 @@ def test_generic_runner_uses_icp_fields_grids_and_family(
         ),
     )
     monkeypatch.setattr(target_qualifier, "file_sha256", lambda _path: "a" * 64)
-    monkeypatch.setattr(target_qualifier, "load_config", lambda _path: object())
+    monkeypatch.setattr(target_qualifier, "load_case_template", lambda _path: object())
+    monkeypatch.setattr(target_qualifier, "calculation_sha256", lambda _path: "a" * 64)
     monkeypatch.setattr(
         target_qualifier,
         "_cross_sections_sha256",
@@ -413,7 +414,7 @@ def test_target_source_guard_rejects_changed_medium_evidence(
         "files": ["first", "second"],
     }
     metadata = {
-        "base_config_sha256": "a" * 64,
+        "calculation_sha256": "a" * 64,
         "cross_sections_sha256": "d" * 64,
     }
     monkeypatch.setattr(
@@ -422,7 +423,8 @@ def test_target_source_guard_rejects_changed_medium_evidence(
         lambda _path: core,
     )
     monkeypatch.setattr(target_qualifier, "file_sha256", lambda _path: "a" * 64)
-    monkeypatch.setattr(target_qualifier, "load_config", lambda _path: object())
+    monkeypatch.setattr(target_qualifier, "load_case_template", lambda _path: object())
+    monkeypatch.setattr(target_qualifier, "calculation_sha256", lambda _path: "a" * 64)
     monkeypatch.setattr(
         target_qualifier,
         "_cross_sections_sha256",
@@ -440,7 +442,7 @@ def test_target_source_guard_rejects_changed_medium_evidence(
     )
     starting_state = {
         "core_qualification": core.identity_entry(),
-        "base_config_sha256": "a" * 64,
+        "calculation_sha256": "a" * 64,
         "cross_sections_sha256": "d" * 64,
         "medium_evidence_sha256": "0" * 64,
         "medium_metadata": metadata,

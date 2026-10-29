@@ -39,18 +39,11 @@ def boris_push(
 
 
 def energy_from_velocity_eV(velocity_m_s: np.ndarray) -> float:
-    return float(
-        0.5
-        * ELECTRON_MASS_KG
-        * np.dot(velocity_m_s, velocity_m_s)
-        / EV_TO_J
-    )
+    return float(0.5 * ELECTRON_MASS_KG * np.dot(velocity_m_s, velocity_m_s) / EV_TO_J)
 
 
 def speed_from_energy_m_s(energy_eV: float) -> float:
-    return float(
-        np.sqrt(max(2.0 * energy_eV * EV_TO_J / ELECTRON_MASS_KG, 0.0))
-    )
+    return float(np.sqrt(max(2.0 * energy_eV * EV_TO_J / ELECTRON_MASS_KG, 0.0)))
 
 
 def random_direction(rng: np.random.Generator) -> np.ndarray:

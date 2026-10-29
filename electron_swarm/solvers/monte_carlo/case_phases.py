@@ -44,11 +44,11 @@ def _run_fixed_particle_phase(
     """Advance the direct fixed-population warmup and production window."""
 
     total_collision_steps = (
-        0 if setup.branching_active else setup.warmup_collisions + setup.collisions
+        0 if setup.branching_active else setup.warmup_trial_periods + setup.collisions
     )
     for step in range(total_collision_steps):
-        sampling_enabled = step >= setup.warmup_collisions
-        if step == setup.warmup_collisions and setup.warmup_collisions:
+        sampling_enabled = step >= setup.warmup_trial_periods
+        if step == setup.warmup_trial_periods and setup.warmup_trial_periods:
             state.ensemble.positions[:] = 0.0
             state.ensemble.times[:] = 0.0
             if setup.branching_active:
@@ -64,7 +64,7 @@ def _run_fixed_particle_phase(
             weight = float(state.ensemble.weights[particle_index])
             reaction_rate_block_index = (
                 state.reaction_rate_accumulator.block_index_for_trial(
-                    production_step=step - setup.warmup_collisions,
+                    production_step=step - setup.warmup_trial_periods,
                     production_steps=setup.collisions,
                     particle_index=particle_index,
                     particles_this_round=particles_this_round,
@@ -297,7 +297,7 @@ def _run_tail_phase(
     state.audit = _new_energy_audit(setup, state.ensemble)
     state.run_audit = _new_run_audit(
         setup,
-        production_collisions=setup.tail_collisions,
+        production_trial_periods=setup.tail_collisions,
     )
     state.audit_cumulative_log_growth, _ = _advance_weighted_phase(
         setup,
@@ -332,13 +332,13 @@ def _run_weighted_transport_phase(
         state.transport_observer,
         SynchronizedWeightedGrowthFluxObserver,
     )
-    if setup.warmup_collisions:
+    if setup.warmup_trial_periods:
         _advance_weighted_phase(
             setup,
             state,
             rng,
             ensemble=state.ensemble,
-            barriers=setup.warmup_collisions,
+            barriers=setup.warmup_trial_periods,
             reaction_rate_accumulator=state.reaction_rate_accumulator,
             transport_observer=None,
             sampling_enabled=False,

@@ -14,8 +14,15 @@ from electron_swarm.solvers.monte_carlo.evidence import (
     DIRECT_MC_TRANSPORT_OBSERVATION_PLANES,
     MC_EEDF_ESTIMATOR_SCHEMA_VERSION,
 )
-from electron_swarm.solvers.monte_carlo.source_identity import (
-    monte_carlo_source_sha256,
+from electron_swarm.core.source_identity import (
+    SOLVER_IMPLEMENTATIONS_KEY,
+    solver_implementations,
+    solver_source_fingerprint,
+)
+from electron_swarm.core.solver_ids import CANONICAL_SOLVER_IDS
+from swarm_workflow.campaign.identity import (
+    WORKFLOW_IMPLEMENTATION_KEY,
+    workflow_execution_identity,
 )
 from swarm_workflow.quality.policy import QualityThresholds, quality_thresholds_json
 from swarm_workflow.campaign.store import (
@@ -34,7 +41,13 @@ def ensure_workflow_provenance(
     """Attach complete synthetic provenance before inserting workflow rows."""
 
     values = {
+        WORKFLOW_IMPLEMENTATION_KEY: json.dumps(
+            workflow_execution_identity(), sort_keys=True
+        ),
         "workflow_config_sha256": "0" * 64,
+        SOLVER_IMPLEMENTATIONS_KEY: json.dumps(
+            solver_implementations(CANONICAL_SOLVER_IDS), sort_keys=True
+        ),
         "quality_thresholds_json": quality_thresholds_json(
             quality or QualityThresholds()
         ),
@@ -78,12 +91,16 @@ def _refresh_mc_sampling_plan_provenance(conn: sqlite3.Connection) -> None:
             {
                 "e_over_n_Td": float(e_over_n),
                 "particles": int(provenance.get("particles", 128)),
-                "warmup_collisions": int(provenance.get("warmup_collisions", 100)),
-                "max_collisions": int(provenance.get("production_collisions", 2000)),
-                "tail_max_collisions": int(
+                "warmup_trial_periods": int(
+                    provenance.get("warmup_trial_periods", 100)
+                ),
+                "production_trial_periods": int(
+                    provenance.get("production_trial_periods", 2000)
+                ),
+                "tail_trial_periods": int(
                     provenance.get(
-                        "tail_max_collisions",
-                        provenance.get("production_collisions", 2000),
+                        "tail_trial_periods",
+                        provenance.get("production_trial_periods", 2000),
                     )
                 ),
                 "replicas": int(replicas),
@@ -173,6 +190,36 @@ def write_config(tmp_path: Path, data: dict, name: str = "case.yaml") -> Path:
     return path
 
 
+def campaign_config(
+    calculation: Path | str,
+    *,
+    database: str,
+    e_over_n_Td: list[float],
+    mixtures: list[dict[str, float]],
+    seed: int | None = None,
+    **controls,
+) -> dict:
+    """Construct a standalone campaign document from reusable test calculation data."""
+    path = Path(calculation).resolve()
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    for item in data["cross_sections"]["files"]:
+        item["path"] = str((path.parent / item["path"]).resolve())
+    moment = data.get("physics", {}).get("angular_scattering", {}).get("moment_table")
+    if moment:
+        moment["path"] = str((path.parent / moment["path"]).resolve())
+    data["run"]["e_over_n_Td"] = e_over_n_Td
+    known = {g["species"] for g in data["conditions"]["gas_mixture"]}
+    if any(set(m) - known for m in mixtures):
+        raise ValueError("mixture has unknown species")
+    for gas in data["conditions"]["gas_mixture"]:
+        fractions = [m.get(gas["species"], 0.0) for m in mixtures]
+        gas["fraction"] = fractions[0] if len(fractions) == 1 else fractions
+    if seed is not None:
+        data["solvers"]["monte_carlo"]["seed"] = seed
+    data["campaign"] = {"database": database, **controls}
+    return data
+
+
 def write_moment_table(
     tmp_path: Path,
     name: str = "moments.csv",
@@ -248,7 +295,9 @@ def insert_workflow_case(
 ) -> None:
     ensure_workflow_provenance(conn)
     solver_source_sha256 = (
-        monte_carlo_source_sha256() if solver == "monte_carlo" else None
+        solver_source_fingerprint("monte_carlo")["sha256"]
+        if solver == "monte_carlo"
+        else None
     )
     if solver == "monte_carlo":
         conn.execute(
@@ -384,9 +433,9 @@ def insert_workflow_case(
             "mc_run_provenance": {
                 "seed": 1000 + int(replicate),
                 "particles": 128,
-                "warmup_collisions": 100,
-                "production_collisions": 2000,
-                "tail_max_collisions": 2000,
+                "warmup_trial_periods": 100,
+                "production_trial_periods": 2000,
+                "tail_trial_periods": 2000,
                 "tail_rate_rse_trigger": 0.25,
                 "tail_collisions_executed": 0,
                 "population_model": "fixed_particle_single_daughter",
@@ -588,8 +637,8 @@ def insert_workflow_eedf(
             INSERT INTO eedf_bins(
                 mixture_id, solver, e_over_n_Td, replicate, bin_index,
                 energy_eV, energy_width_eV, eedf, eepf, sample_count,
-                effective_sample_count, relative_standard_error
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                effective_sample_count
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 mixture_id,
@@ -601,7 +650,6 @@ def insert_workflow_eedf(
                 1.0,
                 mass,
                 mass,
-                None,
                 None,
                 None,
             ),

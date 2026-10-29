@@ -19,7 +19,7 @@ Apply this skill only in the electron-swarm repository. Read the root AGENTS.md.
 
 ~~~powershell
 $elapsed = Measure-Command {
-  py -3 -m swarm_workflow.cli sweep <workflow.yaml>
+  py -3 -m swarm_workflow.cli run <workflow.yaml>
 }
 $elapsed.TotalSeconds
 ~~~

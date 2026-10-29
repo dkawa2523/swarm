@@ -18,15 +18,15 @@ def execute_solve_plan(
     internal: InternalSolverConfigs,
 ) -> list[SwarmCaseResult]:
     cases: list[SwarmCaseResult] = []
+    expected = [
+        (f"{config.run.case_prefix}_{index:04d}", float(e_over_n_Td))
+        for index, e_over_n_Td in enumerate(config.run.e_over_n_Td)
+    ]
     for item in plan:
         if not item.runnable:
             continue
         solver = build_solver(config, cross_sections, internal, item.solver)
         solver_cases = solver.solve_all()
-        expected = [
-            (f"{config.run.case_prefix}_{index:04d}", float(e_over_n_Td))
-            for index, e_over_n_Td in enumerate(config.run.e_over_n_Td)
-        ]
         if len(solver_cases) != len(expected):
             raise ValueError(
                 f"{item.solver} returned {len(solver_cases)} cases; "
@@ -44,9 +44,7 @@ def execute_solve_plan(
             if case.case_id != expected_id or not abs(
                 float(case.e_over_n_Td) - expected_e_over_n
             ) <= 1.0e-12 * max(1.0, abs(expected_e_over_n)):
-                raise ValueError(
-                    f"{item.solver} returned an unexpected case identity"
-                )
+                raise ValueError(f"{item.solver} returned an unexpected case identity")
             validate_case_result(case)
             cases.append(attach_product_metadata(case, config=config, item=item))
     return cases

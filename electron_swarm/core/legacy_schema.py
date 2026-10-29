@@ -17,6 +17,7 @@ OBSOLETE_PUBLIC_NAMES = {
     "multiterm_boltzmann",
 }
 
+
 def reject_removed_schema(raw: dict[str, Any]) -> None:
     if raw.get("schema_version") != 2:
         raise ValueError(MIGRATION_ERROR)

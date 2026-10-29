@@ -110,10 +110,13 @@ class StationaryResponseSystem:
         if values.shape != (grid.energy_cells, grid.polar_cells):
             raise ValueError("population shape does not match response system")
         self.response_applications += 1
-        source = nonlocal_collision_inflow(
-            self.operator.collisions,
-            values,
-        ) + self.shift_s_inv * values
+        source = (
+            nonlocal_collision_inflow(
+                self.operator.collisions,
+                values,
+            )
+            + self.shift_s_inv * values
+        )
         regular_count = len(self.shells)
         polar_cells = grid.polar_cells
         half = polar_cells // 2
@@ -138,8 +141,7 @@ class StationaryResponseSystem:
         result = np.empty_like(values)
         for regular, shell in enumerate(self.shells):
             outgoing[regular] = (
-                shell.scattering @ incoming[regular]
-                + source_outflow[regular]
+                shell.scattering @ incoming[regular] + source_outflow[regular]
             )
             result[regular + 1] = (
                 shell.incoming_to_population @ incoming[regular]
@@ -159,16 +161,8 @@ class StationaryResponseSystem:
         internal_connection = 0.0
         if regular_count > 1:
             internal_connection = max(
-                float(
-                    np.max(
-                        np.abs(incoming[1:, :half] - outgoing[:-1, :half])
-                    )
-                ),
-                float(
-                    np.max(
-                        np.abs(incoming[:-1, half:] - outgoing[1:, half:])
-                    )
-                ),
+                float(np.max(np.abs(incoming[1:, :half] - outgoing[:-1, :half]))),
+                float(np.max(np.abs(incoming[:-1, half:] - outgoing[1:, half:]))),
             )
         boundary_scale = max(
             float(np.sum(np.abs(incoming))),
@@ -242,9 +236,7 @@ class PropagatorOperator:
         """
 
         growth = float(growth_frequency_s_inv)
-        minimum_physical_loss = float(
-            np.min(self.collisions.nonlocal_outflow_s_inv)
-        )
+        minimum_physical_loss = float(np.min(self.collisions.nonlocal_outflow_s_inv))
         scale = max(
             abs(growth),
             float(np.max(self.collisions.nonlocal_outflow_s_inv)),
@@ -332,9 +324,7 @@ def _append_dense_block(
 ) -> None:
     values = np.asarray(block, dtype=float)
     row_count, column_count = values.shape
-    rows.append(
-        np.repeat(np.arange(row_start, row_start + row_count), column_count)
-    )
+    rows.append(np.repeat(np.arange(row_start, row_start + row_count), column_count))
     columns.append(
         np.tile(np.arange(column_start, column_start + column_count), row_count)
     )

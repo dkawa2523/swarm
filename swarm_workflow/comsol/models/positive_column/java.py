@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import csv
 import math
 from pathlib import Path
 from typing import Iterable
 
 from ...java import java_path, java_string
+from .lookup import read_lookup
 from .config import (
     ClosureMapping,
     ComsolModelMapping,
@@ -17,9 +17,6 @@ from .config import (
 
 
 DEFAULT_CLASS_NAME = "SwarmComsolApply"
-ProbeSpec = tuple[str, str, str]
-PROBE_CSV_BEGIN = "SWARM_COMSOL_PROBE_CSV_BEGIN"
-PROBE_CSV_END = "SWARM_COMSOL_PROBE_CSV_END"
 VOLTAGE_LOG_PREFIX = "SWARM_COMSOL_VOLTAGE_V="
 PRESSURE_LOG_PREFIX = "SWARM_COMSOL_PRESSURE_PA="
 GAS_TEMPERATURE_LOG_PREFIX = "SWARM_COMSOL_GAS_TEMPERATURE_K="
@@ -51,17 +48,16 @@ def generate_apply_java_source(
         + ");",
     ]
     if any(
-        value is not None
-        for value in (pressure_Pa, gas_temperature_K, mesh_elements)
+        value is not None for value in (pressure_Pa, gas_temperature_K, mesh_elements)
     ):
         lines.append("    configureModelConditions(model);")
     lines.extend(
         [
-        "    apply(model);",
-        "    model.save(" + java_string(java_path(mapping.model.output_mph)) + ");",
-        "  }",
-        "",
-        "  public static void apply(Model model) {",
+            "    apply(model);",
+            "    model.save(" + java_string(java_path(mapping.model.output_mph)) + ");",
+            "  }",
+            "",
+            "  public static void apply(Model model) {",
         ]
     )
     for function in mapping.functions:
@@ -101,10 +97,7 @@ def _model_condition_method_lines(
     gas_temperature_K: float | None,
     mesh_elements: int | None,
 ) -> list[str]:
-    if all(
-        value is None
-        for value in (pressure_Pa, gas_temperature_K, mesh_elements)
-    ):
+    if all(value is None for value in (pressure_Pa, gas_temperature_K, mesh_elements)):
         return []
     component = java_string(mapping.model.component)
     physics = java_string(mapping.model.physics)
@@ -119,11 +112,11 @@ def _model_condition_method_lines(
                 f'    model.param().set("p0", "{pressure}[Pa]");',
                 (
                     f"    model.component({component}).physics({physics})"
-                    f".feature({plasma_feature}).set(\"pA_src\", \"userdef\");"
+                    f'.feature({plasma_feature}).set("pA_src", "userdef");'
                 ),
                 (
                     f"    model.component({component}).physics({physics})"
-                    f".feature({plasma_feature}).set(\"pA\", \"p0\");"
+                    f'.feature({plasma_feature}).set("pA", "p0");'
                 ),
                 f'    System.out.println("{PRESSURE_LOG_PREFIX}{pressure}");',
             ]
@@ -137,17 +130,17 @@ def _model_condition_method_lines(
             [
                 (
                     f"    model.component({component}).physics({physics})"
-                    f".feature({plasma_feature}).set(\"T_src\", \"userdef\");"
+                    f'.feature({plasma_feature}).set("T_src", "userdef");'
                 ),
                 (
                     f"    model.component({component}).physics({physics})"
-                    f".feature({plasma_feature}).set(\"T\", "
-                    f"\"{temperature}[K]\");"
+                    f'.feature({plasma_feature}).set("T", '
+                    f'"{temperature}[K]");'
                 ),
                 (
                     "    String configuredGasTemperature = "
                     f"model.component({component}).physics({physics})"
-                    f".feature({plasma_feature}).getString(\"T\");"
+                    f'.feature({plasma_feature}).getString("T");'
                 ),
                 (
                     f'    System.out.println("{GAS_TEMPERATURE_LOG_PREFIX}"'
@@ -161,15 +154,15 @@ def _model_condition_method_lines(
         lines.extend(
             [
                 (
-                    f"    model.component({component}).mesh(\"mesh1\")"
-                    ".feature(\"edg1\").feature(\"dis1\")"
+                    f'    model.component({component}).mesh("mesh1")'
+                    '.feature("edg1").feature("dis1")'
                     f'.set("elemcount", {mesh_elements});'
                 ),
                 f'    model.component({component}).mesh("mesh1").run();',
                 (
                     "    String configuredMeshElements = "
-                    f"model.component({component}).mesh(\"mesh1\")"
-                    ".feature(\"edg1\").feature(\"dis1\")"
+                    f'model.component({component}).mesh("mesh1")'
+                    '.feature("edg1").feature("dis1")'
                     '.getString("elemcount");'
                 ),
                 (
@@ -253,9 +246,7 @@ def generate_continuation_java_source(
             ),
             f"    model.param().set({voltage_parameter}, voltage);",
             f"    model.study({java_string(mapping.model.study)}).run();",
-            "    model.save("
-            + java_string(java_path(mapping.model.output_mph))
-            + ");",
+            "    model.save(" + java_string(java_path(mapping.model.output_mph)) + ");",
             "  }",
             "}",
             "",
@@ -268,15 +259,15 @@ def _function_lines(function: FunctionMapping) -> list[str]:
     tag = java_string(function.tag)
     return [
         f"    ensureInterpolation(model, {tag});",
-        f"    model.func({tag}).set(\"source\", \"file\");",
-        f"    model.func({tag}).set(\"filename\", "
+        f'    model.func({tag}).set("source", "file");',
+        f'    model.func({tag}).set("filename", '
         + java_string(java_path(function.path))
         + ");",
-        f"    model.func({tag}).set(\"nargs\", {function.nargs});",
-        f"    model.func({tag}).set(\"argunit\", {java_string(function.argunit)});",
-        f"    model.func({tag}).set(\"fununit\", {java_string(function.fununit)});",
-        f"    model.func({tag}).set(\"interp\", {java_string(function.interp)});",
-        f"    model.func({tag}).set(\"extrap\", {java_string(function.extrap)});",
+        f'    model.func({tag}).set("nargs", {function.nargs});',
+        f'    model.func({tag}).set("argunit", {java_string(function.argunit)});',
+        f'    model.func({tag}).set("fununit", {java_string(function.fununit)});',
+        f'    model.func({tag}).set("interp", {java_string(function.interp)});',
+        f'    model.func({tag}).set("extrap", {java_string(function.extrap)});',
         f"    model.func({tag}).importData();",
         "",
     ]
@@ -289,12 +280,12 @@ def _closure_lines(
     component = java_string(mapping.model.component)
     physics = java_string(closure.physics)
     feature = java_string(closure.feature)
-    x_values, y_values = _csv_values(
+    data = read_lookup(
         closure.mean_energy.path,
         closure.mean_energy.x_column,
         closure.mean_energy.y_column,
-        "mean-energy lookup",
     )
+    x_values, y_values = data.x, data.y
     transport = mapping.bundle.path / "transport_vs_mean_energy.csv"
     transport_tables = (
         ("muNXdata", "muNYdata", "reduced_mobility_m2_V_s_m3"),
@@ -330,31 +321,25 @@ def _closure_lines(
             "    String configuredMeanEnergyModel = "
             f"{formulation_target}.getString({java_string(formulation.property)});"
         ),
-        (
-            f"    if (!{expected_formulation}.equals(configuredMeanEnergyModel)) {{"
-        ),
+        (f"    if (!{expected_formulation}.equals(configuredMeanEnergyModel)) {{"),
         (
             "      throw new IllegalStateException("
             '"COMSOL mean-energy formulation read-back mismatch: expected " + '
-            f"{expected_formulation} + \", got \" + configuredMeanEnergyModel);"
+            f'{expected_formulation} + ", got " + configuredMeanEnergyModel);'
         ),
         "    }",
         (
             f'    System.out.println("{MEAN_ENERGY_MODEL_LOG_PREFIX}"'
             " + configuredMeanEnergyModel);"
         ),
-        f"    {target}.set(\"SpecifyElectronDensityAndEnergy\", \"UseLookupTables\");",
-        f"    {target}.set(\"SpecifyMeanElectronEnergy\", \"MeanEnergyTable\");",
-        f"    {target}.set(\"enrgXdata\", new double[]{{{_java_double_array(x_values)}}});",
-        f"    {target}.set(\"enrgYdata\", new double[]{{{_java_double_array(y_values)}}});",
+        f'    {target}.set("SpecifyElectronDensityAndEnergy", "UseLookupTables");',
+        f'    {target}.set("SpecifyMeanElectronEnergy", "MeanEnergyTable");',
+        f'    {target}.set("enrgXdata", new double[]{{{_java_double_array(x_values)}}});',
+        f'    {target}.set("enrgYdata", new double[]{{{_java_double_array(y_values)}}});',
     ]
     for x_property, y_property, column in transport_tables:
-        x_transport, y_transport = _csv_values(
-            transport,
-            "mean_energy_eV",
-            column,
-            column,
-        )
+        data = read_lookup(transport, "mean_energy_eV", column)
+        x_transport, y_transport = data.x, data.y
         lines.extend(
             [
                 f"    {target}.set({java_string(x_property)}, "
@@ -367,36 +352,16 @@ def _closure_lines(
     return lines
 
 
-def _csv_values(
-    path: Path,
-    x_column: str,
-    y_column: str,
-    name: str,
-) -> tuple[list[float], list[float]]:
-    rows: dict[float, float] = {}
-    with path.open("r", encoding="utf-8", newline="") as fp:
-        for row in csv.DictReader(fp):
-            try:
-                x_value = float(row[x_column])
-                y_value = float(row[y_column])
-            except (KeyError, ValueError) as exc:
-                raise ValueError(f"invalid numeric lookup row in {path}") from exc
-            if not math.isfinite(x_value) or not math.isfinite(y_value):
-                raise ValueError(f"{name} has nonfinite values")
-            rows[x_value] = y_value
-    if len(rows) < 2:
-        raise ValueError(f"{name} needs at least two points")
-    x_values = sorted(rows)
-    return x_values, [rows[value] for value in x_values]
-
-
 def _reaction_lookup_lines(
     mapping: ComsolModelMapping,
     lookup: ReactionLookupMapping,
 ) -> list[str]:
     if lookup.form != "townsend":
         raise ValueError(f"unsupported reaction lookup form: {lookup.form}")
-    x_values, y_values = _reaction_lookup_values(lookup)
+    data = read_lookup(
+        lookup.path, lookup.x_column, lookup.y_column, reaction=lookup.identity
+    )
+    x_values, y_values = data.x, data.y
     component = java_string(mapping.model.component)
     physics = java_string(lookup.physics)
     feature = java_string(lookup.feature)
@@ -404,136 +369,146 @@ def _reaction_lookup_lines(
         f"    // Mapping-driven Townsend lookup for {lookup.name} "
         f"({lookup.source_model}).",
         f"    model.component({component}).physics({physics}).feature({feature})"
-        ".set(\"SpecifyReactionUsing\", \"UseLookupTable\");",
+        '.set("SpecifyReactionUsing", "UseLookupTable");',
         f"    model.component({component}).physics({physics}).feature({feature})"
-        ".set(\"RateConstantForm\", \"UseTownsend\");",
+        '.set("RateConstantForm", "UseTownsend");',
         f"    model.component({component}).physics({physics}).feature({feature})"
-        ".set(\"UseTownsendTwoTermsBoltzmann\", false);",
+        '.set("UseTownsendTwoTermsBoltzmann", false);',
         f"    model.component({component}).physics({physics}).feature({feature})"
-        f".set(\"xtownratedata\", new double[]{{{_java_double_array(x_values)}}});",
+        f'.set("xtownratedata", new double[]{{{_java_double_array(x_values)}}});',
         f"    model.component({component}).physics({physics}).feature({feature})"
-        f".set(\"ytownratedata\", new double[]{{{_java_double_array(y_values)}}});",
+        f'.set("ytownratedata", new double[]{{{_java_double_array(y_values)}}});',
         "",
     ]
-
-
-def _reaction_lookup_values(
-    lookup: ReactionLookupMapping,
-) -> tuple[list[float], list[float]]:
-    rows: dict[float, float] = {}
-    with lookup.path.open("r", encoding="utf-8", newline="") as fp:
-        for row in csv.DictReader(fp):
-            if row.get("process_type") != lookup.process_type:
-                continue
-            try:
-                x_value = float(row[lookup.x_column])
-                y_value = float(row[lookup.y_column])
-            except (KeyError, ValueError) as exc:
-                raise ValueError(
-                    f"invalid numeric reaction lookup row in {lookup.path}"
-                ) from exc
-            if not math.isfinite(x_value) or not math.isfinite(y_value):
-                raise ValueError(
-                    f"reaction lookup {lookup.name} has nonfinite values"
-                )
-            if y_value < 0.0:
-                raise ValueError(
-                    f"reaction lookup {lookup.name} has negative values"
-                )
-            rows[x_value] = y_value
-    if not rows:
-        raise ValueError(
-            f"reaction lookup {lookup.name} has no rows for process_type "
-            f"{lookup.process_type!r}"
-        )
-    x_values = sorted(rows)
-    if len(x_values) < 2:
-        raise ValueError(f"reaction lookup {lookup.name} needs at least two points")
-    return x_values, [rows[value] for value in x_values]
 
 
 def _java_double_array(values: Iterable[float]) -> str:
     return ", ".join(f"{float(value):.17e}" for value in values)
 
 
-def generate_probe_table_export_java_source(
+def generate_field_export_java_source(
+    mapping: ComsolModelMapping,
     *,
     class_name: str,
-    model_name: str,
-    input_mph: Path,
     output_csv: Path,
-    eval_tag: str,
-    probes: Iterable[ProbeSpec],
-    pre_export_lines: Iterable[str] = (),
 ) -> str:
-    """Return Java source that evaluates mapped result probes to a CSV file."""
-
+    """Export selected saved solutions without running a COMSOL study."""
     _validate_java_class_name(class_name)
-    probe_list = list(probes)
-    expressions = ", ".join(java_string(expression) for _, expression, _ in probe_list)
-    units = ", ".join(java_string(unit) for _, _, unit in probe_list)
-    names = ",".join(name for name, _, _ in probe_list)
-    lines = [
-        "import com.comsol.model.*;",
-        "import com.comsol.model.util.*;",
-        "",
-        f"public class {class_name} {{",
-        "  // output_csv: " + java_path(output_csv),
-        "  public static void main(String[] args) throws Exception {",
-        "    Model model = ModelUtil.loadCopy("
-        + java_string(model_name)
-        + ", "
-        + java_string(java_path(input_mph))
-        + ");",
-        *pre_export_lines,
-        "    String evalTag = " + java_string(eval_tag) + ";",
-        "    try {",
-        "      model.result().numerical().remove(evalTag);",
-        "    } catch (Exception ex) {",
-        "    }",
-        '    model.result().numerical().create(evalTag, "Eval");',
-        "    model.result().numerical(evalTag).set(\"expr\", new String[]{"
-        + expressions
-        + "});",
-        "    model.result().numerical(evalTag).set(\"unit\", new String[]{"
-        + units
-        + "});",
-        "    double[][][] values = model.result().numerical(evalTag).getData();",
-        "    double[][] coords = model.result().numerical(evalTag).getCoordinates();",
-        "    int n = model.result().numerical(evalTag).getNData();",
-        "    System.out.println(" + java_string(PROBE_CSV_BEGIN) + ");",
-        "    System.out.println(" + java_string(names) + ");",
-        "    for (int i = 0; i < n; i++) {",
-        "      StringBuilder row = new StringBuilder();",
-        f"      for (int j = 0; j < {len(probe_list)}; j++) {{",
-        "        if (j > 0) row.append(',');",
-        "        double[][] exprValues = values[j];",
-        "        double value = exprValues[exprValues.length - 1][i];",
-        "        row.append(Double.toString(value));",
-        "      }",
-        "      System.out.println(row.toString());",
-        "    }",
-        "    System.out.println(" + java_string(PROBE_CSV_END) + ");",
-        "  }",
-        "}",
-        "",
-    ]
-    return "\n".join(lines)
+    results = mapping.results
+    if results is None:
+        raise ValueError("field export requires mapping results")
+    expressions = ", ".join(java_string(field.expression) for field in results.fields)
+    units = ", ".join(java_string(field.unit) for field in results.fields)
+    header = (
+        "dataset,solution_index,point_index,time_s,parameter_name,parameter_unit,parameter_value,"
+        + ",".join(field.name for field in results.fields)
+    )
+    first = "0" if results.solutions == "all" else "solutionNumbers.length - 1"
+    return f"""import com.comsol.model.*;
+import com.comsol.model.util.*;
+import java.nio.file.*;
+import java.nio.charset.StandardCharsets;
+import java.io.BufferedWriter;
+import java.util.Arrays;
 
-
-def extract_probe_csv_from_stdout(stdout_path: Path, output_csv: Path) -> None:
-    """Write probe CSV rows emitted between stdout markers, if present."""
-
-    if not stdout_path.exists():
-        return
-    lines = stdout_path.read_text(encoding="utf-8", errors="replace").splitlines()
-    try:
-        start = lines.index(PROBE_CSV_BEGIN) + 1
-        end = lines.index(PROBE_CSV_END, start)
-    except ValueError:
-        return
-    output_csv.parent.mkdir(parents=True, exist_ok=True)
-    output_csv.write_text("\n".join(lines[start:end]) + "\n", encoding="utf-8")
+public class {class_name} {{
+  private static String csv(String value) {{
+    if (value == null) return "";
+    return "\\\"" + value.replace("\\\"", "\\\"\\\"") + "\\\"";
+  }}
+  public static void main(String[] args) throws Exception {{
+    Model model = ModelUtil.loadCopy("swarmPositiveColumnResults", {java_string(java_path(mapping.model.output_mph))});
+    String dataset = {java_string(results.dataset)};
+    String solution = model.result().dataset(dataset).getString("solution");
+    SolutionInfo info = model.sol(solution).getSolutioninfo();
+    int[] outer = info.getOuterSolnum();
+    if (outer.length != 1 || outer[0] != 1) {{
+      throw new IllegalStateException("positive-column export does not support outer parameter sweeps");
+    }}
+    int[] solutionNumbers = info.getSolnum(1, true);
+    String[] parameterNames = model.sol(solution).getPNames();
+    if (parameterNames.length > 1) {{
+      throw new IllegalStateException("positive-column export supports at most one inner solution parameter");
+    }}
+    String parameterName = parameterNames.length == 0 ? "" : parameterNames[0];
+    String parameterUnit = parameterName.isEmpty() ? "" : info.getUnit(parameterName);
+    double[] parameterValues = parameterName.isEmpty() ? new double[0] : model.sol(solution).getPVals();
+    if (solutionNumbers.length == 0 || (!parameterName.isEmpty() && parameterValues.length != solutionNumbers.length)) {{
+      throw new IllegalStateException("saved solution parameters do not match solution numbers");
+    }}
+    boolean transientSolution = parameterName.equals("t");
+    String[] expressions = new String[]{{{expressions}}};
+    String[] units = new String[]{{{units}}};
+    int fieldCount = expressions.length;
+    if (transientSolution) {{
+      expressions = Arrays.copyOf(expressions, fieldCount + 1);
+      units = Arrays.copyOf(units, fieldCount + 1);
+      expressions[fieldCount] = "t";
+      units[fieldCount] = "s";
+    }}
+    String evalTag = "swpc_fields";
+    try {{ model.result().numerical().remove(evalTag); }} catch (Exception ignored) {{}}
+    model.result().numerical().create(evalTag, "Eval");
+    model.result().numerical(evalTag).set("data", dataset);
+    model.result().numerical(evalTag).set("matherr", "on");
+    model.result().numerical(evalTag).set("expr", expressions);
+    model.result().numerical(evalTag).set("unit", units);
+    double[][][] values = model.result().numerical(evalTag).getData();
+    if (model.result().numerical(evalTag).isComplex()) {{
+      throw new IllegalStateException("positive-column fields must be real; refusing to discard imaginary values");
+    }}
+    String[] evaluatedUnits = model.result().numerical(evalTag).getStringArray("unit");
+    if (evaluatedUnits.length != units.length) {{
+      throw new IllegalStateException("evaluated units do not match the requested fields");
+    }}
+    for (int field = 0; field < units.length; field++) {{
+      if (!units[field].replaceAll("\\\\s+", "").equals(evaluatedUnits[field].replaceAll("\\\\s+", ""))) {{
+        throw new IllegalStateException("evaluated unit differs for " + expressions[field]
+            + ": requested=" + units[field] + ", evaluated=" + evaluatedUnits[field]);
+      }}
+    }}
+    int points = model.result().numerical(evalTag).getNData();
+    if (values.length != expressions.length || points == 0) {{
+      throw new IllegalStateException("empty or inconsistent field export");
+    }}
+    for (double[][] expression : values) {{
+      if (expression.length != solutionNumbers.length) {{
+        throw new IllegalStateException("field export omitted saved solutions");
+      }}
+      for (double[] data : expression) {{
+        if (data.length != points) throw new IllegalStateException("inconsistent spatial field grid");
+        for (double value : data) {{
+          if (!Double.isFinite(value)) throw new IllegalStateException("nonfinite exported field");
+        }}
+      }}
+    }}
+    Path output = Paths.get({java_string(java_path(output_csv))});
+    Files.createDirectories(output.toAbsolutePath().getParent());
+    Path temporary = Files.createTempFile(output.toAbsolutePath().getParent(), ".fields-", ".csv");
+    try {{
+      try (BufferedWriter writer = Files.newBufferedWriter(temporary, StandardCharsets.UTF_8)) {{
+        writer.write({java_string(header)});
+        writer.newLine();
+        for (int s = {first}; s < solutionNumbers.length; s++) {{
+          for (int point = 0; point < points; point++) {{
+            String time = transientSolution ? Double.toString(values[fieldCount][s][point]) : "";
+            String parameter = parameterName.isEmpty() ? "" : Double.toString(parameterValues[s]);
+            writer.write(csv(dataset) + "," + solutionNumbers[s] + "," + point + "," + time
+                + "," + csv(parameterName) + "," + csv(parameterUnit) + "," + parameter);
+            for (int field = 0; field < fieldCount; field++) {{
+              writer.write("," + Double.toString(values[field][s][point]));
+            }}
+            writer.newLine();
+          }}
+        }}
+      }}
+      Files.move(temporary, output, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+    }} finally {{
+      Files.deleteIfExists(temporary);
+    }}
+  }}
+}}
+"""
 
 
 def _validate_java_class_name(value: str) -> None:

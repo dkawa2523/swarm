@@ -1,4 +1,4 @@
-"""Build COMSOL-ready workflow table directories from aggregate data."""
+"""Build qualified solver-native coefficient points from aggregate data."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ from . import energy_loss as _energy_loss
 from . import monte_carlo as _mc_tables
 from . import repository as _repository
 from ..campaign.aggregate import aggregate_workflow_results
+from ..campaign.provenance import require_current_implementations
 from ..campaign.quality import (
     resolve_evaluation_quality_thresholds,
     resolve_quality_thresholds,
@@ -28,6 +29,7 @@ from ..campaign.quality import (
 from ..campaign.store import (
     WorkflowSchemaError,
     provenance_hash_manifest,
+    validate_workflow_schema,
 )
 from ..selection import MC_QUALIFICATION_TABLE, context_from_metadata
 from ..quality.solver import (
@@ -39,7 +41,7 @@ from ..quality.solver import (
     validate_propagator_core_qualification,
     validate_propagator_target_qualification,
 )
-from ..quality.propagator_source import PROPAGATOR_SOLVER_SOURCE_METADATA_KEY
+from electron_swarm.core.source_identity import PROPAGATOR_SOLVER_SOURCE_METADATA_KEY, SOLVER_IMPLEMENTATIONS_KEY
 from ..quality.table import COMMON_QUALITY_COLUMNS, quality_table_schema
 from ..quality.policy import (
     QualityThresholds,
@@ -47,7 +49,7 @@ from ..quality.policy import (
     quality_thresholds_json,
     quality_thresholds_payload,
 )
-from .math import finite_range, strictly_monotonic
+from .math import finite_range
 from ..campaign.repository import read_metadata
 
 
@@ -122,7 +124,14 @@ def build_tables(
         connection = sqlite3.connect(db_path)
         try:
             connection.row_factory = sqlite3.Row
+            validate_workflow_schema(connection)
             metadata = read_metadata(connection)
+            try:
+                require_current_implementations(metadata, source)
+            except ValueError as exc:
+                raise _contracts.TableBuildError(str(exc)) from exc
+            for row in connection.execute("SELECT DISTINCT mixture_id FROM cases WHERE solver = ?", (source,)):
+                _repository._field_source_policy(connection, solver=source, mixture_id=int(row[0]))
             if solver_qualification is not None:
                 expected_source = (
                     solver_qualification.implementation_fingerprint_sha256
@@ -303,6 +312,8 @@ def _write_mc_qualification_evidence(
             "status": "unqualified",
             "source": _contracts.MC_SOLVER,
             "physical_context": context_from_metadata(metadata),
+            "input_evidence": json.loads(metadata.get("input_evidence_json", "{}")),
+            "evidence_scope": "numerical_source_tables",
             "hashes": {
                 **provenance_hash_manifest(
                     metadata, source=_contracts.MC_SOLVER
@@ -515,10 +526,6 @@ def _write_dataset_tables(
             file=PROPAGATOR_TARGET_QUALIFICATION_FILE
         )
     _validate_positive_values(dataset)
-    monotonic = strictly_monotonic(
-        [float(case["mean_energy_eV"]) for case in dataset.cases]
-    )
-    monotonic_reason = None if monotonic else "mean_energy_not_strictly_monotonic"
 
     tables: dict[str, dict[str, Any]] = {}
     temporal_growth_transport = isinstance(
@@ -640,39 +647,16 @@ def _write_dataset_tables(
             directory / _contracts.ELASTIC_ENERGY_LOSS_TABLE,
             _contracts.ELASTIC_ENERGY_LOSS_COLUMNS,
             dataset.elastic_energy_loss,
-            argument="mean_energy_eV",
+            argument="E_over_N_Td",
         )
         tables[_contracts.ELASTIC_ENERGY_LOSS_TABLE].update(
             {
-                "artifact_role": ("canonical_comsol_elastic_energy_loss_input"),
+                "artifact_role": "swarm_elastic_energy_loss",
                 "sha256": _sha256_file(
                     directory / _contracts.ELASTIC_ENERGY_LOSS_TABLE
                 ),
                 "physics_contract": dataset.elastic_energy_loss_metadata,
             }
-        )
-    if monotonic:
-        tables["transport_vs_mean_energy.csv"] = _write_csv(
-            directory / "transport_vs_mean_energy.csv",
-            (
-                "mean_energy_eV",
-                "E_over_N_Td",
-                "E_over_N_V_m2",
-                *_contracts.CASE_COLUMNS[3:],
-                *(
-                    _contracts.TWO_TERM_TEMPORAL_GROWTH_TRANSPORT_COLUMNS
-                    if temporal_growth_transport
-                    else ()
-                ),
-            ),
-            dataset.cases,
-            argument="mean_energy_eV",
-        )
-        tables["rates_vs_mean_energy.csv"] = _write_csv(
-            directory / "rates_vs_mean_energy.csv",
-            ("mean_energy_eV", *_contracts.RATE_COLUMNS),
-            dataset.rates,
-            argument="mean_energy_eV",
         )
     _write_json(
         directory / "manifest.json",
@@ -681,6 +665,8 @@ def _write_dataset_tables(
             "stage": "build-tables",
             "source": dataset.source,
             "physical_context": context_from_metadata(metadata),
+            "input_evidence": json.loads(metadata.get("input_evidence_json", "{}")),
+            "evidence_scope": "numerical_source_tables",
             "mc_campaign": json.loads(metadata.get("mc_campaign_json", "null")),
             "hashes": {
                 **provenance_hash_manifest(metadata, source=dataset.source),
@@ -700,16 +686,12 @@ def _write_dataset_tables(
                 "species": dataset.mixture,
             },
             "source_policy": dataset.source_policy,
+            "implementation": json.loads(metadata[SOLVER_IMPLEMENTATIONS_KEY])[dataset.source],
             "valid_ranges": _valid_ranges(dataset.cases),
             "units": _manifest_units(tables),
             "table_argument": {
                 "primary": "E_over_N_Td",
-                "secondary": "mean_energy_eV" if monotonic else None,
                 "eedf": "electron_energy_eV,E_over_N_Td",
-            },
-            "monotonicity": {
-                "mean_energy_strictly_monotonic": monotonic,
-                "reason": monotonic_reason,
             },
             "quality_summary": _quality_summary(dataset.quality),
             "tables": tables,
@@ -736,6 +718,7 @@ def _validate_positive_values(dataset: _contracts.TableDataset) -> None:
         "reduced_electron_energy_diffusion_T_m2_s_m3",
     ]
     positive_rate = [
+        "mean_energy_eV",
         "rate_coefficient_m3_s",
         "mixture_weighted_rate_m3_s",
         "reduced_townsend_m2",

@@ -30,6 +30,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from electron_swarm import load_config  # noqa: E402
+from swarm_workflow.quality.propagator_refinement import (  # noqa: E402
+    compare_propagator_cases as _comparison,
+)
+from swarm_workflow.quality.solver import PROPAGATOR_CORE_QUALIFICATION_SCHEMA  # noqa: E402
 from electron_swarm.core.config import RequestedSolverConfig, SwarmConfig  # noqa: E402
 from electron_swarm.core.cross_sections import (  # noqa: E402
     load_active_mixture_inputs,
@@ -52,8 +56,8 @@ from electron_swarm.solvers.propagator.solver import PropagatorSolver  # noqa: E
 from electron_swarm.solvers.propagator.steady import (  # noqa: E402
     PropagatorConvergenceError,
 )
-from swarm_workflow.quality.propagator_source import (  # noqa: E402
-    propagator_qualification_source_fingerprint,
+from electron_swarm.core.source_identity import (  # noqa: E402
+    solver_source_fingerprint,
 )
 
 
@@ -86,7 +90,7 @@ FULL_QUALIFICATION_OUTPUT = (
     / "docs"
     / "dev"
     / "results"
-    / "propagator_p1_deterministic_qualification_20260908.json"
+    / "propagator_p1_core_qualification.json"
 )
 QUICK_QUALIFICATION_OUTPUT = (
     ROOT / "outputs" / "benchmarks" / "propagator_p1_deterministic_quick.json"
@@ -118,10 +122,14 @@ def _qualification_source_state(
 ) -> dict[str, Any]:
     return {
         "implementation_fingerprint": (
-            propagator_qualification_source_fingerprint(ROOT)
+            solver_source_fingerprint("propagator", ROOT)
         ),
         "input_sha256": {
             path.relative_to(ROOT).as_posix(): _sha256(path)
+            for path in input_paths
+        },
+        "input_artifacts": {
+            path.relative_to(ROOT).as_posix(): path.read_bytes().decode("utf-8")
             for path in input_paths
         },
     }
@@ -292,14 +300,6 @@ def _run_case(
         )
 
 
-def _relative(left: float, right: float) -> float:
-    return abs(float(left) - float(right)) / max(
-        abs(float(left)),
-        abs(float(right)),
-        1.0e-300,
-    )
-
-
 def _report_progress(record: dict[str, Any]) -> None:
     print(
         f"{record['family']}/{record['profile']}/"
@@ -307,61 +307,6 @@ def _report_progress(record: dict[str, Any]) -> None:
         f"({record['elapsed_s']:.2f}s)",
         flush=True,
     )
-
-
-def _eedf_l1(left: Any, right: Any) -> float:
-    energy = np.asarray(right.energy_eV, dtype=float)
-    widths = np.asarray(right.energy_widths_eV, dtype=float)
-    projected = np.interp(
-        energy,
-        np.asarray(left.energy_eV, dtype=float),
-        np.asarray(left.eedf, dtype=float),
-        left=0.0,
-        right=0.0,
-    )
-    return float(np.sum(np.abs(projected - right.eedf) * widths))
-
-
-def _comparison(
-    left: Any | None,
-    right: Any | None,
-    *,
-    scalar_limit: float,
-    eedf_limit: float,
-    gate_growth: bool,
-) -> dict[str, Any]:
-    if left is None or right is None:
-        return {"status": "unavailable", "passed": False}
-    left_growth = float(
-        left.diagnostics["propagator"]["growth_frequency_s_inv"]
-    )
-    right_growth = float(
-        right.diagnostics["propagator"]["growth_frequency_s_inv"]
-    )
-    values = {
-        "mean_energy": _relative(left.mean_energy_eV, right.mean_energy_eV),
-        "drift_velocity": _relative(
-            left.drift_velocity_m_s,
-            right.drift_velocity_m_s,
-        ),
-        "growth_frequency": _relative(left_growth, right_growth),
-    }
-    gated = ["mean_energy", "drift_velocity"]
-    if gate_growth:
-        gated.append("growth_frequency")
-    eedf = _eedf_l1(left, right)
-    return {
-        "status": "available",
-        "relative_differences": values,
-        "gated_scalars": gated,
-        "eedf_weighted_L1": eedf,
-        "scalar_limit": scalar_limit,
-        "eedf_limit": eedf_limit,
-        "passed": bool(
-            max(values[name] for name in gated) <= scalar_limit
-            and eedf <= eedf_limit
-        ),
-    }
 
 
 def _inelastic_weak_transfer_refinement(base: SwarmConfig) -> dict[str, Any]:
@@ -627,7 +572,7 @@ def run_qualification(*, quick: bool) -> dict[str, Any]:
 
     _require_unchanged_qualification_sources(starting_source_state)
     return {
-        "schema": "swarm.propagator_p1_deterministic_qualification.v1",
+        "schema": PROPAGATOR_CORE_QUALIFICATION_SCHEMA,
         "scope": {
             "phase": "P0_P1",
             "quick": quick,
@@ -659,6 +604,7 @@ def run_qualification(*, quick: bool) -> dict[str, Any]:
             or os.environ.get("PROCESSOR_IDENTIFIER", ""),
             "logical_cpu_count": os.cpu_count(),
             "input_sha256": starting_source_state["input_sha256"],
+            "input_artifacts": starting_source_state["input_artifacts"],
         },
         "runs": records,
         "medium_fine_refinement": refinement,

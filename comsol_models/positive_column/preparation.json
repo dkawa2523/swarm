@@ -1,0 +1,140 @@
+{
+  "schema": "swarm.prepared_comsol_input.v1",
+  "status": "input_ready_mph_not_materialized",
+  "package_version": "0.12.0",
+  "model_adapter": "positive_column",
+  "source_solver": "two_term",
+  "scope": "bounded_input_configuration_example",
+  "case_count": 26,
+  "valid_ranges": {
+    "E_over_N_Td": [
+      0.0444,
+      500.0
+    ],
+    "E_over_N_V_m2": [
+      4.44e-23,
+      4.999999999999999e-19
+    ],
+    "mean_energy_eV": [
+      0.5479369014673368,
+      10.385812106330404
+    ]
+  },
+  "offline_preflight_passed": true,
+  "mph_materialization": "blocked_license_expired",
+  "plasma_solve_executed": false,
+  "physical_target_accepted": false,
+  "files": [
+    {
+      "file": "bundle/collision_rate_kernels.csv",
+      "sha256": "dc8e22fe8410085dce9d83ae1c9f8783907a8b4784a14c42341085555a06d845",
+      "size_bytes": 8521
+    },
+    {
+      "file": "bundle/comsol_functions/sw_meanE.csv",
+      "sha256": "430e253e46e6632a44a9aca32288655dd9ca0fb2f5fc79915a1ad5fd2e9bf46e",
+      "size_bytes": 1138
+    },
+    {
+      "file": "bundle/comsol_functions/sw_muN.csv",
+      "sha256": "868d4b3f8cc7b31bbf6ca100214e15143fccbdd40205ac542f31bb021c014a13",
+      "size_bytes": 1245
+    },
+    {
+      "file": "bundle/eedf.csv",
+      "sha256": "aad40fd87c605e333ef0845307363b7d1e663a944f64df08d2af4eb875bae471",
+      "size_bytes": 1707379
+    },
+    {
+      "file": "bundle/eedf_f0_comsol_2d.csv",
+      "sha256": "30f9163dd1d64c90c7a19be7861c880bc925eb912524c7f2102f8de2f636244d",
+      "size_bytes": 11294035
+    },
+    {
+      "file": "bundle/eedf_f0_vs_mean_energy.csv",
+      "sha256": "2d81af94808629091fca4935a04308d3f51ac67629b43ec797107d6abc4864a7",
+      "size_bytes": 608314
+    },
+    {
+      "file": "bundle/elastic_energy_loss.csv",
+      "sha256": "f56308c980d7585ff9ce4c7b8f53717de161d28cd0f494e3f2c566d3111b4543",
+      "size_bytes": 3247
+    },
+    {
+      "file": "bundle/elastic_energy_loss_vs_mean_energy.csv",
+      "sha256": "7c0bdeb49cfb7468d2b47722f618d7ec73774a0b6a5e0a9e7068dc160dc67e42",
+      "size_bytes": 3247
+    },
+    {
+      "file": "bundle/energy_loss.csv",
+      "sha256": "d534ad3a646a5ccb02a6853cc5b39ce848c5cfa2c526c60cc598c70a330eb971",
+      "size_bytes": 7288
+    },
+    {
+      "file": "bundle/manifest.json",
+      "sha256": "a1e3ff46293a613a91481075b8d2068c5291b1ca714157bc8562368e41d0f4cc",
+      "size_bytes": 36165
+    },
+    {
+      "file": "bundle/mean_energy_vs_en.csv",
+      "sha256": "7f1e765dd19b8892b84ca5846f3c1779a519a5433c80d594e66e7825f6ded302",
+      "size_bytes": 1356
+    },
+    {
+      "file": "bundle/quality.csv",
+      "sha256": "236db7024d989bfbe93ea1c18499b3c0cea92f901ec928cf5d2e15ae282ac69c",
+      "size_bytes": 6252
+    },
+    {
+      "file": "bundle/rates_vs_en.csv",
+      "sha256": "857669aeaea6e5ad8255a710c69decd1252ca11a26ff809b1e6fd438d851f343",
+      "size_bytes": 14074
+    },
+    {
+      "file": "bundle/rates_vs_mean_energy.csv",
+      "sha256": "d7dc96fa554706b42ad28d48edf898f8e42c009bc69280f5faf83522721b30a8",
+      "size_bytes": 14074
+    },
+    {
+      "file": "bundle/townsend_vs_en.csv",
+      "sha256": "791ca6c1a212a77c1e775128e70b514536b30323410aa9cf05e586835d1d0583",
+      "size_bytes": 1458
+    },
+    {
+      "file": "bundle/transport_vs_en.csv",
+      "sha256": "26e3844da9c82a1c64078559f15eff8e27cb8ff7c2e03d4805762df61bb9bc64",
+      "size_bytes": 8103
+    },
+    {
+      "file": "bundle/transport_vs_mean_energy.csv",
+      "sha256": "c3b2bc9ded6b4f7e2417985da68a6a3879b088f089977e785337eaa7c6b5339d",
+      "size_bytes": 8103
+    },
+    {
+      "file": "evidence/SwarmComsolApply.java",
+      "sha256": "a6ce66d43e12675d0782c814c063df7cf51aad8865d892baf543ad58787ecfe2",
+      "size_bytes": 14362
+    },
+    {
+      "file": "mapping.yaml",
+      "sha256": "316e224dab4eba97cc5f2c2e3eecef72ee60150c20432fbdebb0e3732e36aba4",
+      "size_bytes": 3610
+    },
+    {
+      "file": "swarm.yaml",
+      "sha256": "175df5a9a04c097dc172f20dd78b2b172f331012849b6c9e68c5815731e46092",
+      "size_bytes": 1311
+    },
+    {
+      "file": "swarm_results.sqlite",
+      "sha256": "9b1647a1af36eed98788a82a8792dd7799e3aa381a58db397404c96d3907b2f2",
+      "size_bytes": 3514368
+    }
+  ],
+  "note": "No current-version configured MPH is shipped in this directory. These inputs deliberately have bounded support; no failed high-field iterate is published. Licensed application has not completed.",
+  "source_model": {
+    "file": "Model/positive_column_1d.mph",
+    "sha256": "294af1b3615a59e1e8a7a900666e911d6445eaeb58be92e7b173075894e96369",
+    "size_bytes": 4905198
+  }
+}

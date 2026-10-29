@@ -16,19 +16,19 @@ Apply this skill only in the electron-swarm repository. Confirm the root contain
    - only the canonical two_term id
    - physics requests under physics, separate from solver selection
    - an explicit feature_policy
-3. Keep solvers.two_term limited to the public fields implemented by the parser: backend: native_sg, nonconservative_model, and min_momentum_cross_section_m2. Do not expose internal grid or convergence knobs in product YAML.
+3. Keep solvers.two_term limited to backend: native_sg and min_momentum_cross_section_m2. Ionization sharing belongs to physics.ionization.energy_sharing; loss_only selects a single-daughter source explicitly. Do not expose internal grid or convergence knobs in product YAML.
 4. For a direct calculation, put the requested E/N values in run.e_over_n_Td.
-5. For an external sweep, keep one base product config and create a workflow YAML with base_config, database, e_over_n_Td, mixtures, and intentional quality thresholds. A pure two-term workflow does not need MC sampling fields.
+5. For persistence or a mixture sweep, add campaign.database and intentional campaign.quality thresholds to the same schema-v2 calculation YAML. E/N remains under run.e_over_n_Td. Use aligned fraction arrays under conditions.gas_mixture for multiple mixtures. Do not create a separate base-config file. A pure two-term campaign does not need campaign.mc fields.
 6. Resolve paths relative to the file that owns them. Use a new descriptive output/database path for a materially different campaign.
 
-Use examples/argon_gec_ccp_base.yaml and examples/workflow_argon_gec_ccp_two_term.yaml only as target-specific examples. Read docs/product_schema_v2.md and docs/physics_limitations.md for the maintained public contract.
+Use examples/workflow_argon_gec_ccp_two_term.yaml only as target-specific examples. Read docs/product_schema_v2.md and docs/physics_limitations.md for the maintained public contract.
 
 ## Validate without solving
 
-Load the product config and inspect its solve plan:
+Validate the complete document, including any campaign controls, without solving:
 
 ~~~powershell
-py -3 -c "from electron_swarm import load_config; from electron_swarm.orchestration.plan import build_solve_plan, solver_plan_metadata; c=load_config(r'<config.yaml>'); print(solver_plan_metadata(build_solve_plan(c)))"
+py -3 -m swarm_workflow.cli run <config.yaml> --plan --json
 ~~~
 
 For a workflow, resolve it without starting any cases:

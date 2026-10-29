@@ -7,9 +7,7 @@ import electron_swarm.solvers.monte_carlo.direct_transport as direct_transport
 import electron_swarm.solvers.monte_carlo.weighted_transport as weighted_transport
 import electron_swarm.solvers.monte_carlo.weighted_ensemble as weighted_ensemble
 import electron_swarm.solvers.monte_carlo.evidence as evidence
-from electron_swarm.solvers.monte_carlo.source_identity import (
-    monte_carlo_source_sha256,
-)
+from electron_swarm.core.source_identity import solver_source_fingerprint
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -122,9 +120,9 @@ def test_public_monte_carlo_evidence_contract_is_complete() -> None:
 
 
 def test_monte_carlo_source_identity_is_deterministic_sha256() -> None:
-    first = monte_carlo_source_sha256()
+    first = solver_source_fingerprint("monte_carlo")["sha256"]
 
-    assert first == monte_carlo_source_sha256()
+    assert first == solver_source_fingerprint("monte_carlo")["sha256"]
     assert len(first) == 64
     assert set(first) <= set("0123456789abcdef")
 

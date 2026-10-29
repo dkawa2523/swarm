@@ -13,16 +13,15 @@ from typing import Iterable
 
 import numpy as np
 
+from electron_swarm.grids.energy import reported_cell_edges
 import electron_swarm.solvers.monte_carlo.evidence as _mc_evidence
 
 from .._io import write_json as _write_json
 from ..quality import policy as _quality_policy
 from . import quality as _quality_database
-from .statistics import (
+from electron_swarm.core.statistics import (
     ScalarStats as _ScalarStats,
     conservative_rebin_probability_mass as _conservative_rebin_probability_mass,
-    energy_edges_from_cells,
-    energy_edges_from_nodes,
     summarize_replicates as _summarize_replicates,
 )
 from .store import (
@@ -55,7 +54,6 @@ OPTIONAL_CASE_SCALARS = {
 }
 RATE_SCALAR = "rate_coefficient_m3_s"
 MC_SOLVER = "monte_carlo"
-FINITE_VOLUME_EEDF_SOLVERS = frozenset({MC_SOLVER, "propagator"})
 RateKey = tuple[str, str, str, str, float | None]
 
 AGGREGATE_CSVS = (
@@ -141,9 +139,7 @@ def aggregate_database(
             or 0
         )
         e_points = int(
-            connection.execute(
-                "SELECT COUNT(*) FROM aggregate_quality"
-            ).fetchone()[0]
+            connection.execute("SELECT COUNT(*) FROM aggregate_quality").fetchone()[0]
             or 0
         )
     finally:
@@ -166,10 +162,9 @@ def aggregate_workflow_results(
         thresholds = _quality_database.resolve_evaluation_quality_thresholds(connection)
     elif not _allow_evaluation_policy_override:
         _quality_database.resolve_quality_thresholds(connection, thresholds)
-    policy_reevaluated = (
-        _quality_policy.quality_thresholds_json(source_thresholds)
-        != _quality_policy.quality_thresholds_json(thresholds)
-    )
+    policy_reevaluated = _quality_policy.quality_thresholds_json(
+        source_thresholds
+    ) != _quality_policy.quality_thresholds_json(thresholds)
     rate_mean_peaks = _rate_mean_peaks(connection, solvers=solvers)
     _reset_tables(connection)
     solver_filter = ""
@@ -244,9 +239,7 @@ def aggregate_workflow_results(
             ) = _quality_for_group(
                 case_stats=case_stats,
                 rate_stats=rate_stats,
-                rate_mean_peaks=rate_mean_peaks.get(
-                    (solver, mixture_id), {}
-                ),
+                rate_mean_peaks=rate_mean_peaks.get((solver, mixture_id), {}),
                 eedf_normalization_error=eedf_normalization_error,
                 eedf_finite_nonnegative=eedf_finite_nonnegative,
                 thresholds=thresholds,
@@ -311,12 +304,14 @@ def write_aggregate_outputs(
         _write_query_csv(
             connection,
             output / filename,
-            f"{select} ORDER BY { _order_columns(table_name) }",
+            f"{select} ORDER BY {_order_columns(table_name)}",
         )
     metadata = read_metadata(connection)
     source_thresholds = _quality_database.resolve_quality_thresholds(connection)
     source_policy_json = _quality_database.source_quality_thresholds_json(connection)
-    evaluation_thresholds = _quality_database.resolve_evaluation_quality_thresholds(connection)
+    evaluation_thresholds = _quality_database.resolve_evaluation_quality_thresholds(
+        connection
+    )
     _quality_database.validate_aggregate_quality_thresholds(
         connection, evaluation_thresholds
     )
@@ -345,8 +340,7 @@ def write_aggregate_outputs(
             "quality_scope": {
                 "aggregate_quality.csv": "raw_replica_statistical_screen",
                 "comsol_input_qualification": (
-                    "performed_later_by_build_tables_with_solver_specific_"
-                    "diagnostics"
+                    "performed_later_by_build_tables_with_solver_specific_diagnostics"
                 ),
             },
             "outputs": list(AGGREGATE_CSVS),
@@ -526,15 +520,23 @@ def _rate_scalar_stats(
         (solver, mixture_id, e_over_n_Td),
     ).fetchall()
     grouped: dict[tuple[str, str, str, str, float | None], list[float]] = {}
-    target_fractions: dict[tuple[str, str, str, str, float | None], list[float | None]] = {}
-    energy_losses: dict[tuple[str, str, str, str, float | None], list[float | None]] = {}
+    target_fractions: dict[
+        tuple[str, str, str, str, float | None], list[float | None]
+    ] = {}
+    energy_losses: dict[
+        tuple[str, str, str, str, float | None], list[float | None]
+    ] = {}
     for row in rows:
         key = _rate_key(row)
         grouped.setdefault(key, []).append(float(row[RATE_SCALAR]))
-        target_fractions.setdefault(key, []).append(_finite_or_none(row["target_species_fraction"]))
+        target_fractions.setdefault(key, []).append(
+            _finite_or_none(row["target_species_fraction"])
+        )
         energy_losses.setdefault(key, []).append(_finite_or_none(row["energy_loss_eV"]))
 
-    metadata: dict[tuple[str, str, str, str, float | None], dict[str, float | None]] = {}
+    metadata: dict[
+        tuple[str, str, str, str, float | None], dict[str, float | None]
+    ] = {}
     for key in grouped:
         target_fraction = _constant_optional_number(target_fractions[key])
         energy_loss = _constant_optional_number(energy_losses[key])
@@ -543,9 +545,7 @@ def _rate_scalar_stats(
             "energy_loss_eV": energy_loss,
         }
     return {
-        key: _summarize_replicates(
-            values, zero_is_censored=(solver == MC_SOLVER)
-        )
+        key: _summarize_replicates(values, zero_is_censored=(solver == MC_SOLVER))
         for key, values in grouped.items()
     }, metadata
 
@@ -577,7 +577,9 @@ def _aggregate_eedf(
     replicate_effective_counts: dict[int, np.ndarray] = {}
     for replicate, replicate_rows in by_replicate.items():
         energy = np.asarray([row["energy_eV"] for row in replicate_rows], dtype=float)
-        widths = np.asarray([row["energy_width_eV"] for row in replicate_rows], dtype=float)
+        widths = np.asarray(
+            [row["energy_width_eV"] for row in replicate_rows], dtype=float
+        )
         eedf = np.asarray([row["eedf"] for row in replicate_rows], dtype=float)
         effective_counts = np.asarray(
             [
@@ -601,35 +603,13 @@ def _aggregate_eedf(
                 f"replicate {replicate}"
             )
         try:
-            edges = (
-                energy_edges_from_cells(energy, widths)
-                if solver in FINITE_VOLUME_EEDF_SOLVERS
-                else energy_edges_from_nodes(energy)
-            )
+            edges = reported_cell_edges(energy, widths)
         except ValueError as exc:
             raise ValueError(
                 "Invalid finite-volume EEDF grid for "
                 f"{solver} mixture {mixture_id} at {e_over_n_Td:g} Td "
                 f"replicate {replicate}: {exc}"
             ) from exc
-        reconstructed_widths = np.diff(edges)
-        # ``center +/- width/2`` necessarily loses a few ulps when a narrow
-        # physical cell sits at a large absolute energy.  Use the same
-        # scale-aware IEEE-754 bound as ``energy_edges_from_cells`` instead of
-        # a second, width-only tolerance that rejects an otherwise valid
-        # contiguous finite-volume grid.
-        roundtrip_scale = np.maximum.reduce(
-            (np.ones_like(energy), np.abs(energy), widths)
-        )
-        roundtrip_tolerance = (
-            64.0 * np.finfo(float).eps * roundtrip_scale
-        )
-        if np.any(np.abs(reconstructed_widths - widths) > roundtrip_tolerance):
-            raise ValueError(
-                "Stored EEDF widths do not match their grid representation for "
-                f"{solver} mixture {mixture_id} at {e_over_n_Td:g} Td "
-                f"replicate {replicate}"
-            )
         mass = eedf * widths
         replicate_edges[replicate] = edges
         replicate_masses[replicate] = mass
@@ -690,8 +670,7 @@ def _aggregate_eedf(
         pooled_effective_counts = np.sum(support, axis=0)
 
     stats = [
-        _summarize_replicates(rebinned[:, index])
-        for index in range(rebinned.shape[1])
+        _summarize_replicates(rebinned[:, index]) for index in range(rebinned.shape[1])
     ]
     widths = np.diff(target_edges)
     mean_mass = np.asarray([stat.mean or 0.0 for stat in stats], dtype=float)
@@ -755,9 +734,7 @@ def _union_energy_edges(edge_sets: Iterable[np.ndarray]) -> np.ndarray:
     merged = [float(values[0])]
     for raw_value in values[1:]:
         value = float(raw_value)
-        tolerance = 64.0 * np.finfo(float).eps * max(
-            1.0, abs(merged[-1]), abs(value)
-        )
+        tolerance = 64.0 * np.finfo(float).eps * max(1.0, abs(merged[-1]), abs(value))
         if value - merged[-1] <= tolerance:
             merged[-1] = 0.5 * (merged[-1] + value)
         else:
@@ -791,15 +768,9 @@ def _quality_for_group(
     mobility = case_stats["reduced_mobility_m2_V_s_m3"]
     diffusion_l = case_stats["reduced_diffusion_L_m2_s_m3"]
     diffusion_t = case_stats["reduced_diffusion_T_m2_s_m3"]
-    energy_mobility = case_stats[
-        "reduced_electron_energy_mobility_m2_V_s_m3"
-    ]
-    energy_diffusion_l = case_stats[
-        "reduced_electron_energy_diffusion_L_m2_s_m3"
-    ]
-    energy_diffusion_t = case_stats[
-        "reduced_electron_energy_diffusion_T_m2_s_m3"
-    ]
+    energy_mobility = case_stats["reduced_electron_energy_mobility_m2_V_s_m3"]
+    energy_diffusion_l = case_stats["reduced_electron_energy_diffusion_L_m2_s_m3"]
+    energy_diffusion_t = case_stats["reduced_electron_energy_diffusion_T_m2_s_m3"]
     if not _scalar_meets_quality(
         mobility,
         rse_limit=thresholds.mobility_rse,
@@ -859,16 +830,10 @@ def _quality_for_group(
         if required_limit is not None and not _required_rate_is_relevant(
             stats,
             process_peak=rate_mean_peaks.get(key),
-            minimum_fraction=(
-                thresholds.required_rate_min_process_peak_fraction
-            ),
+            minimum_fraction=(thresholds.required_rate_min_process_peak_fraction),
         ):
             required_limit = None
-        is_major = (
-            max_rate > 0.0
-            and stats.mean is not None
-            and stats.mean >= cutoff
-        )
+        is_major = max_rate > 0.0 and stats.mean is not None and stats.mean >= cutoff
         if is_major and stats.relative_standard_error is not None:
             major_rses.append(stats.relative_standard_error)
         if required_limit is None and not is_major:
@@ -876,9 +841,7 @@ def _quality_for_group(
 
         gate_name = "required_rate" if required_limit is not None else "major_rate"
         rse_limit = (
-            required_limit
-            if required_limit is not None
-            else thresholds.major_rate_rse
+            required_limit if required_limit is not None else thresholds.major_rate_rse
         )
         label = f"{species}:{process}:{process_type}"
         if not require_uncertainty:
@@ -888,10 +851,7 @@ def _quality_for_group(
             if required_limit is not None:
                 required_uncertainty_available = False
             continue
-        if (
-            not stats.uncertainty_available
-            or stats.relative_standard_error is None
-        ):
+        if not stats.uncertainty_available or stats.relative_standard_error is None:
             failures.append(f"{gate_name}_rse_unavailable:{label}")
             if required_limit is not None:
                 required_uncertainty_available = False
@@ -907,8 +867,7 @@ def _quality_for_group(
         failures.append("eedf_not_finite_nonnegative")
 
     uncertainty_available = all(
-        stats.uncertainty_available
-        for stats in [mobility, diffusion_l, diffusion_t]
+        stats.uncertainty_available for stats in [mobility, diffusion_l, diffusion_t]
     )
     reported_energy_stats = [
         stats for stats, _limit, _label in energy_stats if stats.mean is not None
@@ -923,9 +882,7 @@ def _quality_for_group(
             or reason.startswith("major_rate_censored")
             for reason in failures
         )
-    uncertainty_available = (
-        uncertainty_available and required_uncertainty_available
-    )
+    uncertainty_available = uncertainty_available and required_uncertainty_available
 
     details = {
         "mobility_rse": mobility.relative_standard_error,
@@ -1088,7 +1045,10 @@ def _constant_optional_number(values: Iterable[float | None]) -> float | None:
     if not finite:
         return None
     first = finite[0]
-    if any(not math.isclose(first, value, rel_tol=1.0e-12, abs_tol=1.0e-30) for value in finite[1:]):
+    if any(
+        not math.isclose(first, value, rel_tol=1.0e-12, abs_tol=1.0e-30)
+        for value in finite[1:]
+    ):
         raise ValueError("rate static metadata differs across replicates")
     return first
 

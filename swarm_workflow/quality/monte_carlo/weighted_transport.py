@@ -232,9 +232,9 @@ def _normalize_weighted_replica_input(
         or not isinstance(provenance.get(name), int)
         for name in (
             "particles",
-            "warmup_collisions",
-            "production_collisions",
-            "tail_max_collisions",
+            "warmup_trial_periods",
+            "production_trial_periods",
+            "tail_trial_periods",
             "tail_collisions_executed",
         )
     ):
@@ -266,11 +266,11 @@ def _normalize_weighted_replica_input(
         or float(provenance["electric_field_V_m"]) <= 0.0
         or float(provenance["trial_collision_frequency_s_inv"]) <= 0.0
         or int(provenance["particles"]) < 2
-        or int(provenance["warmup_collisions"]) < 0
-        or int(provenance["production_collisions"]) <= 0
-        or int(provenance["tail_max_collisions"]) < 0
+        or int(provenance["warmup_trial_periods"]) < 0
+        or int(provenance["production_trial_periods"]) <= 0
+        or int(provenance["tail_trial_periods"]) < 0
         or int(provenance["tail_collisions_executed"])
-        not in {0, int(provenance["tail_max_collisions"])}
+        not in {0, int(provenance["tail_trial_periods"])}
         or not (0.0 < float(provenance["tail_rate_rse_trigger"]) <= 1.0)
         or provenance.get("magnetic_enabled") is not False
     ):
@@ -312,8 +312,8 @@ def _normalize_weighted_replica_input(
             abs_tol=0.0,
         )
         or sampling["transport_block_barriers"] != block_barriers
-        or int(provenance["warmup_collisions"]) <= 0
-        or int(provenance["production_collisions"]) % block_barriers != 0
+        or int(provenance["warmup_trial_periods"]) <= 0
+        or int(provenance["production_trial_periods"]) % block_barriers != 0
         or sampling["lag_barriers"] != lag_barriers
         or sampling["minimum_blocks"] != _mc_evidence.WEIGHTED_MC_TRANSPORT_MIN_BLOCKS
         or int(sampling["complete_blocks"])

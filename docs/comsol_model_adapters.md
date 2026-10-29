@@ -6,6 +6,17 @@ that bundle is applied to one concrete MPH topology and how the resulting solve
 is accepted. This supports additional plasma models without turning GEC-CCP or
 positive-column assumptions into global behavior.
 
+Here, model-independent means independent of a particular COMSOL MPH topology.
+The current export still generates COMSOL functions and applies coefficient
+closure requirements. Swarm calculation and ordinary result CSV/Python reading
+do not require COMSOL. Version 0.9 adds neutral DC reaction-coefficient points
+for all four solvers through `output.export` and `export-reaction-rates`.
+These points retain physical context and uncertainty independently of the
+COMSOL closure requirements. A coefficient-reading example with bounded
+interpolation remains planned. That example stops at reading coefficients. Chemical reaction networks
+and species time integration remain in the consuming plasma model. See the
+[output plan](dev/modeling_output_review.md).
+
 ## Supported adapters
 
 | Adapter | Package | Run command | Map | Target contract |
@@ -14,7 +25,7 @@ positive-column assumptions into global behavior.
 | Argon GEC-CCP | `swarm_workflow/comsol/models/gec_ccp/` | `run-gec-ccp` | `comsol_modes/maps/argon_gec_ccp_*.yaml` | `docs/comsol_gec_ccp.md` |
 | Argon GEC-ICP | `swarm_workflow/comsol/models/gec_icp/` | `run-gec-icp` | `comsol_modes/maps/argon_gec_icp_*.yaml` | `docs/comsol_gec_icp.md` |
 
-No adapter is a generic fallback. A different ICP, CCP, positive-column,
+No adapter is a generic fallback. A different COMSOL ICP, CCP, positive-column,
 global, fluid, or hybrid model needs its own adapter when its MPH tags,
 formulation, closure, run sequence, or acceptance evidence differs.
 
@@ -30,7 +41,10 @@ workflow commands -> model adapter -> comsol/input
 
 - `selection` owns physical context, immutable whole-closure decisions, and
   bounded anchor-fallback plans without knowing COMSOL bundles or MPH models.
-- `comsol/input` builds provenance-bound tables and bundles. It knows no MPH
+- `tables` builds qualified native coefficient points on E/N. Their format v3
+  carries declared units and observed mean energy, including on reaction rows.
+- `comsol/input` derives the COMSOL coefficient/function tables and bundles
+  (bundle format v2). It knows no MPH
   tags, geometry, studies, datasets, or solver sequence.
 - `comsol/runtime` discovers COMSOL, compiles and executes generated Java, and
   records logs and artifact provenance. It knows no plasma model.
@@ -56,9 +70,9 @@ A new model adapter must define and test these items together:
 
 1. A typed schema-v2 mapping with the actual model, bundle, closure, run,
    results, and log contract. Preserve the adapter's documented path rule:
-   positive-column paths resolve from the repository root, while GEC-CCP paths
-   resolve from the mapping directory. A new adapter must choose one explicit
-   rule and test it for both its source map and any materialized effective map.
+   hand-written mapping paths resolve from the mapping directory; references
+   inside a bundle resolve from that bundle. Effective maps preserve resolved
+   source paths when moved into the result directory. Test both locations.
 2. An immutable source MPH, a different output MPH, and explicit non-colliding
    generated-code, result, and log locations. An adapter may intentionally
    colocate its generated Java and run artifacts.
@@ -100,6 +114,15 @@ Target-specific refinement or statistical gates belong to the bundle/map
 contract. GEC qualification thresholds, Ar reaction tags, RF study sequencing,
 positive-column voltage continuation, and LEA/LFA activation are model-local
 examples, not shared defaults.
+
+The 0.12 input-conversion verification is separate from model acceptance.
+The recorded CCP target qualification declares a 3000--4000 Td operating
+bracket, while the maintained adapter requires 3000--3500 Td; preflight rejects
+this scope mismatch. ICP preparation works from the checkout, but its current
+canonical cross-section/reference lookup still assumes checkout assets and
+fails from a runtime-only wheel. These are tracked next in the
+[improvement plan](dev/improvement_plan.md); they are not waived by a successful
+bundle export.
 
 The GEC-ICP adapter is likewise model-local. It binds a steady-DC Function
 EEDF and reduced mobility into the 13.56 MHz frequency-transient ICP model;

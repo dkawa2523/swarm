@@ -23,9 +23,54 @@ def _plan_row(item: object) -> dict[str, object]:
     return solver_plan_metadata([item])[0]
 
 
+@pytest.mark.parametrize(
+    "solver, kind", [("monte_carlo", "attachment"), ("propagator", "superelastic")]
+)
+def test_active_process_support_is_resolved_before_execution(
+    tmp_path: Path, solver: str, kind: str
+) -> None:
+    import numpy as np
+    from electron_swarm.core.cross_sections import (
+        CrossSectionProcess,
+        CrossSectionSet,
+        ProcessType,
+    )
+
+    data = base_product_config(tmp_path, [solver])
+    config = load_config(write_config(tmp_path, data))
+    xs = CrossSectionSet(
+        [
+            CrossSectionProcess(
+                "Ar",
+                "elastic",
+                ProcessType.MOMENTUM,
+                np.array([0.0, 1000.0]),
+                np.full(2, 4e-20),
+            ),
+            CrossSectionProcess(
+                "Ar",
+                kind,
+                ProcessType(kind),
+                np.array([0.0, 1000.0]),
+                np.full(2, 1e-22),
+                threshold_eV=1.0,
+            ),
+        ]
+    )
+    with pytest.raises(ValueError, match=kind):
+        build_solve_plan(config, xs)
+    config.feature_policy.unsupported = "skip_solver"
+    [item] = build_solve_plan(config, xs)
+    assert item.skipped
+    assert kind in item.skip_reason
+    assert (
+        item.feature_treatments["collision_processes"].support
+        is SupportLevel.UNSUPPORTED
+    )
+
+
 def test_schema_v2_valid_config_and_canonical_solver_ids(tmp_path: Path) -> None:
     data = base_product_config(tmp_path, ["two_term", "multi_term", "monte_carlo"])
-    data["solvers"]["two_term"]["nonconservative_model"] = "ignore"
     data["solvers"]["two_term"]["min_momentum_cross_section_m2"] = 2.0e-24
     cfg = load_config(write_config(tmp_path, data))
     assert cfg.schema_version == 2
@@ -36,7 +81,7 @@ def test_schema_v2_valid_config_and_canonical_solver_ids(tmp_path: Path) -> None
     ]
     internal = build_internal_solver_configs(cfg.solvers, cfg.physics)
     assert internal.multi_term.method == "pn_closure_direct"
-    assert internal.two_term.nonconservative_model == "ignore"
+    assert internal.two_term.nonconservative_model == "growth"
     assert internal.multi_term.nonconservative_model == "growth"
     assert internal.two_term.min_momentum_cross_section_m2 == 2.0e-24
     assert internal.multi_term.min_momentum_cross_section_m2 == 1.0e-24
@@ -45,7 +90,7 @@ def test_schema_v2_valid_config_and_canonical_solver_ids(tmp_path: Path) -> None
         internal.multi_term.energy_grid.refine
         is not internal.two_term.energy_grid.refine
     )
-    assert cfg.solvers.monte_carlo.population_model == "fixed_particle_single_daughter"
+    assert cfg.physics.ionization.population_model == "weighted_branching"
     assert cfg.feature_policy.degraded == "record"
 
 
@@ -70,18 +115,18 @@ def test_monte_carlo_internal_schema(tmp_path: Path) -> None:
     data = base_product_config(tmp_path, ["monte_carlo"])
     data["solvers"]["monte_carlo"] = {
         "particles": 8,
-        "warmup_collisions": 2,
-        "max_collisions": 4,
+        "warmup_trial_periods": 2,
+        "production_trial_periods": 4,
         "seed": 123,
     }
     cfg = load_config(write_config(tmp_path, data))
     internal = build_internal_solver_configs(cfg.solvers, cfg.physics)
     assert cfg.solvers.monte_carlo.seed == 123
-    assert cfg.solvers.monte_carlo.warmup_collisions == 2
-    assert internal.monte_carlo.warmup_collisions == 2
-    assert cfg.solvers.monte_carlo.tail_max_collisions is None
-    assert internal.monte_carlo.tail_max_collisions is None
-    assert cfg.solvers.monte_carlo.population_model == "fixed_particle_single_daughter"
+    assert cfg.solvers.monte_carlo.warmup_trial_periods == 2
+    assert internal.monte_carlo.warmup_trial_periods == 2
+    assert cfg.solvers.monte_carlo.tail_trial_periods is None
+    assert internal.monte_carlo.tail_trial_periods is None
+    assert cfg.physics.ionization.population_model == "weighted_branching"
     assert cfg.solvers.monte_carlo.transport_correlation_lag_barriers == 64
     assert internal.monte_carlo.transport_correlation_lag_barriers == 64
 
@@ -90,29 +135,29 @@ def test_monte_carlo_internal_schema(tmp_path: Path) -> None:
         load_config(write_config(tmp_path, data, name="negative_seed.yaml"))
 
     data["solvers"]["monte_carlo"] = {
-        "population_model": "weighted_branching",
         "particles": 8,
-        "tail_max_collisions": 2048,
+        "tail_trial_periods": 2048,
         "tail_rate_rse_trigger": 0.1,
         "transport_correlation_lag_barriers": 256,
         "transport_estimator": "paired_field_parity",
         "numeric_kernel": "python",
     }
+    data["physics"]["ionization"]["population_model"] = "weighted_branching"
     cfg = load_config(write_config(tmp_path, data, name="weighted.yaml"))
-    assert cfg.solvers.monte_carlo.population_model == "weighted_branching"
+    assert cfg.physics.ionization.population_model == "weighted_branching"
     internal = build_internal_solver_configs(cfg.solvers, cfg.physics)
     assert internal.monte_carlo.population_model == "weighted_branching"
     assert internal.monte_carlo.transport_correlation_lag_barriers == 256
     assert cfg.solvers.monte_carlo.transport_estimator == "paired_field_parity"
     assert internal.monte_carlo.transport_estimator == "paired_field_parity"
-    assert cfg.solvers.monte_carlo.tail_max_collisions == 2048
-    assert internal.monte_carlo.tail_max_collisions == 2048
+    assert cfg.solvers.monte_carlo.tail_trial_periods == 2048
+    assert internal.monte_carlo.tail_trial_periods == 2048
     assert cfg.solvers.monte_carlo.tail_rate_rse_trigger == pytest.approx(0.1)
     assert internal.monte_carlo.numeric_kernel == "python"
 
-    data["solvers"]["monte_carlo"] = {"tail_max_collisions": None}
+    data["solvers"]["monte_carlo"] = {"tail_trial_periods": None}
     cfg = load_config(write_config(tmp_path, data, name="no_tail.yaml"))
-    assert cfg.solvers.monte_carlo.tail_max_collisions is None
+    assert cfg.solvers.monte_carlo.tail_trial_periods is None
 
     data["solvers"]["monte_carlo"] = {"collision_clock": "global"}
     with pytest.raises(ValueError, match="Unsupported solvers.monte_carlo fields"):
@@ -120,9 +165,9 @@ def test_monte_carlo_internal_schema(tmp_path: Path) -> None:
 
     for value in ("jit", "gpu"):
         data["solvers"]["monte_carlo"] = {
-            "population_model": "weighted_branching",
             "numeric_kernel": value,
         }
+        data["physics"]["ionization"]["population_model"] = "weighted_branching"
         with pytest.raises(ValueError, match="numeric_kernel"):
             load_config(
                 write_config(tmp_path, data, name=f"invalid_kernel_{value}.yaml")
@@ -136,28 +181,30 @@ def test_monte_carlo_internal_schema(tmp_path: Path) -> None:
 
     for value in (0, -1, True, 1.5):
         data["solvers"]["monte_carlo"] = {
-            "population_model": "weighted_branching",
-            "tail_max_collisions": value,
+            "tail_trial_periods": value,
         }
-        with pytest.raises(ValueError, match="tail_max_collisions"):
+        data["physics"]["ionization"]["population_model"] = "weighted_branching"
+        with pytest.raises(ValueError, match="tail_trial_periods"):
             load_config(write_config(tmp_path, data, name=f"invalid_tail_{value}.yaml"))
 
     for value in (0.0, 1.1, True, "0.1"):
         data["solvers"]["monte_carlo"] = {
-            "population_model": "weighted_branching",
             "tail_rate_rse_trigger": value,
         }
+        data["physics"]["ionization"]["population_model"] = "weighted_branching"
         with pytest.raises(ValueError, match="tail_rate_rse_trigger"):
             load_config(
                 write_config(tmp_path, data, name=f"invalid_tail_rse_{value}.yaml")
             )
 
     data["solvers"]["monte_carlo"] = {
-        "population_model": "branching_weighted",
         "particles": 8,
     }
+    data["physics"]["ionization"]["population_model"] = "branching_weighted"
     with pytest.raises(ValueError, match="population_model"):
         load_config(write_config(tmp_path, data))
+
+    data["physics"]["ionization"]["population_model"] = "weighted_branching"
 
     data["solvers"]["monte_carlo"] = {
         "population_control": "systematic_resampling",
@@ -173,16 +220,16 @@ def test_monte_carlo_internal_schema(tmp_path: Path) -> None:
         load_config(write_config(tmp_path, data))
 
     data["solvers"]["monte_carlo"] = {
-        "warmup_collisions": -1,
+        "warmup_trial_periods": -1,
     }
-    with pytest.raises(ValueError, match="warmup_collisions"):
+    with pytest.raises(ValueError, match="warmup_trial_periods"):
         load_config(write_config(tmp_path, data))
 
     for lag in (2, 12):
         data["solvers"]["monte_carlo"] = {
-            "population_model": "weighted_branching",
             "transport_correlation_lag_barriers": lag,
         }
+        data["physics"]["ionization"]["population_model"] = "weighted_branching"
         with pytest.raises(ValueError, match="power of two"):
             load_config(write_config(tmp_path, data, name=f"invalid_lag_{lag}.yaml"))
 
@@ -195,6 +242,7 @@ def test_monte_carlo_internal_schema(tmp_path: Path) -> None:
     data["solvers"]["monte_carlo"] = {
         "transport_correlation_lag_barriers": 128,
     }
+    data["physics"]["ionization"]["population_model"] = "fixed_particle_single_daughter"
     with pytest.raises(ValueError, match="weighted_branching"):
         load_config(write_config(tmp_path, data, name="fixed_nondefault_lag.yaml"))
 
@@ -213,10 +261,10 @@ def test_monte_carlo_tail_plan_uses_only_explicit_mc_budget(tmp_path: Path) -> N
 
     data["physics"]["energy_grid_policy"]["adaptive"] = False
     data["solvers"]["monte_carlo"] = {
-        "population_model": "weighted_branching",
         "seed": 7,
-        "tail_max_collisions": 8,
+        "tail_trial_periods": 8,
     }
+    data["physics"]["ionization"]["population_model"] = "weighted_branching"
     [configured] = build_solve_plan(
         load_config(write_config(tmp_path, data, name="mc_tail.yaml"))
     )
@@ -314,7 +362,7 @@ def test_electron_electron_schema_is_typed(tmp_path: Path) -> None:
 
     data["physics"]["electron_electron"]["strength_model"] = "density_based"
     cfg = load_config(write_config(tmp_path, data))
-    with pytest.raises(NotImplementedError, match="density_based"):
+    with pytest.raises(ValueError, match="electron electron"):
         build_solve_plan(cfg)
 
     data["physics"]["electron_electron"] = {
@@ -323,7 +371,7 @@ def test_electron_electron_schema_is_typed(tmp_path: Path) -> None:
         "strength_model": "density_based",
     }
     cfg = load_config(write_config(tmp_path, data))
-    with pytest.raises(NotImplementedError, match="density_based"):
+    with pytest.raises(ValueError, match="electron electron"):
         build_solve_plan(cfg)
 
     data["physics"]["electron_electron"]["model"] = "relaxation"
@@ -542,14 +590,15 @@ def test_capability_matrix_is_canonical_and_minimal() -> None:
         "magnetic_field",
         "rf_field",
         "tail_refinement",
+        "unsupported_processes",
     }
     for solver in CANONICAL_SOLVER_IDS:
         caps = SOLVER_DESCRIPTORS[solver].capabilities
         assert set(asdict(caps)) == expected
         assert all(
             isinstance(value, SupportLevel)
-            for value in asdict(caps).values()
-            if value != solver
+            for key, value in asdict(caps).items()
+            if key not in {"solver", "unsupported_processes"}
         )
     assert (
         SOLVER_DESCRIPTORS["two_term"].capabilities.electron_electron
@@ -645,7 +694,7 @@ def test_magnetic_policy_skips_unsupported_pn_but_runs_internal_mc(
     data = base_product_config(tmp_path, ["two_term", "multi_term", "monte_carlo"])
     data["solvers"]["monte_carlo"] = {
         "particles": 8,
-        "max_collisions": 4,
+        "production_trial_periods": 4,
         "seed": 5,
     }
     data["physics"]["field"]["magnetic_field"] = {

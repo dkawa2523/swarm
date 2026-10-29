@@ -5,22 +5,23 @@ from copy import deepcopy
 import numpy as np
 import pytest
 
-from electron_swarm import SwarmConfig, load_config, run
+from electron_swarm import SwarmConfig, run
+from swarm_workflow.campaign.document import load_case_template
 from electron_swarm.solvers.monte_carlo.evidence import (
     FIELD_PARITY_RESPONSE_ESTIMATOR_SCHEMA_VERSION,
 )
 
 
 def _small_weighted_config() -> SwarmConfig:
-    config = load_config("examples/argon_gec_icp_monte_carlo_weighted_branching.yaml")
+    config = load_case_template("examples/workflow_argon_gec_icp_monte_carlo.yaml")
     config.run.e_over_n_Td = [20.0]
     config.physics.energy_grid_policy.threshold_refinement = False
     mc = config.solvers.monte_carlo
     mc.seed = 12
     mc.particles = 8
-    mc.warmup_collisions = 8
-    mc.max_collisions = 32
-    mc.tail_max_collisions = 8
+    mc.warmup_trial_periods = 8
+    mc.production_trial_periods = 32
+    mc.tail_trial_periods = 8
     mc.transport_correlation_lag_barriers = 4
     return config
 

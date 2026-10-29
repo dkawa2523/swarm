@@ -7,11 +7,15 @@ from typing import Iterable
 import numpy as np
 
 from electron_swarm.collisions.ee_fp_energy import apply_fp_energy_operator
-from electron_swarm.collisions.electron_electron import mean_energy_eV, relaxation_target
+from electron_swarm.collisions.electron_electron import (
+    mean_energy_eV,
+    prepare_relaxation_input,
+    relaxation_target,
+)
 from electron_swarm.core.cross_sections import CrossSectionSet
 from electron_swarm.core.results import SwarmCaseResult
 from electron_swarm.core.numerics import widths_from_centers
-from electron_swarm.physics.kinetics import gas_number_density
+from electron_swarm.core.gas import gas_number_density
 from electron_swarm.solvers.boltzmann_common.observables import (
     compute_rates_from_eedf,
 )
@@ -21,22 +25,6 @@ _BOLTZMANN_SOLVERS = {
     "two_term",
     "multi_term",
 }
-
-
-def _ee_config(config: object) -> object:
-    return config.physics.electron_electron
-
-
-def _normalise(
-    energy_eV: np.ndarray,
-    eedf: np.ndarray,
-    widths_eV: np.ndarray | None = None,
-) -> np.ndarray:
-    widths = widths_from_centers(energy_eV) if widths_eV is None else widths_eV
-    total = float(np.sum(np.clip(eedf, 0.0, None) * widths))
-    if total <= 0.0 or not np.isfinite(total):
-        raise ValueError("Cannot normalize e-e relaxed EEDF")
-    return np.clip(eedf, 0.0, None) / total
 
 
 def _case_widths(case: SwarmCaseResult) -> np.ndarray:
@@ -99,8 +87,13 @@ def _apply_to_case(
         raise ValueError("Cannot apply electron_electron relaxation to invalid EEDF")
 
     alpha = float(ee_config.relaxation_fraction)
+    if alpha == 0.0:
+        return case
+    had_negative_input = bool(np.any(old < 0.0))
+    original = old / np.dot(old, widths)
+    old = prepare_relaxation_input(energy, widths, old)
+    input_correction = float(np.dot(np.abs(old - original), widths))
     model = str(ee_config.model).lower()
-    operator_metadata: dict[str, object] = {}
     if model == "relaxation_postprocess":
         conserve = bool(ee_config.conserve_mean_energy)
         fallback_te = float(ee_config.fallback_temperature_eV)
@@ -111,14 +104,15 @@ def _apply_to_case(
             conserve_mean_energy=conserve,
             fallback_temperature_eV=fallback_te,
         )
-        new = _normalise(energy, (1.0 - alpha) * old + alpha * target, widths)
+        new = (1.0 - alpha) * old + alpha * target
+        new /= np.dot(new, widths)
     elif model == "fp_energy":
         if ee_config.strength_model == "density_based":
             raise NotImplementedError(
                 "electron_electron fp_energy strength_model='density_based' "
                 "is not implemented"
             )
-        new, operator_metadata = apply_fp_energy_operator(
+        new = apply_fp_energy_operator(
             energy,
             widths,
             old,
@@ -133,7 +127,13 @@ def _apply_to_case(
     case.eedf = new
     case.mean_energy_eV = after
     _recompute_rates(case, config, cross_sections)
-    case.diagnostics["electron_electron"] = operator_metadata
+    # The stationary residual and elastic-loss moment describe the old EEDF.
+    # Discard that superseded evidence instead of presenting it as current.
+    case.diagnostics.pop(case.solver, None)
+    if had_negative_input:
+        case.diagnostics["electron_electron"] = {
+            "input_nonnegative_projection_L1": input_correction,
+        }
     case.metadata.update(
         {
             "electron_electron_treatment": model,
@@ -150,7 +150,7 @@ def apply_electron_electron_relaxation_from_config(
 ) -> list[SwarmCaseResult]:
     """Apply optional e-e relaxation to Boltzmann-family cases only."""
 
-    ee_config = _ee_config(config)
+    ee_config = config.physics.electron_electron
     if not bool(ee_config.enabled):
         return list(cases)
     model = str(ee_config.model).lower()

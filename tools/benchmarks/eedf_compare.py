@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
 
-from electron_swarm.core.results import SwarmCaseResult
+from electron_swarm.core.results import RateResult, SwarmCaseResult
+from electron_swarm.grids.energy import cell_edges_from_centers, reported_cell_edges
 
 
 FAILURE_CATEGORIES = (
@@ -36,15 +37,30 @@ class EedfComparison:
     failures: list[dict[str, Any]]
 
 
+@dataclass(slots=True)
+class EedfComparisonCase:
+    """Reference observables without a fabricated solver transport result."""
+
+    solver: str
+    case_id: str
+    e_over_n_Td: float
+    mean_energy_eV: float
+    energy_eV: np.ndarray
+    eedf: np.ndarray
+    energy_widths_eV: np.ndarray
+    energy_edges_eV: np.ndarray
+    drift_velocity_m_s: float | None = None
+    mobility_m2_V_s: float | None = None
+    diffusion_L_m2_s: float | None = None
+    diffusion_T_m2_s: float | None = None
+    rates: list[RateResult] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    eedf_counts: np.ndarray | None = None
+    eedf_effective_counts: np.ndarray | None = None
+
+
 def cell_widths_from_centers(energy_eV: np.ndarray) -> np.ndarray:
-    energy = np.asarray(energy_eV, dtype=float)
-    if energy.ndim != 1 or len(energy) < 2 or np.any(np.diff(energy) <= 0.0):
-        raise ValueError("energy grid must be one-dimensional and strictly increasing")
-    edges = np.empty(len(energy) + 1, dtype=float)
-    edges[1:-1] = 0.5 * (energy[:-1] + energy[1:])
-    edges[0] = max(0.0, energy[0] - 0.5 * (energy[1] - energy[0]))
-    edges[-1] = energy[-1] + 0.5 * (energy[-1] - energy[-2])
-    return np.diff(edges)
+    return cell_edges_from_centers(energy_eV)[1]
 
 
 def normalize_eedf(
@@ -71,11 +87,12 @@ def normalize_eedf(
     return values / norm, norm
 
 
-def _case_widths(case: SwarmCaseResult) -> np.ndarray:
+def _case_widths(case: SwarmCaseResult | EedfComparisonCase) -> np.ndarray:
     if case.energy_widths_eV is not None:
         widths = np.asarray(case.energy_widths_eV, dtype=float)
-        if widths.shape == np.asarray(case.energy_eV).shape:
-            return widths
+        if widths.shape != np.asarray(case.energy_eV).shape:
+            raise ValueError("reported EEDF widths must match the energy grid")
+        return widths
     return cell_widths_from_centers(case.energy_eV)
 
 
@@ -114,7 +131,8 @@ def _major_rate_difference(
 
 
 def eedf_metrics(
-    reference: SwarmCaseResult, candidate: SwarmCaseResult
+    reference: SwarmCaseResult | EedfComparisonCase,
+    candidate: SwarmCaseResult | EedfComparisonCase,
 ) -> dict[str, float]:
     ref_energy = np.asarray(reference.energy_eV, dtype=float)
     cand_energy = np.asarray(candidate.energy_eV, dtype=float)
@@ -122,49 +140,73 @@ def eedf_metrics(
     cand_widths = _case_widths(candidate)
     ref_f, ref_norm = normalize_eedf(ref_energy, reference.eedf, ref_widths)
     cand_f, cand_norm = normalize_eedf(cand_energy, candidate.eedf, cand_widths)
-    widths = ref_widths
-    cand_on_ref = np.interp(ref_energy, cand_energy, cand_f, left=0.0, right=0.0)
-    cand_on_ref, _ = normalize_eedf(ref_energy, cand_on_ref, widths)
+    ref_edges = (
+        reference.energy_edges_eV
+        if isinstance(reference, EedfComparisonCase)
+        else reported_cell_edges(ref_energy, ref_widths)
+    )
+    cand_edges = (
+        candidate.energy_edges_eV
+        if isinstance(candidate, EedfComparisonCase)
+        else reported_cell_edges(cand_energy, cand_widths)
+    )
+    edges = np.unique(np.concatenate((ref_edges, cand_edges)))
+    widths = np.diff(edges)
+    centers = edges[:-1] + 0.5 * widths
 
-    diff = cand_on_ref - ref_f
+    def on_intervals(source_edges, density):
+        indices = np.searchsorted(source_edges, centers, side="right") - 1
+        valid = (indices >= 0) & (indices < density.size)
+        projected = np.zeros_like(centers)
+        projected[valid] = density[indices[valid]]
+        return projected
+
+    ref_on_union = on_intervals(ref_edges, ref_f)
+    cand_on_ref = on_intervals(cand_edges, cand_f)
+
+    diff = cand_on_ref - ref_on_union
     l1 = float(np.sum(np.abs(diff) * widths))
     l2 = float(np.sqrt(np.sum(diff * diff * widths)))
     tail_threshold = max(20.0, 0.75 * float(ref_energy[-1]))
-    tail = ref_energy >= tail_threshold
+    tail = centers >= tail_threshold
     if np.any(tail):
-        ref_tail = float(np.sum(ref_f[tail] * widths[tail]))
+        ref_tail = float(np.sum(ref_on_union[tail] * widths[tail]))
         cand_tail = float(np.sum(cand_on_ref[tail] * widths[tail]))
         if ref_tail + cand_tail < 1.0e-12:
             log_tail_error = 0.0
         else:
             density_floor = max(float(np.max(ref_f)) * 1.0e-14, 1.0e-300)
             active_tail = tail & (
-                (ref_f > density_floor) | (cand_on_ref > density_floor)
+                (ref_on_union > density_floor) | (cand_on_ref > density_floor)
             )
             if np.any(active_tail):
                 log_tail_error = float(
-                    np.mean(
+                    np.average(
                         np.abs(
                             np.log(np.maximum(cand_on_ref[active_tail], density_floor))
-                            - np.log(np.maximum(ref_f[active_tail], density_floor))
-                        )
+                            - np.log(
+                                np.maximum(ref_on_union[active_tail], density_floor)
+                            )
+                        ),
+                        weights=widths[active_tail],
                     )
                 )
             else:
                 log_tail_error = 0.0
     else:
         ref_tail = cand_tail = log_tail_error = 0.0
-    q50_ref = _energy_quantile(ref_energy, ref_f, widths, 0.50)
-    q90_ref = _energy_quantile(ref_energy, ref_f, widths, 0.90)
-    q99_ref = _energy_quantile(ref_energy, ref_f, widths, 0.99)
-    q50_cand = _energy_quantile(ref_energy, cand_on_ref, widths, 0.50)
-    q90_cand = _energy_quantile(ref_energy, cand_on_ref, widths, 0.90)
-    q99_cand = _energy_quantile(ref_energy, cand_on_ref, widths, 0.99)
-    mean_ref = float(np.sum(ref_energy * ref_f * widths))
-    mean_cand = float(np.sum(ref_energy * cand_on_ref * widths))
-    return {
+    q50_ref = _energy_quantile(ref_energy, ref_f, ref_widths, 0.50)
+    q90_ref = _energy_quantile(ref_energy, ref_f, ref_widths, 0.90)
+    q99_ref = _energy_quantile(ref_energy, ref_f, ref_widths, 0.99)
+    q50_cand = _energy_quantile(cand_energy, cand_f, cand_widths, 0.50)
+    q90_cand = _energy_quantile(cand_energy, cand_f, cand_widths, 0.90)
+    q99_cand = _energy_quantile(cand_energy, cand_f, cand_widths, 0.99)
+    mean_ref = float(np.sum(ref_energy * ref_f * ref_widths))
+    mean_cand = float(np.sum(cand_energy * cand_f * cand_widths))
+    metrics = {
         "eedf_l1": l1,
-        "eedf_relative_l1": l1 / max(float(np.sum(np.abs(ref_f) * widths)), 1.0e-300),
+        "eedf_relative_l1": l1
+        / max(float(np.sum(np.abs(ref_f) * ref_widths)), 1.0e-300),
         "eedf_l2_weighted": l2,
         "log_tail_error": log_tail_error,
         "mean_energy_relative_difference": abs(
@@ -175,10 +217,6 @@ def eedf_metrics(
         / max(abs(mean_ref), 1.0e-300),
         "tail_probability_difference": abs(cand_tail - ref_tail),
         "rate_weighted_eedf_error": _major_rate_difference(reference, candidate),
-        "drift_velocity_relative_difference": abs(
-            candidate.drift_velocity_m_s - reference.drift_velocity_m_s
-        )
-        / max(abs(reference.drift_velocity_m_s), 1.0e-300),
         "major_rate_relative_difference": _major_rate_difference(reference, candidate),
         "normalization_error_reference": abs(ref_norm - 1.0),
         "normalization_error_candidate": abs(cand_norm - 1.0),
@@ -186,6 +224,16 @@ def eedf_metrics(
         "E90_difference_eV": abs(q90_cand - q90_ref),
         "E99_difference_eV": abs(q99_cand - q99_ref),
     }
+    drift = reference.drift_velocity_m_s
+    candidate_drift = candidate.drift_velocity_m_s
+    if drift is not None and candidate_drift is not None:
+        if drift != 0.0:
+            metrics["drift_velocity_relative_difference"] = abs(
+                candidate_drift - drift
+            ) / abs(drift)
+        elif candidate_drift == 0.0:
+            metrics["drift_velocity_relative_difference"] = 0.0
+    return metrics
 
 
 def classify_eedf_failure(
@@ -301,7 +349,8 @@ def classify_eedf_failure(
 
 
 def compare_eedf_cases(
-    reference: SwarmCaseResult, candidate: SwarmCaseResult
+    reference: SwarmCaseResult | EedfComparisonCase,
+    candidate: SwarmCaseResult | EedfComparisonCase,
 ) -> EedfComparison:
     metrics = eedf_metrics(reference, candidate)
     failures = classify_eedf_failure(

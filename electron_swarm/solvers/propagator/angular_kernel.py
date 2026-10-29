@@ -38,10 +38,7 @@ def _cell_quadrature(
         lower = float(cosine_edges[index + 1])
         upper = float(cosine_edges[index])
         section = slice(index * order, (index + 1) * order)
-        nodes[section] = (
-            0.5 * (upper - lower) * local_nodes
-            + 0.5 * (upper + lower)
-        )
+        nodes[section] = 0.5 * (upper - lower) * local_nodes + 0.5 * (upper + lower)
         weights[section] = 0.5 * (upper - lower) * local_weights
     return nodes, weights, groups
 
@@ -83,12 +80,7 @@ def _maxent_joint_measure(
         + np.log(i0e(argument))
         + argument
     )
-    point_joint = (
-        0.5
-        * quadrature[:, None]
-        * quadrature[None, :]
-        * np.exp(log_density)
-    )
+    point_joint = 0.5 * quadrature[:, None] * quadrature[None, :] * np.exp(log_density)
     incidence = np.zeros((grid.polar_cells, mu.size), dtype=float)
     incidence[groups, np.arange(mu.size)] = 1.0
     joint = incidence @ point_joint @ incidence.T
@@ -148,9 +140,7 @@ def _project_reversible_p1_joint(
     def residual(dual: np.ndarray) -> np.ndarray:
         joint = joint_from_dual(dual)
         margin = (np.sum(joint, axis=0) - weights) / weights
-        moment = (
-            mu @ joint - float(mean_cosine) * mu * weights
-        ) / weights
+        moment = (mu @ joint - float(mean_cosine) * mu * weights) / weights
         # Centrosymmetry makes the negative-half equations exact mirrors.
         return np.concatenate((margin[:half], moment[:half]))
 
@@ -162,16 +152,9 @@ def _project_reversible_p1_joint(
         second = (mu * mu) @ joint
 
         margin_alpha = transposed + np.diag(margin)
-        moment_alpha = (
-            transposed * mu[None, :] + np.diag(first)
-        )
+        moment_alpha = transposed * mu[None, :] + np.diag(first)
         margin_beta = transposed * mu[:, None] + np.diag(first)
-        moment_beta = (
-            transposed
-            * mu[:, None]
-            * mu[None, :]
-            + np.diag(second)
-        )
+        moment_beta = transposed * mu[:, None] * mu[None, :] + np.diag(second)
         reflected = np.arange(cells - 1, half - 1, -1)
         margin_rows = np.hstack(
             (
@@ -214,9 +197,7 @@ def _project_reversible_p1_joint(
 def _continuation_points(previous: float, target: float) -> tuple[float, ...]:
     anchors = (0.5, 0.8, 0.9, 0.95, 0.98, 0.99, 0.995, 0.997, 0.998)
     points = [
-        value
-        for value in anchors
-        if previous + 1.0e-14 < value < target - 1.0e-14
+        value for value in anchors if previous + 1.0e-14 < value < target - 1.0e-14
     ]
     points.append(target)
     return tuple(points)
@@ -239,9 +220,7 @@ def maxent_p1_transition_matrices(
     if np.any((values < -1.0 - tolerance) | (values > 1.0 + tolerance)):
         raise ValueError("elastic first angular moment is outside [-1, 1]")
     values = np.clip(values, -1.0, 1.0)
-    result = np.empty(
-        (values.size, grid.polar_cells, grid.polar_cells), dtype=float
-    )
+    result = np.empty((values.size, grid.polar_cells, grid.polar_cells), dtype=float)
     weights = isotropic_destination_weights(grid)
     zero = np.outer(weights, np.ones(grid.polar_cells, dtype=float))
     identity = np.eye(grid.polar_cells, dtype=float)

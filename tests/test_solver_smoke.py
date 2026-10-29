@@ -738,7 +738,7 @@ def test_internal_mc_maxent_p1_requires_total_and_momentum_xs(
     data = base_product_config(tmp_path, ["monte_carlo"])
     data["solvers"]["monte_carlo"] = {
         "particles": 4,
-        "max_collisions": 2,
+        "production_trial_periods": 2,
     }
     data["physics"]["angular_scattering"] = {
         "model": "maxent_p1",
@@ -1189,6 +1189,12 @@ def test_multi_term_fp_energy_marks_transport_stale(tmp_path: Path) -> None:
     cfg = load_config(write_config(tmp_path, data, name="fp_multi.yaml"))
     [case] = run(cfg, write=False).cases
 
+    assert np.all(case.eedf >= 0.0)
+    if np.any(baseline.eedf < 0.0):
+        correction = case.diagnostics["electron_electron"][
+            "input_nonnegative_projection_L1"
+        ]
+        assert 0.0 < correction <= 1e-7
     assert not np.allclose(case.eedf, baseline.eedf)
     assert case.metadata["electron_electron_treatment"] == "fp_energy"
     assert case.metadata["electron_electron_transport_stale"] is True
@@ -1202,7 +1208,7 @@ def test_monte_carlo_same_as_physics_validates_reported_angular_metadata(
     data = base_product_config(tmp_path, ["monte_carlo"])
     data["solvers"]["monte_carlo"] = {
         "particles": 8,
-        "max_collisions": 4,
+        "production_trial_periods": 4,
         "seed": 11,
     }
     cfg = load_config(write_config(tmp_path, data))
@@ -1222,8 +1228,8 @@ def test_internal_monte_carlo_magnetic_smoke_run(tmp_path: Path) -> None:
     data = base_product_config(tmp_path, ["monte_carlo"])
     data["solvers"]["monte_carlo"] = {
         "particles": 16,
-        "warmup_collisions": 3,
-        "max_collisions": 8,
+        "warmup_trial_periods": 3,
+        "production_trial_periods": 8,
         "seed": 17,
     }
     data["physics"]["field"]["magnetic_field"] = {
@@ -1238,15 +1244,16 @@ def test_internal_monte_carlo_magnetic_smoke_run(tmp_path: Path) -> None:
     assert np.isfinite(case.mean_energy_eV)
     assert np.all(np.isfinite(case.eedf))
     assert case.metadata["magnetic_field_treatment"] == "boris_lorentz_push"
-    provenance = case.diagnostics["internal_monte_carlo_transport"][
-        "mc_run_provenance"
-    ]
+    provenance = case.diagnostics["internal_monte_carlo_transport"]["mc_run_provenance"]
     assert provenance["eedf_estimator_schema_version"] == (
         MC_MAGNETIC_EEDF_ESTIMATOR_SCHEMA_VERSION
     )
     assert len(str(provenance["solver_source_sha256"])) == 64
     int(str(provenance["solver_source_sha256"]), 16)
-    assert case.metadata["ionization_source_treatment"] == "equal"
+    assert (
+        case.metadata["ionization_source_treatment"]
+        == "temporal_growth_two_daughters:equal"
+    )
     assert set(case.metadata) <= PRODUCT_CASE_METADATA_KEYS
     assert "internal_monte_carlo_audit" not in case.diagnostics
     assert case.eedf_counts is not None
@@ -1282,13 +1289,13 @@ def test_internal_monte_carlo_weighted_branching_metadata(
     data["run"]["e_over_n_Td"] = [400.0]
     data["cross_sections"]["high_energy_extrapolation"] = "hold"
     data["solvers"]["monte_carlo"] = {
-        "population_model": "weighted_branching",
         "particles": 12,
-        "warmup_collisions": 2,
-        "max_collisions": 12,
+        "warmup_trial_periods": 2,
+        "production_trial_periods": 12,
         "seed": 31,
         "transport_correlation_lag_barriers": 8,
     }
+    data["physics"]["ionization"]["population_model"] = "weighted_branching"
     cfg = load_config(write_config(tmp_path, data))
     [case] = run(cfg, write=False, collect_diagnostics=True).cases
 
@@ -1325,9 +1332,10 @@ def test_internal_monte_carlo_weighted_branching_metadata(
     assert case.energy_widths_eV is not None
     assert float(np.sum(case.eedf * case.energy_widths_eV)) == pytest.approx(1.0)
     transport_meta = case.diagnostics["internal_monte_carlo_transport"]
-    assert transport_meta["mc_run_provenance"][
-        "eedf_estimator_schema_version"
-    ] == MC_EEDF_ESTIMATOR_SCHEMA_VERSION
+    assert (
+        transport_meta["mc_run_provenance"]["eedf_estimator_schema_version"]
+        == MC_EEDF_ESTIMATOR_SCHEMA_VERSION
+    )
     assert transport_meta["estimator_schema_version"] == (
         WEIGHTED_MC_TRANSPORT_ESTIMATOR_SCHEMA_VERSION
     )
@@ -1361,15 +1369,15 @@ def test_internal_monte_carlo_weighted_branching_rejects_loss_only(
 ) -> None:
     data = base_product_config(tmp_path, ["monte_carlo"])
     data["solvers"]["monte_carlo"] = {
-        "population_model": "weighted_branching",
         "particles": 8,
-        "max_collisions": 2,
+        "production_trial_periods": 2,
         "seed": 7,
     }
+    data["physics"]["ionization"]["population_model"] = "weighted_branching"
     data["physics"]["ionization"] = {"energy_sharing": "loss_only"}
     cfg = load_config(write_config(tmp_path, data, "weighted_loss_only.yaml"))
 
-    with pytest.raises(NotImplementedError, match="energy_sharing=loss_only"):
+    with pytest.raises(ValueError, match="energy_sharing=loss_only"):
         run(cfg, write=False)
 
 
@@ -1396,14 +1404,14 @@ def test_internal_monte_carlo_rejects_unimplemented_attachment_dynamics(
         {"path": xs_path.as_posix(), "species": "Ar", "format": "csv"}
     ]
     data["solvers"]["monte_carlo"] = {
-        "population_model": population_model,
         "particles": 8,
-        "max_collisions": 2,
+        "production_trial_periods": 2,
         "seed": 7,
     }
+    data["physics"]["ionization"]["population_model"] = population_model
     cfg = load_config(write_config(tmp_path, data, "attachment.yaml"))
 
-    with pytest.raises(NotImplementedError, match="attachment particle loss"):
+    with pytest.raises(ValueError, match="active collision processes: attachment"):
         run(cfg, write=False)
 
 
@@ -1608,7 +1616,7 @@ def test_internal_monte_carlo_zero_b_matches_disabled_with_same_seed(
     base = base_product_config(tmp_path, ["monte_carlo"])
     base["solvers"]["monte_carlo"] = {
         "particles": 16,
-        "max_collisions": 8,
+        "production_trial_periods": 8,
         "seed": 19,
     }
     disabled = run(

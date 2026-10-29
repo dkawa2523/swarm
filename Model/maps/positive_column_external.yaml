@@ -5,20 +5,26 @@
 schema_version: 2
 
 model:
-  input_mph: Model/positive_column_1d.mph
-  output_mph: Model/work/positive_column_external_applied.mph
+  input_mph: ../positive_column_1d.mph
+  output_mph: ../work/positive_column_external_applied.mph
   study: std1
   component: comp1
   physics: plas
 
 bundle:
-  path: outputs/positive_column/two_term_bundle/mixture_0000
+  path: ../../outputs/positive_column/two_term_bundle/mixture_0000
+  source: two_term
+
+physical_context:
+  gas_temperature_K: 293.15
+  gas_mixture:
+    - {species: Ar, fraction: 1.0, mass_amu: 39.948}
 
 logs:
-  path: Model/logs
+  path: ../logs
 
 verify:
-  output_path: outputs/comsol_verify
+  output_path: ../../outputs/comsol_verify
   relative_tolerance: 1.0e-6
   absolute_tolerance: 1.0e-12
 
@@ -66,6 +72,9 @@ reaction_lookups:
     x_column: mean_energy_eV
     y_column: reduced_townsend_m2
     process_type: excitation
+    species: Ar
+    process: e+Ar=>e+Ars
+    threshold_eV: 11.5
   ionization:
     physics: plas
     feature: eir4
@@ -76,6 +85,9 @@ reaction_lookups:
     x_column: mean_energy_eV
     y_column: reduced_townsend_m2
     process_type: ionization
+    species: Ar
+    process: e+Ar=>2e+Ar+
+    threshold_eV: 15.8
 
 run:
   voltage_parameter: V0
@@ -84,7 +96,10 @@ run:
   voltages_V: [20, 50, 100, 200]
 
 results:
-  probes:
+  output_directory: ../../outputs/comsol_positive_column
+  dataset: dset1
+  solutions: last
+  fields:
     - {name: x, expression: "x", unit: "m"}
     - {name: electron_density, expression: "plas.ne", unit: "1/m^3"}
     - {name: mean_electron_energy, expression: "plas.ebar/1[V/eV]", unit: "eV"}

@@ -27,3 +27,6 @@ solvers:
 output:
   directory: ../outputs/examples
   base_name: multi_term_direct_lmax4
+  export:
+    solver: multi_term
+    quantities: [reaction_rates]

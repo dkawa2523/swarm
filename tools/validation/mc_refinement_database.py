@@ -16,7 +16,7 @@ from electron_swarm.solvers.monte_carlo.evidence import (
 )
 
 from swarm_workflow.campaign.aggregate import stable_mc_seed
-from swarm_workflow.campaign.statistics import energy_edges_from_cells
+from electron_swarm.grids.energy import reported_cell_edges
 from swarm_workflow.campaign.store import (
     WorkflowSchemaError,
     mc_sampling_plan_provenance,
@@ -355,7 +355,7 @@ def _case_from_rows(
     density = [float(row["eedf"]) for row in rows]
     projection: dict[str, object] | None = None
     try:
-        energy_edges_from_cells(energy, widths)
+        reported_cell_edges(energy, widths)
     except ValueError:
         energy_values, width_values, density_values, projection = (
             project_machine_resolution_cells(
@@ -404,12 +404,12 @@ def _tail_evidence(
         transport.get("block_lag_sampling"), f"{context} block lag sampling"
     )
     configured = require_int(
-        tail.get("configured_max_collisions"),
+        tail.get("configured_production_trial_periods"),
         f"{context} tail configured collisions",
         minimum=1,
     )
     configured_run = require_int(
-        run.get("tail_max_collisions"),
+        run.get("tail_trial_periods"),
         f"{context} run tail configured collisions",
         minimum=1,
     )
@@ -460,9 +460,9 @@ def _tail_evidence(
             f"{context} reported rates omit main production"
         )
     particles = require_int(run.get("particles"), f"{context} particles", minimum=1)
-    warmup = require_int(run.get("warmup_collisions"), f"{context} warmup collisions")
+    warmup = require_int(run.get("warmup_trial_periods"), f"{context} warmup collisions")
     production = require_int(
-        run.get("production_collisions"),
+        run.get("production_trial_periods"),
         f"{context} production collisions",
         minimum=1,
     )
@@ -474,9 +474,9 @@ def _tail_evidence(
     transport_estimator = str(run.get("transport_estimator", "")).strip()
     expected = {
         "particles": particles,
-        "warmup_collisions": warmup,
-        "max_collisions": production,
-        "tail_max_collisions": configured,
+        "warmup_trial_periods": warmup,
+        "production_trial_periods": production,
+        "tail_trial_periods": configured,
         "transport_correlation_lag_barriers": lag,
         "transport_estimator": transport_estimator,
     }
@@ -488,8 +488,8 @@ def _tail_evidence(
             )
     return {
         "particles": particles,
-        "warmup_collisions": warmup,
-        "production_collisions": production,
+        "warmup_trial_periods": warmup,
+        "production_trial_periods": production,
         "transport_correlation_lag_barriers": lag,
         "transport_estimator": transport_estimator,
         "seed": require_int(run.get("seed"), f"{context} seed"),
@@ -840,7 +840,7 @@ def validate_qualification_manifest(
     database_metadata = final_database.metadata
     for key in (
         "workflow_config_sha256",
-        "base_config_sha256",
+        "calculation_sha256",
         "cross_sections_sha256",
         "mc_sampling_plan_json",
         "mc_transport_estimator_schema_version",

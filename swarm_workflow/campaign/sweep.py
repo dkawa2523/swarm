@@ -2,6 +2,14 @@
 
 from __future__ import annotations
 
+from electron_swarm.core.physical_context import (
+    workflow_physical_context,
+    physical_context,
+)
+from electron_swarm.core.yaml_input import read_yaml_mapping
+from .identity import WORKFLOW_IMPLEMENTATION_KEY, workflow_execution_identity
+from .document import load_case_template, calculation_sha256
+
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from copy import deepcopy
 from dataclasses import asdict, dataclass
@@ -22,16 +30,20 @@ from electron_swarm import (
     SolverId,
     SwarmConfig,
     SwarmCaseResult,
-    load_config,
     run,
 )
 import electron_swarm.solvers.monte_carlo.evidence as _mc_evidence
-from electron_swarm.solvers.monte_carlo.source_identity import (
-    monte_carlo_source_sha256,
+from electron_swarm.orchestration.plan import (
+    solver_plan_metadata,
+    validate_unique_solver_ids,
 )
-from electron_swarm.orchestration.plan import validate_unique_solver_ids
-from swarm_workflow.quality.propagator_source import (
-    propagator_qualification_source_fingerprint,
+from electron_swarm.orchestration.preparation import prepare_run
+from electron_swarm.core.source_identity import (
+    SOLVER_IMPLEMENTATIONS_KEY,
+    solver_implementations,
+    solver_source_fingerprint,
+    input_file_hashes,
+    input_evidence,
 )
 
 from .aggregate import (
@@ -51,7 +63,6 @@ from .store import (
 from ..selection import (
     PHYSICAL_CONTEXT_KEY,
     file_sha256,
-    physical_context,
     read_selection,
 )
 from ..quality.monte_carlo.policy import (
@@ -77,6 +88,7 @@ from .provenance import (
     PROPAGATOR_SOLVER_SOURCE_METADATA_KEY,
     mc_sampling_plan_json,
     resume_provenance,
+    require_current_implementations,
     workflow_config_sha256,
 )
 from .repository import read_metadata
@@ -100,11 +112,13 @@ class SweepSummary:
     e_over_n_values: int
     cases_written: int
     quality_policy_reevaluated: bool
+    status: str
 
 
 @dataclass(frozen=True, slots=True)
 class _MonteCarloSweepJob:
-    base_config_path: Path
+    calculation: SwarmConfig
+    input_files: dict[str, str]
     mixture: _workflow_config.MixtureSpec
     e_over_n_Td: float
     replicate: int
@@ -131,22 +145,24 @@ class _DeterministicExecutionPlan:
 
 @dataclass(frozen=True, slots=True)
 class _DeterministicSweepGroup:
-    base_config_path: Path
+    calculation: SwarmConfig
+    input_files: dict[str, str]
     mixture: _workflow_config.MixtureSpec
     solver_id: SolverId
     indexed_e_over_n_Td: tuple[tuple[int, float], ...]
-    propagator_source_sha256: str | None
+    implementation: dict[str, object]
 
 
 @dataclass(frozen=True, slots=True)
 class _DeterministicSweepJob:
-    base_config_path: Path
+    calculation: SwarmConfig
+    input_files: dict[str, str]
     mixture: _workflow_config.MixtureSpec
     solver_id: SolverId
     case_indices: tuple[int, ...]
     e_over_n_Td: tuple[float, ...]
     canonicalize_case_ids: bool
-    propagator_source_sha256: str | None
+    implementation: dict[str, object]
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,16 +176,11 @@ def _enabled_solver_ids(config: SwarmConfig) -> list[SolverId]:
     return [item.id for item in config.run.solvers if item.enabled]
 
 
-def _require_current_propagator_source(expected_sha256: str | None) -> None:
-    if expected_sha256 is None:
-        return
-    current = str(
-        propagator_qualification_source_fingerprint(
-            _REPOSITORY_ROOT
-        )["sha256"]
-    )
-    if current != expected_sha256:
-        raise RuntimeError("Propagator source changed during deterministic sweep")
+def _require_current_solver(solver_id: str, expected: dict[str, object]) -> None:
+    if solver_implementations([solver_id])[solver_id] != expected:
+        raise RuntimeError(
+            f"{solver_id} implementation or runtime changed during sweep"
+        )
 
 
 def _available_cpu_count() -> int:
@@ -287,6 +298,9 @@ def _clone_config(
     seed: int | None = None,
 ) -> SwarmConfig:
     config = deepcopy(base)
+    # Publication selects from the complete campaign, not each solver worker.
+    config.output.export = None
+    config.output.figures = ()
     by_species = {gas.species: gas for gas in base.conditions.gas_mixture}
     config.conditions.gas_mixture = [
         GasComponent(
@@ -446,7 +460,8 @@ def _build_deterministic_jobs(
     if workers <= 1:
         return [
             _DeterministicSweepJob(
-                base_config_path=group.base_config_path,
+                calculation=group.calculation,
+                input_files=group.input_files,
                 mixture=group.mixture,
                 solver_id=group.solver_id,
                 case_indices=tuple(
@@ -454,7 +469,7 @@ def _build_deterministic_jobs(
                 ),
                 e_over_n_Td=tuple(value for _index, value in group.indexed_e_over_n_Td),
                 canonicalize_case_ids=False,
-                propagator_source_sha256=group.propagator_source_sha256,
+                implementation=group.implementation,
             )
             for group in groups
             if group.indexed_e_over_n_Td
@@ -497,13 +512,14 @@ def _build_deterministic_jobs(
         for chunk in _balanced_contiguous_chunks(items, chunks):
             jobs.append(
                 _DeterministicSweepJob(
-                    base_config_path=group.base_config_path,
+                    calculation=group.calculation,
+                    input_files=group.input_files,
                     mixture=group.mixture,
                     solver_id=group.solver_id,
                     case_indices=tuple(index for index, _value in chunk),
                     e_over_n_Td=tuple(value for _index, value in chunk),
                     canonicalize_case_ids=True,
-                    propagator_source_sha256=group.propagator_source_sha256,
+                    implementation=group.implementation,
                 )
             )
     return jobs
@@ -516,9 +532,8 @@ def _execute_deterministic_job(
 
     if not job.e_over_n_Td or len(job.e_over_n_Td) != len(job.case_indices):
         raise ValueError("deterministic sweep job has inconsistent E/N indices")
-    if job.solver_id == "propagator":
-        _require_current_propagator_source(job.propagator_source_sha256)
-    base_config = load_config(job.base_config_path)
+    _require_current_solver(job.solver_id, job.implementation)
+    base_config = job.calculation
     config = _clone_config(
         base_config,
         mixture=job.mixture,
@@ -526,9 +541,13 @@ def _execute_deterministic_job(
         solver_ids=[job.solver_id],
         replicate=0,
     )
-    cases = tuple(run(config, write=False).cases)
-    if job.solver_id == "propagator":
-        _require_current_propagator_source(job.propagator_source_sha256)
+    result = run(config, write=False)
+    if result.metadata.get("input_files") != job.input_files:
+        raise RuntimeError(
+            "worker collision/angular inputs differ from the prepared campaign"
+        )
+    cases = tuple(result.cases)
+    _require_current_solver(job.solver_id, job.implementation)
     if len(cases) != len(job.e_over_n_Td):
         raise RuntimeError(
             f"deterministic {job.solver_id} chunk returned {len(cases)} cases "
@@ -597,7 +616,7 @@ def _iter_deterministic_results(
 def _execute_monte_carlo_job(job: _MonteCarloSweepJob) -> _MonteCarloSweepResult:
     """Run one anchor/replica without opening the workflow database."""
 
-    base_config = load_config(job.base_config_path)
+    base_config = job.calculation
     config = _clone_config(
         base_config,
         mixture=job.mixture,
@@ -607,21 +626,26 @@ def _execute_monte_carlo_job(job: _MonteCarloSweepJob) -> _MonteCarloSweepResult
         seed=job.seed,
     )
     config.solvers.monte_carlo.particles = job.sampling.particles
-    config.solvers.monte_carlo.warmup_collisions = job.sampling.warmup_collisions
-    config.solvers.monte_carlo.max_collisions = job.sampling.max_collisions
-    config.solvers.monte_carlo.tail_max_collisions = (
-        job.sampling.tail_max_collisions
-        if job.sampling.tail_max_collisions > 0
-        else None
+    config.solvers.monte_carlo.warmup_trial_periods = job.sampling.warmup_trial_periods
+    config.solvers.monte_carlo.production_trial_periods = (
+        job.sampling.production_trial_periods
+    )
+    config.solvers.monte_carlo.tail_trial_periods = (
+        job.sampling.tail_trial_periods if job.sampling.tail_trial_periods > 0 else None
     )
     config.solvers.monte_carlo.transport_correlation_lag_barriers = (
         job.sampling.transport_correlation_lag_barriers
     )
     config.solvers.monte_carlo.transport_estimator = job.sampling.transport_estimator
+    result = run(config, write=False)
+    if result.metadata.get("input_files") != job.input_files:
+        raise RuntimeError(
+            "worker collision/angular inputs differ from the prepared campaign"
+        )
     return _MonteCarloSweepResult(
         mixture_id=job.mixture.mixture_id,
         replicate=job.replicate,
-        cases=tuple(run(config, write=False).cases),
+        cases=tuple(result.cases),
     )
 
 
@@ -671,7 +695,7 @@ def _mc_reuse_keys(
             f"workflow mc.reuse_database has different {MC_TAIL_ESTIMATOR_METADATA_KEY}"
         )
     for name in (
-        "base_config_sha256",
+        "calculation_sha256",
         "cross_sections_sha256",
         MC_TRANSPORT_ESTIMATOR_METADATA_KEY,
         MC_EEDF_ESTIMATOR_METADATA_KEY,
@@ -692,9 +716,9 @@ def _mc_reuse_keys(
     target_plan = {row.e_over_n_Td: row for row in workflow.mc_sampling_plan}
     reusable_controls = (
         "particles",
-        "warmup_collisions",
-        "max_collisions",
-        "tail_max_collisions",
+        "warmup_trial_periods",
+        "production_trial_periods",
+        "tail_trial_periods",
         "transport_correlation_lag_barriers",
         "transport_estimator",
     )
@@ -748,9 +772,9 @@ def _mc_reuse_keys(
                 expected_run = {
                     "seed": expected_seed,
                     "particles": target.particles,
-                    "warmup_collisions": target.warmup_collisions,
-                    "production_collisions": target.max_collisions,
-                    "tail_max_collisions": target.tail_max_collisions,
+                    "warmup_trial_periods": target.warmup_trial_periods,
+                    "production_trial_periods": target.production_trial_periods,
+                    "tail_trial_periods": target.tail_trial_periods,
                     "transport_estimator": target.transport_estimator,
                     "solver_source_sha256": target_provenance[
                         MC_SOLVER_SOURCE_METADATA_KEY
@@ -768,7 +792,7 @@ def _mc_reuse_keys(
                     continue
                 if target_tail_schema is not None and not _has_current_tail_evidence(
                     transport_diagnostics,
-                    configured_collisions=target.tail_max_collisions,
+                    configured_collisions=target.tail_trial_periods,
                     rate_rse_trigger=tail_rate_rse_trigger,
                     estimator_schema=target_tail_schema,
                 ):
@@ -800,7 +824,7 @@ def _has_current_tail_evidence(
     if not isinstance(run, dict) or not isinstance(tail, dict):
         return False
 
-    configured = tail.get("configured_max_collisions")
+    configured = tail.get("configured_production_trial_periods")
     executed = tail.get("executed_collisions")
     if (
         isinstance(configured, bool)
@@ -814,7 +838,7 @@ def _has_current_tail_evidence(
     expected_case_schema = estimator_schema if configured_collisions > 0 else None
     if (
         tail.get("estimator_schema_version") != expected_case_schema
-        or run.get("tail_max_collisions") != configured_collisions
+        or run.get("tail_trial_periods") != configured_collisions
         or run.get("tail_collisions_executed") != executed
     ):
         return False
@@ -922,17 +946,27 @@ def advance_monte_carlo_workflow(
         raise MonteCarloPolicyError(
             "the next attempt requires separate workflow and database paths"
         )
-    raw, _ = _workflow_config._load_workflow_raw(workflow.path)
-    raw["base_config"] = str(workflow.base_config_path)
-    raw["database"] = str(database)
-    raw["mc"]["convergence"] = asdict(policy)
-    raw["mc"]["previous_decision"] = str(decision_file)
-    raw["mc"]["previous_decision_sha256"] = file_sha256(decision_file)
-    raw["mc"]["sampling_plan"] = entries
+    raw = read_yaml_mapping(workflow.path)
+    # The generated follow-up is standalone, including paths owned by the source document.
+    calculation = load_case_template(workflow.path)
+    for item, configured in zip(
+        raw["cross_sections"]["files"], calculation.cross_sections.files
+    ):
+        item["path"] = str(configured.path)
+    moment = calculation.physics.angular_scattering.moment_table
+    if moment is not None:
+        raw["physics"]["angular_scattering"]["moment_table"]["path"] = str(moment.path)
+    raw.setdefault("output", {})["directory"] = str(calculation.output.directory)
+    campaign = raw["campaign"]
+    campaign["database"] = str(database)
+    campaign["mc"]["convergence"] = asdict(policy)
+    campaign["mc"]["previous_decision"] = str(decision_file)
+    campaign["mc"]["previous_decision_sha256"] = file_sha256(decision_file)
+    campaign["mc"]["sampling_plan"] = entries
     if decision["reuse_previous_mc_database"]:
-        raw["mc"]["reuse_database"] = str(workflow.database_path)
+        campaign["mc"]["reuse_database"] = str(workflow.database_path)
     else:
-        raw["mc"].pop("reuse_database", None)
+        campaign["mc"].pop("reuse_database", None)
     encoded = yaml.safe_dump(raw, sort_keys=False, allow_unicode=True)
     if output.exists() and output.read_text(encoding="utf-8") != encoded:
         raise MonteCarloPolicyError(
@@ -948,32 +982,184 @@ def advance_monte_carlo_workflow(
     return output
 
 
-def run_sweep(path: str | Path) -> SweepSummary:
+@dataclass(frozen=True, slots=True)
+class _PreparedSweep:
+    workflow: _workflow_config.WorkflowConfig
+    calculation: SwarmConfig
+    solver_ids: list[SolverId]
+    execution: _DeterministicExecutionPlan
+    runnable: dict[int, set[str]]
+    plans: dict[str, object]
+    resolved_solvers: dict[str, dict]
+    physical_cases: dict[str, list]
+    input_files: dict[str, str]
+
+    def description(self) -> dict:
+        workflow = self.workflow
+        deterministic = sum(
+            len(workflow.e_over_n_Td) * len(solvers - {"monte_carlo"})
+            for solvers in self.runnable.values()
+        )
+        replicas = sum(entry.replicas for entry in workflow.mc_sampling_plan)
+        mc_cases = replicas * sum(
+            "monte_carlo" in solvers for solvers in self.runnable.values()
+        )
+        requested = len(workflow.mixtures) * (
+            len(workflow.e_over_n_Td)
+            * len([s for s in self.solver_ids if s != "monte_carlo"])
+            + (replicas if workflow.mc_enabled else 0)
+        )
+        planned = deterministic + mc_cases
+        return {
+            "status": "planned",
+            "execution": "campaign",
+            "configuration": str(workflow.path),
+            "database": str(workflow.database_path),
+            "mixtures": [m.fractions for m in workflow.mixtures],
+            "e_over_n_Td": list(workflow.e_over_n_Td),
+            "solver_e_over_n_Td": {
+                solver: list(workflow.mc_e_over_n_Td or workflow.e_over_n_Td)
+                if solver == "monte_carlo"
+                else list(workflow.e_over_n_Td)
+                for solver in self.solver_ids
+            },
+            "expected_case_count": planned,
+            "requested_case_count": requested,
+            "skipped_case_count": requested - planned,
+            "coverage_status": "partial" if planned < requested else "complete",
+            "deterministic_cases": deterministic,
+            "monte_carlo_cases": mc_cases,
+            "solver_plan": self.plans,
+            "resolved_solvers": self.resolved_solvers,
+            "physical_cases": self.physical_cases,
+            "deterministic_execution": _deterministic_execution_payload(self.execution),
+            "mc_workers": workflow.mc_workers if mc_cases else 0,
+            "mc_sampling_plan": [asdict(entry) for entry in workflow.mc_sampling_plan]
+            if mc_cases
+            else [],
+            "mc_nominal_compute_budget": sampling_budget_provenance(
+                workflow.mc_sampling_plan
+            )
+            if mc_cases
+            else None,
+            "case_count_scope": "planned_before_resume",
+            "export": self.calculation.output.export_plan(),
+            "figures": self.calculation.output.figure_plan(
+                runnable=set().union(*self.runnable.values()),
+                field_type=self.calculation.physics.field.type,
+            ),
+        }
+
+
+def _prepare_sweep(path: str | Path) -> _PreparedSweep:
     workflow = _workflow_config.load_workflow(path)
-    base_config = load_config(workflow.base_config_path)
+    base_config = deepcopy(workflow.calculation)
     validate_unique_solver_ids(base_config)
     solver_ids = _enabled_solver_ids(base_config)
     if not solver_ids:
-        raise ValueError("base_config run.solvers has no enabled solvers")
-    deterministic_solvers = [
-        solver_id for solver_id in solver_ids if solver_id != "monte_carlo"
-    ]
+        raise ValueError("run.solvers has no enabled solvers")
     deterministic_execution = _resolve_deterministic_execution(
         workflow,
         base_config,
         solver_ids,
     )
+
+    runnable_by_mixture: dict[int, set[str]] = {}
+    plans: dict[str, object] = {}
+    resolved_solvers = {}
+    physical_cases = {}
+    prepared_input_files = input_file_hashes(base_config)
+    for mixture in workflow.mixtures:
+        mixture_config = _clone_config(
+            base_config,
+            mixture=mixture,
+            e_over_n_values=workflow.e_over_n_Td,
+            solver_ids=solver_ids,
+            replicate=0,
+        )
+        prepared = prepare_run(mixture_config)
+        if prepared.input_files != prepared_input_files:
+            raise RuntimeError("campaign inputs changed while planning")
+        plan = prepared.plan
+        if base_config.output.export is not None and not any(
+            item.solver == base_config.output.export.solver and item.runnable
+            for item in plan
+        ):
+            raise ValueError(
+                "output.export.solver is not runnable for every requested mixture"
+            )
+        runnable_by_mixture[mixture.mixture_id] = {
+            item.solver for item in plan if item.runnable
+        }
+        base_config.output.figure_plan(
+            runnable=runnable_by_mixture[mixture.mixture_id],
+            field_type=base_config.physics.field.type,
+        )
+        plans[str(mixture.mixture_id)] = solver_plan_metadata(plan)
+        resolved_solvers[str(mixture.mixture_id)] = prepared.resolved_solvers
+        fields = list(workflow.e_over_n_Td)
+        if "monte_carlo" in runnable_by_mixture[mixture.mixture_id]:
+            fields.extend(
+                value for value in workflow.mc_e_over_n_Td or () if value not in fields
+            )
+        physical_cases[str(mixture.mixture_id)] = [
+            asdict(physical_context(mixture_config, prepared.collision_identity, value))
+            for value in fields
+        ]
+    if not any(runnable_by_mixture.values()):
+        raise ValueError("workflow has no runnable solvers after feature policy")
+    return _PreparedSweep(
+        workflow,
+        base_config,
+        solver_ids,
+        deterministic_execution,
+        runnable_by_mixture,
+        plans,
+        resolved_solvers,
+        physical_cases,
+        prepared_input_files,
+    )
+
+
+def plan_sweep(path: str | Path) -> dict:
+    """Validate the same case/resource plan used by execution, without creating files."""
+    return _prepare_sweep(path).description()
+
+
+def run_sweep(path: str | Path) -> SweepSummary:
+    input_document_sha256 = _workflow_config._sha256_file(Path(path))
+    prepared = _prepare_sweep(path)
+    workflow, base_config = prepared.workflow, prepared.calculation
+    coverage = {
+        key: value
+        for key, value in prepared.description().items()
+        if key
+        in {
+            "requested_case_count",
+            "expected_case_count",
+            "skipped_case_count",
+            "coverage_status",
+        }
+    }
+    solver_ids = prepared.solver_ids
+    deterministic_solvers = [solver for solver in solver_ids if solver != "monte_carlo"]
+    deterministic_execution = prepared.execution
     deterministic_execution_payload = (
         _deterministic_execution_payload(deterministic_execution)
         if workflow.deterministic_execution.configured
         else None
     )
+    runnable_by_mixture, plans = prepared.runnable, prepared.plans
+    implementations = solver_implementations(solver_ids)
 
-    xs_hashes = _workflow_config._cross_section_file_hashes(base_config)
+    xs_hashes = {
+        str(item.path): prepared.input_files[str(item.path)]
+        for item in base_config.cross_sections.files
+    }
     mc_estimator_version = (
         (
             _mc_evidence.WEIGHTED_MC_TRANSPORT_ESTIMATOR_SCHEMA_VERSION
-            if base_config.solvers.monte_carlo.population_model == "weighted_branching"
+            if base_config.physics.ionization.population_model == "weighted_branching"
             else _mc_evidence.DIRECT_MC_TRANSPORT_ESTIMATOR_SCHEMA_VERSION
         )
         if "monte_carlo" in solver_ids
@@ -994,8 +1180,8 @@ def run_sweep(path: str | Path) -> SweepSummary:
     mc_tail_estimator_version = (
         _mc_evidence.WEIGHTED_MC_TAIL_ESTIMATOR_SCHEMA_VERSION
         if "monte_carlo" in solver_ids
-        and base_config.solvers.monte_carlo.population_model == "weighted_branching"
-        and any(entry.tail_max_collisions > 0 for entry in workflow.mc_sampling_plan)
+        and base_config.physics.ionization.population_model == "weighted_branching"
+        and any(entry.tail_trial_periods > 0 for entry in workflow.mc_sampling_plan)
         else None
     )
     mc_seed_derivation_version = (
@@ -1004,16 +1190,22 @@ def run_sweep(path: str | Path) -> SweepSummary:
         else None
     )
     mc_solver_source = (
-        monte_carlo_source_sha256() if "monte_carlo" in solver_ids else None
+        solver_source_fingerprint("monte_carlo")["sha256"]
+        if "monte_carlo" in solver_ids
+        else None
     )
     propagator_solver_source = (
-        str(
-            propagator_qualification_source_fingerprint(_REPOSITORY_ROOT)["sha256"]
-        )
+        str(solver_source_fingerprint("propagator", _REPOSITORY_ROOT)["sha256"])
         if "propagator" in solver_ids
         else None
     )
     provenance = {
+        WORKFLOW_IMPLEMENTATION_KEY: json.dumps(
+            workflow_execution_identity(), sort_keys=True
+        ),
+        SOLVER_IMPLEMENTATIONS_KEY: json.dumps(implementations, sort_keys=True),
+        "solver_plan_json": json.dumps(plans, sort_keys=True),
+        "execution_coverage_json": json.dumps(coverage, sort_keys=True),
         "workflow_config_sha256": workflow_config_sha256(
             workflow,
             mc_transport_estimator_schema_version=mc_estimator_version,
@@ -1023,13 +1215,20 @@ def run_sweep(path: str | Path) -> SweepSummary:
             mc_solver_source_sha256=mc_solver_source,
             propagator_solver_source_sha256=propagator_solver_source,
             deterministic_execution_payload=deterministic_execution_payload,
+            implementations=implementations,
         ),
         QUALITY_THRESHOLDS_METADATA_KEY: quality_thresholds_json(workflow.quality),
-        "base_config_path": str(workflow.base_config_path),
-        "base_config_sha256": _workflow_config._sha256_file(workflow.base_config_path),
+        "calculation_path": str(workflow.path),
+        "calculation_sha256": workflow.calculation_sha256,
         "cross_sections_sha256": _workflow_config._combined_hash(xs_hashes),
         "cross_section_files_json": json.dumps(xs_hashes, sort_keys=True),
-        PHYSICAL_CONTEXT_KEY: json.dumps(physical_context(base_config), sort_keys=True),
+        "input_files_json": json.dumps(prepared.input_files, sort_keys=True),
+        "input_evidence_json": json.dumps(
+            input_evidence(base_config, input_file_hashes(base_config)), sort_keys=True
+        ),
+        PHYSICAL_CONTEXT_KEY: json.dumps(
+            workflow_physical_context(base_config), sort_keys=True
+        ),
     }
     if mc_estimator_version is not None:
         provenance[MC_TRANSPORT_ESTIMATOR_METADATA_KEY] = mc_estimator_version
@@ -1046,9 +1245,7 @@ def run_sweep(path: str | Path) -> SweepSummary:
     if mc_solver_source is not None:
         provenance[MC_SOLVER_SOURCE_METADATA_KEY] = mc_solver_source
     if propagator_solver_source is not None:
-        provenance[PROPAGATOR_SOLVER_SOURCE_METADATA_KEY] = (
-            propagator_solver_source
-        )
+        provenance[PROPAGATOR_SOLVER_SOURCE_METADATA_KEY] = propagator_solver_source
     if workflow.mc_convergence is not None:
         provenance["mc_campaign_json"] = json.dumps(
             campaign_provenance(workflow.mc_convergence, workflow.mc_previous_decision),
@@ -1073,6 +1270,8 @@ def run_sweep(path: str | Path) -> SweepSummary:
             provenance,
             deterministic_execution_payload=deterministic_execution_payload,
         )
+        if store.metadata():
+            require_current_implementations(store.metadata())
         store.set_provenance(validation_provenance)
         existing_case_keys = store.existing_case_keys()
         for mixture in workflow.mixtures:
@@ -1093,6 +1292,8 @@ def run_sweep(path: str | Path) -> SweepSummary:
 
         for mixture in workflow.mixtures:
             for solver_id in deterministic_solvers:
+                if solver_id not in runnable_by_mixture[mixture.mixture_id]:
+                    continue
                 indexed_missing_e_over_n = tuple(
                     (index, float(e_over_n))
                     for index, e_over_n in enumerate(workflow.e_over_n_Td)
@@ -1108,19 +1309,16 @@ def run_sweep(path: str | Path) -> SweepSummary:
                     continue
                 deterministic_groups.append(
                     _DeterministicSweepGroup(
-                        base_config_path=workflow.base_config_path,
+                        calculation=base_config,
+                        input_files=prepared.input_files,
                         mixture=mixture,
                         solver_id=solver_id,
                         indexed_e_over_n_Td=indexed_missing_e_over_n,
-                        propagator_source_sha256=(
-                            propagator_solver_source
-                            if solver_id == "propagator"
-                            else None
-                        ),
+                        implementation=implementations[solver_id],
                     )
                 )
 
-            if "monte_carlo" in solver_ids:
+            if "monte_carlo" in runnable_by_mixture[mixture.mixture_id]:
                 # Submit one replica across all anchors before the next replica.
                 # This preserves every configured job/seed while avoiding a
                 # parallel batch made entirely from one potentially slow E/N.
@@ -1141,7 +1339,8 @@ def run_sweep(path: str | Path) -> SweepSummary:
                             continue
                         mc_jobs.append(
                             _MonteCarloSweepJob(
-                                base_config_path=workflow.base_config_path,
+                                calculation=base_config,
+                                input_files=prepared.input_files,
                                 mixture=mixture,
                                 e_over_n_Td=float(e_over_n),
                                 replicate=replicate,
@@ -1181,7 +1380,7 @@ def run_sweep(path: str | Path) -> SweepSummary:
                 cases_written += 1
 
         if workflow.mean_energy_support is not None:
-            _require_current_propagator_source(propagator_solver_source)
+            require_current_implementations(provenance)
             extension_cases = _extend_workflow_mean_energy_support(
                 store,
                 workflow=workflow,
@@ -1189,7 +1388,7 @@ def run_sweep(path: str | Path) -> SweepSummary:
                 solver_id=deterministic_solvers[0],
             )
             cases_written += len(extension_cases)
-            _require_current_propagator_source(propagator_solver_source)
+            require_current_implementations(provenance)
 
         for mc_result in _iter_monte_carlo_results(
             mc_jobs,
@@ -1210,17 +1409,45 @@ def run_sweep(path: str | Path) -> SweepSummary:
                     )
                 )
                 cases_written += 1
-        _require_current_propagator_source(propagator_solver_source)
+        require_current_implementations(provenance)
+        if (
+            _workflow_config._sha256_file(workflow.path) != input_document_sha256
+            or calculation_sha256(workflow.path) != provenance["calculation_sha256"]
+            or _workflow_config._combined_hash(
+                _workflow_config._cross_section_file_hashes(base_config)
+            )
+            != provenance["cross_sections_sha256"]
+            or json.dumps(input_file_hashes(base_config), sort_keys=True)
+            != provenance["input_files_json"]
+            or json.dumps(workflow_physical_context(base_config), sort_keys=True)
+            != provenance[PHYSICAL_CONTEXT_KEY]
+        ):
+            raise RuntimeError(
+                "workflow inputs changed during execution; discard the database and retry"
+            )
         aggregate_workflow_results(
             store.connection,
             workflow.quality,
             _allow_evaluation_policy_override=quality_policy_reevaluated,
         )
 
+    if base_config.output.figures:
+        from swarm_workflow.figures import plot_results
+
+        plot_results(workflow.database_path, base_config.output)
+    elif base_config.output.export is not None:
+        from swarm_workflow.reaction_rates import export_reaction_rates
+
+        export_reaction_rates(
+            workflow.database_path,
+            base_config.output,
+            solver=base_config.output.export.solver,
+        )
     return SweepSummary(
         database_path=workflow.database_path,
         mixtures=len(workflow.mixtures),
         e_over_n_values=len(workflow.e_over_n_Td),
         cases_written=cases_written,
         quality_policy_reevaluated=quality_policy_reevaluated,
+        status=str(coverage["coverage_status"]),
     )

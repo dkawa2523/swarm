@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from product_helpers import campaign_config
+
 import csv
 from hashlib import sha256
 import json
@@ -16,7 +18,7 @@ from swarm_workflow.quality.policy import (
     quality_policy_provenance,
     quality_thresholds_payload,
 )
-from swarm_workflow.quality.propagator_source import (
+from electron_swarm.core.source_identity import (
     PROPAGATOR_SOLVER_SOURCE_METADATA_KEY,
 )
 from swarm_workflow.comsol.input import (
@@ -41,7 +43,10 @@ from swarm_workflow.comsol.input.function_eedf import (
 )
 from swarm_workflow.campaign.store import WorkflowStore
 from swarm_workflow.campaign.sweep import run_sweep
-from swarm_workflow.tables.contracts import ELASTIC_ENERGY_LOSS_TABLE
+from swarm_workflow.tables.contracts import ELASTIC_ENERGY_LOSS_TABLE, UNITS
+from swarm_workflow.comsol.input.export.contracts import (
+    ELASTIC_ENERGY_LOSS_TABLE as COMSOL_ELASTIC_ENERGY_LOSS_TABLE,
+)
 from swarm_workflow.tables import build_tables
 from product_helpers import (
     base_product_config,
@@ -59,16 +64,13 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
 
 def _write_two_mixture_workflow(tmp_path: Path) -> Path:
     data = base_product_config(tmp_path, ["two_term"])
+    data["conditions"]["gas_mixture"].append({"species": "O2", "fraction": 0.0, "mass_amu": 31.998})
+    data["cross_sections"]["files"] = [{"path": str(Path(__file__).resolve().parents[1] / "examples/cross_sections/ar_o2_minimal.csv"), "format": "csv"}]
     base_path = write_config(tmp_path, data, "base.yaml")
     workflow_path = tmp_path / "workflow.yaml"
     workflow_path.write_text(
         yaml.safe_dump(
-            {
-                "base_config": base_path.name,
-                "database": "outputs/swarm.sqlite",
-                "e_over_n_Td": [10.0, 20.0],
-                "mixtures": [{"Ar": 1.0}, {"Ar": 1.0}],
-            },
+            campaign_config(base_path, database='outputs/swarm.sqlite', e_over_n_Td=[10.0, 20.0], mixtures=[{'Ar': 1.0, 'O2': 0.0}, {'Ar': 0.99, 'O2': 0.01}]),
             sort_keys=False,
         ),
         encoding="utf-8",
@@ -497,6 +499,35 @@ def test_function_eedf_accepts_bounded_source_bin_quadrature_error() -> None:
     )
 
 
+def test_function_eedf_preserves_bounded_reported_cell_support() -> None:
+    centers = np.asarray([0.1, 1.0, 2.0, 3.0])
+    widths = np.asarray([0.55, 0.95, 1.0, 0.5])
+    grouped = {}
+    for decay in (1.0, 0.3):
+        density = np.exp(-decay * centers)
+        density /= np.sum(density * widths)
+        mean = float(np.sum(centers * density * widths))
+        grouped[mean] = list(zip(centers, widths, density, strict=True))
+
+    representation = build_c1_function_eedf(grouped)
+
+    # Center +/- width/2 would extend the terminal cell to 3.25 eV.
+    assert representation.source_energy_max_eV == pytest.approx(3.0)
+    assert representation.normalization_error_max <= 1.0e-10
+    assert representation.unit_mean_error_max <= 1.0e-10
+    assert representation.source_mean_relative_error_max <= 1.0e-12
+
+
+def test_function_eedf_rejects_nodes_outside_reported_cells() -> None:
+    with pytest.raises(FunctionEedfError, match="reported cells"):
+        build_c1_function_eedf(
+            {
+                0.35: [(0.25, 0.5, 1.6), (1.25, 0.5, 0.4)],
+                0.65: [(0.25, 0.5, 0.4), (0.75, 0.5, 1.6)],
+            }
+        )
+
+
 def test_adaptive_projection_bounds_active_rate_and_preserves_exact_zero() -> None:
     representation = build_c1_function_eedf(
         {
@@ -809,8 +840,9 @@ def test_export_omits_unused_rate_and_energy_loss_functions(tmp_path: Path) -> N
     assert not (tmp_path / "bundle" / "energy_loss.csv").exists()
 
 
-def test_export_copies_only_manifested_elastic_energy_loss_contract(
-    tmp_path: Path,
+@pytest.mark.parametrize("coefficient", [1e-18, -1e-18])
+def test_export_preserves_manifested_signed_elastic_energy_loss(
+    tmp_path: Path, coefficient: float,
 ) -> None:
     table_dir = tmp_path / "tables" / "mixture_0000"
     table_dir.mkdir(parents=True)
@@ -828,7 +860,7 @@ def test_export_copies_only_manifested_elastic_energy_loss_contract(
             "elastic_energy_loss_ci95_low_eV_m3_s,"
             "elastic_energy_loss_ci95_high_eV_m3_s,ci95_critical_value,"
             "estimate_status,valid_replicates,uncertainty_available\n"
-            "2.0,10.0,1e-20,1e-18,,,,,,"
+            f"2.0,10.0,1e-20,{coefficient},,,,,,"
             "deterministic_operator_moment,1,0\n"
         ),
         encoding="utf-8",
@@ -836,7 +868,7 @@ def test_export_copies_only_manifested_elastic_energy_loss_contract(
     _record_source_artifact(
         table_dir,
         ELASTIC_ENERGY_LOSS_TABLE,
-        role="canonical_comsol_elastic_energy_loss_input",
+        role="swarm_elastic_energy_loss",
     )
     manifest_path = table_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -850,14 +882,129 @@ def test_export_copies_only_manifested_elastic_energy_loss_contract(
 
     export_comsol_bundle(table_dir, tmp_path / "bundle")
 
-    assert (tmp_path / "bundle" / ELASTIC_ENERGY_LOSS_TABLE).is_file()
+    assert (tmp_path / "bundle" / COMSOL_ELASTIC_ENERGY_LOSS_TABLE).is_file()
+    assert float(_read_csv(tmp_path / "bundle" / COMSOL_ELASTIC_ENERGY_LOSS_TABLE)[0]["elastic_energy_loss_rate_coefficient_eV_m3_s"]) == coefficient
     bundle_manifest = json.loads((tmp_path / "bundle" / "manifest.json").read_text())
     assert (
-        bundle_manifest["tables"][ELASTIC_ENERGY_LOSS_TABLE]["physics_contract"][
+        bundle_manifest["tables"][COMSOL_ELASTIC_ENERGY_LOSS_TABLE]["physics_contract"][
             "symbol"
         ]
         == "K_epsilon_el"
     )
+
+
+@pytest.mark.parametrize("fault,reason", [
+    ("old_format", "format_version must be 3"),
+    ("units", "source table unit differs"),
+    ("argument", "native coefficient argument"),
+    ("mean_energy", "mean energy differs between native quantities"),
+])
+def test_coefficient_conversion_rejects_ambiguous_native_inputs(tmp_path, fault, reason):
+    source = tmp_path / "tables"
+    source.mkdir()
+    _write_minimal_manifest(source)
+    _write_required_base_tables(source)
+    path = source / "manifest.json"
+    metadata = json.loads(path.read_text())
+    if fault == "old_format":
+        metadata["format_version"] = 2
+    elif fault == "units":
+        metadata["tables"]["rates_vs_en.csv"]["units"]["mean_energy_eV"] = "J"
+    elif fault == "argument":
+        metadata["tables"]["rates_vs_en.csv"]["argument"] = "mean_energy_eV"
+    else:
+        data = source / "rates_vs_en.csv"
+        rows = _read_csv(data)
+        rows[0]["mean_energy_eV"] = "3"
+        with data.open("w", newline="") as handle:
+            writer = csv.DictWriter(handle, list(rows[0]))
+            writer.writeheader()
+            writer.writerows(rows)
+        metadata["tables"][data.name]["sha256"] = sha256(data.read_bytes()).hexdigest()
+    path.write_text(json.dumps(metadata))
+    output = tmp_path / "bundle"
+    with pytest.raises(ComsolExportError, match=reason):
+        export_comsol_bundle(source, output)
+    assert not (output / "manifest.json").exists()
+
+
+def test_mean_energy_projection_is_bound_to_native_values(tmp_path):
+    source = tmp_path / "tables"
+    source.mkdir()
+    _write_minimal_manifest(source)
+    _write_required_base_tables(source)
+    before = {path.name: path.read_bytes() for path in source.iterdir()}
+    output = tmp_path / "bundle"
+    export_comsol_bundle(source, output)
+    manifest = json.loads((output / "manifest.json").read_text())
+    assert manifest["format_version"] == 2
+    for kind in ("transport", "rates"):
+        name = f"{kind}_vs_mean_energy.csv"
+        entry = manifest["tables"][name]
+        native = entry["source_table"]["file"]
+        assert native == f"{kind}_vs_en.csv"
+        assert entry["source_table"]["sha256"] == sha256((output / native).read_bytes()).hexdigest()
+        assert _read_csv(output / name) == _read_csv(source / native)
+        assert list(_read_csv(output / name)[0])[0] == "mean_energy_eV"
+    assert {path.name: path.read_bytes() for path in source.iterdir()} == before
+
+
+def test_failed_mixture_reexport_clears_the_old_root_success(tmp_path):
+    root = tmp_path / "tables"
+    children = []
+    for index in range(2):
+        child = root / f"mixture_{index:04d}"
+        child.mkdir(parents=True)
+        _write_minimal_manifest(child)
+        _write_required_base_tables(child)
+        path = child / "manifest.json"
+        metadata = json.loads(path.read_text())
+        metadata["mixture"]["mixture_id"] = index
+        path.write_text(json.dumps(metadata))
+        children.append(child)
+    metadata = json.loads((children[0] / "manifest.json").read_text())
+    metadata["mixtures"] = [{"mixture_id": index, "path": f"mixture_{index:04d}/manifest.json"} for index in range(2)]
+    (root / "manifest.json").write_text(json.dumps(metadata))
+    output = tmp_path / "bundle"
+    export_comsol_bundle(root, output)
+    assert (output / "manifest.json").exists()
+    path = children[1] / "manifest.json"
+    metadata = json.loads(path.read_text())
+    metadata["tables"]["rates_vs_en.csv"]["units"]["mean_energy_eV"] = "J"
+    path.write_text(json.dumps(metadata))
+    with pytest.raises(ComsolExportError, match="source table unit differs"):
+        export_comsol_bundle(root, output)
+    assert not (output / "manifest.json").exists()
+
+
+def test_mean_energy_reindex_keeps_decreasing_axis_values_together(tmp_path):
+    source = tmp_path / "tables"
+    source.mkdir()
+    _write_minimal_manifest(source)
+    _write_required_base_tables(source)
+    for name in json.loads((source / "manifest.json").read_text())["tables"]:
+        path = source / name
+        rows = _read_csv(path)
+        second = {**rows[0], "E_over_N_Td": "20", "E_over_N_V_m2": "2e-20"}
+        if "mean_energy_eV" in second:
+            second["mean_energy_eV"] = "1"
+        if "reduced_mobility_m2_V_s_m3" in second:
+            second["reduced_mobility_m2_V_s_m3"] = "20"
+        with path.open("w", newline="") as handle:
+            writer = csv.DictWriter(handle, list(rows[0]))
+            writer.writeheader()
+            writer.writerows([rows[0], second])
+        _record_source_artifact(source, path.name, role="swarm_coefficient_evidence")
+    metadata = json.loads((source / "manifest.json").read_text())
+    metadata["valid_ranges"] = {"E_over_N_Td": [10, 20], "mean_energy_eV": [1, 2]}
+    metadata["quality_summary"]["total_points"] = 2
+    (source / "manifest.json").write_text(json.dumps(metadata))
+    output = tmp_path / "bundle"
+    export_comsol_bundle(source, output)
+    rows = _read_csv(output / "transport_vs_mean_energy.csv")
+    assert [float(row["mean_energy_eV"]) for row in rows] == [1, 2]
+    assert [float(row["E_over_N_Td"]) for row in rows] == [20, 10]
+    assert [float(row["reduced_mobility_m2_V_s_m3"]) for row in rows] == [20, 10]
 
 
 def test_export_ignores_file_not_listed_by_source_manifest(tmp_path: Path) -> None:
@@ -872,9 +1019,93 @@ def test_export_ignores_file_not_listed_by_source_manifest(tmp_path: Path) -> No
 
     export_comsol_bundle(table_dir, tmp_path / "bundle")
 
-    assert not (tmp_path / "bundle" / "rates_vs_mean_energy.csv").exists()
+    derived = _read_csv(tmp_path / "bundle" / "rates_vs_mean_energy.csv")
+    assert derived[0]["rate_coefficient_m3_s"] == "1e-15"
+    assert derived[0]["species"] == "Ar"
     manifest = json.loads((tmp_path / "bundle" / "manifest.json").read_text())
-    assert "rates_vs_mean_energy.csv" not in manifest["tables"]
+    assert manifest["tables"]["rates_vs_mean_energy.csv"]["source_table"]["file"] == "rates_vs_en.csv"
+
+
+@pytest.mark.parametrize(
+    "name",
+    (
+        "mean_energy_vs_en.csv",
+        "transport_vs_en.csv",
+        "rates_vs_en.csv",
+        "townsend_vs_en.csv",
+        "quality.csv",
+        "energy_loss.csv",
+    ),
+)
+def test_export_rejects_changed_coefficient_or_quality_before_replacing_bundle(
+    tmp_path: Path, name: str,
+) -> None:
+    table_dir = tmp_path / "tables"
+    table_dir.mkdir()
+    _write_minimal_manifest(table_dir, optional_tables=("energy_loss.csv",))
+    _write_required_base_tables(table_dir)
+    bundle = tmp_path / "bundle"
+    export_comsol_bundle(table_dir, bundle)
+    original_manifest = (bundle / "manifest.json").read_bytes()
+    original_table = (bundle / name).read_bytes()
+    source = table_dir / name
+    source.write_text(source.read_text(encoding="utf-8") + source.read_text(encoding="utf-8").splitlines()[-1] + "\n", encoding="utf-8")
+
+    with pytest.raises(ComsolExportError, match=f"artifact hash mismatch: {name}"):
+        export_comsol_bundle(table_dir, bundle)
+
+    assert (bundle / "manifest.json").read_bytes() == original_manifest
+    assert (bundle / name).read_bytes() == original_table
+
+
+def test_export_rejects_unverified_columns_and_unsupported_inventory(tmp_path: Path) -> None:
+    table_dir = tmp_path / "tables"
+    table_dir.mkdir()
+    _write_minimal_manifest(table_dir)
+    _write_required_base_tables(table_dir)
+    manifest_path = table_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["tables"]["transport_vs_en.csv"]["columns"][0] = "wrong_column"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(ComsolExportError, match="CSV columns differ from manifest"):
+        export_comsol_bundle(table_dir, tmp_path / "bundle")
+
+    _record_source_artifact(table_dir, "transport_vs_en.csv", role="swarm_coefficient_evidence")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["tables"]["../transport.csv"] = manifest["tables"]["transport_vs_en.csv"]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(ComsolExportError, match="unsupported tables"):
+        export_comsol_bundle(table_dir, tmp_path / "bundle")
+
+
+@pytest.mark.parametrize("mutation", ("path_escape", "duplicate_mixture", "different_source", "different_hashes"))
+def test_root_export_rejects_unsafe_or_unrelated_mixture_inventory(
+    tmp_path: Path, mutation: str,
+) -> None:
+    root = tmp_path / "tables"
+    table_dir = root / "mixture_0000"
+    table_dir.mkdir(parents=True)
+    _write_minimal_manifest(table_dir)
+    _write_required_base_tables(table_dir)
+    child_path = table_dir / "manifest.json"
+    child = json.loads(child_path.read_text(encoding="utf-8"))
+    manifest = {
+        key: child[key]
+        for key in ("format_version", "stage", "source", "hashes", "quality_thresholds", "quality_policy")
+    }
+    manifest["mixtures"] = [{"mixture_id": 0, "path": "mixture_0000/manifest.json"}]
+    if mutation == "path_escape":
+        manifest["mixtures"][0]["path"] = "../outside/manifest.json"
+    elif mutation == "duplicate_mixture":
+        manifest["mixtures"].append(dict(manifest["mixtures"][0]))
+    elif mutation == "different_source":
+        child["source"] = "monte_carlo"
+    elif mutation == "different_hashes":
+        child["hashes"] = {"calculation_sha256": "1" * 64}
+    child_path.write_text(json.dumps(child), encoding="utf-8")
+    (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(ComsolExportError, match="artifact path|mixture inventory|provenance differs"):
+        export_comsol_bundle(root, tmp_path / "bundle")
 
 
 def test_export_rejects_table_manifest_without_quality_provenance(
@@ -908,6 +1139,7 @@ def test_export_rejects_missing_mobility_with_failure_manifest(
         ),
         encoding="utf-8",
     )
+    _record_source_artifact(table_dir, transport.name, role="swarm_coefficient_evidence")
 
     with pytest.raises(ComsolExportError, match="missing required coefficients"):
         export_comsol_bundle(
@@ -947,7 +1179,7 @@ def _write_minimal_manifest(
             / "docs"
             / "dev"
             / "results"
-            / "propagator_p1_deterministic_qualification_20260908.json"
+            / "propagator_p1_core_qualification.json"
         )
         qualification_name = "propagator_p1_core_qualification.json"
         qualification_target = table_dir / qualification_name
@@ -968,7 +1200,7 @@ def _write_minimal_manifest(
     (table_dir / "manifest.json").write_text(
         json.dumps(
             {
-                "format_version": 1,
+                "format_version": 3,
                 "stage": "build-tables",
                 "source": source,
                 "solver_qualification": solver_qualification,
@@ -1005,6 +1237,12 @@ def _record_source_artifact(table_dir: Path, name: str, *, role: str) -> None:
         "artifact_role": role,
         "sha256": sha256((table_dir / name).read_bytes()).hexdigest(),
     }
+    with (table_dir / name).open(encoding="utf-8", newline="") as stream:
+        metadata["columns"] = next(csv.reader(stream))
+    metadata["units"] = {column: UNITS[column] for column in metadata["columns"] if column in UNITS}
+    metadata["argument"] = "E_over_N_Td"
+    if name == "eedf.csv":
+        metadata["argument"] = "electron_energy_eV,E_over_N_Td"
     if name == "rate_evidence.csv":
         metadata["statistics"] = {
             "replicate_interval": "two_sided_student_t_95",
@@ -1035,11 +1273,11 @@ def _write_required_base_tables(table_dir: Path) -> None:
     )
     (table_dir / "rates_vs_en.csv").write_text(
         (
-            "E_over_N_Td,E_over_N_V_m2,species,process,process_type,threshold_eV,"
+            "E_over_N_Td,E_over_N_V_m2,mean_energy_eV,species,process,process_type,threshold_eV,"
             "target_species_fraction,rate_coefficient_m3_s,"
             "mixture_weighted_rate_m3_s,reduced_townsend_m2,"
             "mixture_weighted_reduced_townsend_m2\n"
-            "10.0,1e-20,Ar,ionization,ionization,15.0,1.0,1e-15,1e-15,2e-16,2e-16\n"
+            "10.0,1e-20,2.0,Ar,ionization,ionization,15.0,1.0,1e-15,1e-15,2e-16,2e-16\n"
         ),
         encoding="utf-8",
     )
@@ -1065,3 +1303,7 @@ def _write_required_base_tables(table_dir: Path) -> None:
         ),
         encoding="utf-8",
     )
+    manifest = json.loads((table_dir / "manifest.json").read_text(encoding="utf-8"))
+    for name in manifest["tables"]:
+        if (table_dir / name).is_file():
+            _record_source_artifact(table_dir, name, role="swarm_coefficient_evidence")

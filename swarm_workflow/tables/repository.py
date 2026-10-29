@@ -12,9 +12,7 @@ from electron_swarm.solvers.two_term.transport import (
     TWO_TERM_TEMPORAL_GROWTH_TRANSPORT_SCHEMA_VERSION,
 )
 import electron_swarm.solvers.monte_carlo.evidence as _mc_evidence
-from electron_swarm.solvers.monte_carlo.source_identity import (
-    monte_carlo_source_sha256,
-)
+from electron_swarm.core.source_identity import solver_source_fingerprint
 
 from . import contracts as _contracts
 from ..campaign.aggregate import RATE_SCALAR, stable_mc_seed
@@ -44,6 +42,13 @@ def _field_source_policy(
         (solver, mixture_id),
     ).fetchall()
     payloads = [json.loads(str(row["metadata_json"])) for row in rows]
+    if any(
+        payload.get("electron_electron_transport_stale") is True for payload in payloads
+    ):
+        raise _contracts.TableBuildError(
+            "postprocessed EEDF has stale transport; qualified tables require "
+            "a self-consistent solver distribution and transport"
+        )
     treatments = {
         str(payload.get("rf_field_treatment", "none")) for payload in payloads
     }
@@ -77,6 +82,25 @@ def _field_source_policy(
         "rf_amplitude_definition": next(iter(amplitudes), "none"),
         "transport_definition": next(iter(transport_definitions), "unspecified"),
     }
+    # Keep the resolved problem and observable meanings alongside exported tables.
+    # E/N varies over the table; every other physical input must be common.
+    contexts = [payload.get("physical_context") for payload in payloads]
+    meanings = [payload.get("transport_observables", {}) for payload in payloads]
+    if any(context is not None for context in contexts):
+        if any(context is None for context in contexts):
+            raise _contracts.TableBuildError("workflow has incomplete physical context")
+        common = [
+            {key: value for key, value in context.items() if key != "e_over_n_Td"}
+            for context in contexts
+        ]
+        if any(context != common[0] for context in common[1:]) or any(
+            meaning != meanings[0] for meaning in meanings[1:]
+        ):
+            raise _contracts.TableBuildError(
+                "workflow has incompatible physical contexts or observable meanings"
+            )
+        policy["physical_context"] = common[0]
+        policy["transport_observables"] = meanings[0]
     if solver == _contracts.MC_SOLVER and require_mc_solver_physics:
         physics_keys = (
             "angular_model",
@@ -437,9 +461,7 @@ def _load_solver_quality_diagnostics(
     mc_transport_schema = read_metadata(connection).get(
         "mc_transport_estimator_schema_version"
     )
-    mc_eedf_schema = read_metadata(connection).get(
-        "mc_eedf_estimator_schema_version"
-    )
+    mc_eedf_schema = read_metadata(connection).get("mc_eedf_estimator_schema_version")
     if solver == _contracts.MC_SOLVER and mc_transport_schema not in {
         _mc_evidence.DIRECT_MC_TRANSPORT_ESTIMATOR_SCHEMA_VERSION,
         _mc_evidence.WEIGHTED_MC_TRANSPORT_ESTIMATOR_SCHEMA_VERSION,
@@ -789,7 +811,7 @@ def _validate_mc_sampling_plan_against_cases(
     ).fetchall()
     base_seed = int(metadata["mc_base_seed"]) if "mc_base_seed" in metadata else None
     solver_source = metadata.get("mc_solver_source_sha256")
-    if solver_source != monte_carlo_source_sha256():
+    if solver_source != solver_source_fingerprint("monte_carlo")["sha256"]:
         raise WorkflowSchemaError(
             "Monte Carlo solver source differs from the workflow database"
         )
@@ -855,9 +877,9 @@ def _validate_mc_sampling_plan_against_cases(
                 )
             expected_controls = (
                 int(entry["particles"]),
-                int(entry["warmup_collisions"]),
-                int(entry["max_collisions"]),
-                int(entry["tail_max_collisions"]),
+                int(entry["warmup_trial_periods"]),
+                int(entry["production_trial_periods"]),
+                int(entry["tail_trial_periods"]),
             )
             expected_lag = int(entry["transport_correlation_lag_barriers"])
             expected_transport_estimator = str(entry["transport_estimator"])
@@ -868,12 +890,12 @@ def _validate_mc_sampling_plan_against_cases(
                     run_provenance = transport["mc_run_provenance"]
                     actual_controls = (
                         int(run_provenance["particles"]),
-                        int(run_provenance["warmup_collisions"]),
-                        int(run_provenance["production_collisions"]),
+                        int(run_provenance["warmup_trial_periods"]),
+                        int(run_provenance["production_trial_periods"]),
                         int(
                             run_provenance.get(
-                                "tail_max_collisions",
-                                run_provenance["production_collisions"],
+                                "tail_trial_periods",
+                                run_provenance["production_trial_periods"],
                             )
                         ),
                     )

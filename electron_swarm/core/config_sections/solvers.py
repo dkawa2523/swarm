@@ -26,17 +26,15 @@ from electron_swarm.core.solver_ids import CANONICAL_SOLVER_IDS
 
 TWO_TERM_FIELDS = {
     "backend",
-    "nonconservative_model",
     "min_momentum_cross_section_m2",
 }
 MULTI_TERM_FIELDS = {"method", "lmax"}
 MONTE_CARLO_FIELDS = {
-    "population_model",
     "seed",
     "particles",
-    "warmup_collisions",
-    "max_collisions",
-    "tail_max_collisions",
+    "warmup_trial_periods",
+    "production_trial_periods",
+    "tail_trial_periods",
     "tail_rate_rse_trigger",
     "transport_correlation_lag_barriers",
     "transport_estimator",
@@ -64,11 +62,26 @@ def parse_solvers(raw: dict[str, Any]) -> SolversConfig:
     tt_raw = as_mapping_section(solvers_raw, "two_term", "solvers.two_term")
     mt_raw = as_mapping_section(solvers_raw, "multi_term", "solvers.multi_term")
     mc_raw = as_mapping_section(solvers_raw, "monte_carlo", "solvers.monte_carlo")
+    if "population_model" in mc_raw:
+        raise ValueError(
+            "solvers.monte_carlo.population_model moved to physics.ionization.population_model; it selects a physical population/source model"
+        )
     propagator_raw = as_mapping_section(
         solvers_raw,
         "propagator",
         "solvers.propagator",
     )
+    if "nonconservative_model" in tt_raw:
+        raise ValueError(
+            "solvers.two_term.nonconservative_model was removed because it silently overrode ionization and attachment physics; use physics.ionization.energy_sharing=loss_only for a single daughter"
+        )
+    old_sampling = {"max_collisions", "warmup_collisions", "tail_max_collisions"} & set(
+        mc_raw
+    )
+    if old_sampling:
+        raise ValueError(
+            "MC budgets count trial periods, not accepted physical collisions; use production_trial_periods, warmup_trial_periods, tail_trial_periods"
+        )
     reject_unknown_fields(tt_raw, TWO_TERM_FIELDS, "solvers.two_term")
     reject_unknown_fields(mt_raw, MULTI_TERM_FIELDS, "solvers.multi_term")
     reject_unknown_fields(mc_raw, MONTE_CARLO_FIELDS, "solvers.monte_carlo")
@@ -88,17 +101,6 @@ def parse_solvers(raw: dict[str, Any]) -> SolversConfig:
                 ),
                 {"native_sg"},
                 "solvers.two_term.backend",
-            ),
-        ),
-        nonconservative_model=cast(
-            Literal["growth", "ignore"],
-            validate_literal(
-                string_value(
-                    tt_raw.get("nonconservative_model", "growth"),
-                    "solvers.two_term.nonconservative_model",
-                ),
-                {"growth", "ignore"},
-                "solvers.two_term.nonconservative_model",
             ),
         ),
         min_momentum_cross_section_m2=strict_float(
@@ -127,34 +129,34 @@ def parse_solvers(raw: dict[str, Any]) -> SolversConfig:
         if mc_raw.get("particles") is not None
         else None
     )
-    mc_max_collisions = (
+    mc_production_trial_periods = (
         integer_field(
             mc_raw,
-            "max_collisions",
+            "production_trial_periods",
             0,
-            "solvers.monte_carlo.max_collisions",
+            "solvers.monte_carlo.production_trial_periods",
         )
-        if mc_raw.get("max_collisions") is not None
+        if mc_raw.get("production_trial_periods") is not None
         else None
     )
-    mc_warmup_collisions = (
+    mc_warmup_trial_periods = (
         integer_field(
             mc_raw,
-            "warmup_collisions",
+            "warmup_trial_periods",
             0,
-            "solvers.monte_carlo.warmup_collisions",
+            "solvers.monte_carlo.warmup_trial_periods",
         )
-        if mc_raw.get("warmup_collisions") is not None
+        if mc_raw.get("warmup_trial_periods") is not None
         else None
     )
-    mc_tail_max_collisions = (
+    mc_tail_trial_periods = (
         integer_field(
             mc_raw,
-            "tail_max_collisions",
+            "tail_trial_periods",
             0,
-            "solvers.monte_carlo.tail_max_collisions",
+            "solvers.monte_carlo.tail_trial_periods",
         )
-        if mc_raw.get("tail_max_collisions") is not None
+        if mc_raw.get("tail_trial_periods") is not None
         else None
     )
     mc_tail_rate_rse_trigger = strict_float(
@@ -169,28 +171,15 @@ def parse_solvers(raw: dict[str, Any]) -> SolversConfig:
     )
 
     monte_carlo = MonteCarloProductConfig(
-        population_model=cast(
-            Literal["fixed_particle_single_daughter", "weighted_branching"],
-            validate_literal(
-                string_value(
-                    mc_raw.get(
-                        "population_model", "fixed_particle_single_daughter"
-                    ),
-                    "solvers.monte_carlo.population_model",
-                ),
-                {"fixed_particle_single_daughter", "weighted_branching"},
-                "solvers.monte_carlo.population_model",
-            ),
-        ),
         seed=(
             integer_field(mc_raw, "seed", 0, "solvers.monte_carlo.seed")
             if mc_raw.get("seed") is not None
             else None
         ),
         particles=mc_particles,
-        warmup_collisions=mc_warmup_collisions,
-        max_collisions=mc_max_collisions,
-        tail_max_collisions=mc_tail_max_collisions,
+        warmup_trial_periods=mc_warmup_trial_periods,
+        production_trial_periods=mc_production_trial_periods,
+        tail_trial_periods=mc_tail_trial_periods,
         tail_rate_rse_trigger=mc_tail_rate_rse_trigger,
         transport_correlation_lag_barriers=mc_transport_lag,
         transport_estimator=cast(

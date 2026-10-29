@@ -5,12 +5,14 @@ __pycache__/
 .ruff_cache/
 .uv-cache*/
 *.egg-info/
+build/
+dist/
 outputs/
 .DS_Store
 .tmp/
 .codex-finalizer/
 
-# Local COMSOL Application Library models and generated artifacts.
+# Generated COMSOL work stays local; five curated source MPH files use Git LFS.
 model/**/*.mph
 model/**/*.mphbin
 model/work/
@@ -18,6 +20,9 @@ model/logs/
 model/generated/
 Model/**/*.mph
 Model/**/*.mphbin
+!Model/positive_column_1d.mph
+!Model/positive_column_1d_boltzmann.mph
+!Model/boltzmann_argon.mph
 Model/work/
 Model/logs/
 Model/generated/
@@ -28,9 +33,11 @@ Model/generated/
 !Model/maps/
 !Model/maps/*.yaml
 
-# Local GEC-CCP COMSOL models and compiled/generated artifacts.
+# GEC generated models and compiled/generated artifacts.
 comsol_modes/**/*.mph
 comsol_modes/**/*.mphbin
+!comsol_modes/argon_gec_ccp.mph
+!comsol_modes/argon_gec_icp.mph
 comsol_modes/**/*.class
 comsol_modes/**/*.class.status
 comsol_modes/**/*.lock

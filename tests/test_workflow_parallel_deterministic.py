@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from product_helpers import campaign_config
+
 import json
 from pathlib import Path
 import sqlite3
@@ -8,7 +10,8 @@ from types import SimpleNamespace
 import pytest
 import yaml
 
-from electron_swarm import load_config
+from swarm_workflow.campaign.document import load_case_template
+from electron_swarm.core.source_identity import input_file_hashes
 from product_helpers import base_product_config, write_config
 import swarm_workflow.campaign.sweep as sweep_module
 from swarm_workflow.campaign.config import MixtureSpec, load_workflow
@@ -36,19 +39,14 @@ def _deterministic_workflow(
             "max_memory_mb": propagator_memory_mb,
         }
     base = write_config(tmp_path, data, "base.yaml")
-    raw: dict[str, object] = {
-        "base_config": base.name,
-        "database": "outputs/swarm.sqlite",
-        "e_over_n_Td": list(fields),
-        "mixtures": [{"Ar": 1.0}],
-    }
+    raw: dict[str, object] = campaign_config(base, database='outputs/swarm.sqlite', e_over_n_Td=list(fields), mixtures=[{'Ar': 1.0}])
     if workers is not None or memory_budget_mb is not None:
         deterministic: dict[str, int] = {}
         if workers is not None:
             deterministic["workers"] = workers
         if memory_budget_mb is not None:
             deterministic["global_memory_budget_mb"] = memory_budget_mb
-        raw["execution"] = {"deterministic": deterministic}
+        raw["campaign"]["execution"] = {"deterministic": deterministic}
     path = tmp_path / "workflow.yaml"
     path.write_text(
         yaml.safe_dump(raw, sort_keys=False),
@@ -101,7 +99,7 @@ def test_worker_cap_uses_cpu_global_budget_and_propagator_memory_ceiling(
         propagator_memory_mb=2048,
     )
     workflow = load_workflow(workflow_path)
-    base = load_config(workflow.base_config_path)
+    base = load_case_template(workflow.path)
     monkeypatch.setattr(sweep_module, "_available_cpu_count", lambda: 6)
 
     plan = sweep_module._resolve_deterministic_execution(
@@ -115,7 +113,7 @@ def test_worker_cap_uses_cpu_global_budget_and_propagator_memory_ceiling(
     assert plan.effective_worker_cap == 2
 
     raw = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
-    raw["execution"]["deterministic"]["global_memory_budget_mb"] = 2000
+    raw["campaign"]["execution"]["deterministic"]["global_memory_budget_mb"] = 2000
     workflow_path.write_text(
         yaml.safe_dump(raw, sort_keys=False),
         encoding="utf-8",
@@ -124,7 +122,7 @@ def test_worker_cap_uses_cpu_global_budget_and_propagator_memory_ceiling(
     with pytest.raises(ValueError, match="below.*per-worker reservation"):
         sweep_module._resolve_deterministic_execution(
             undersized,
-            load_config(undersized.base_config_path),
+            load_case_template(undersized.path),
             ["propagator"],
         )
 
@@ -142,7 +140,7 @@ def test_small_propagator_ceiling_is_not_replaced_by_generic_reservation(
         propagator_memory_mb=256,
     )
     workflow = load_workflow(workflow_path)
-    base = load_config(workflow.base_config_path)
+    base = load_case_template(workflow.path)
     monkeypatch.setattr(sweep_module, "_available_cpu_count", lambda: 20)
 
     plan = sweep_module._resolve_deterministic_execution(
@@ -161,7 +159,8 @@ def test_parallel_job_builder_keeps_chunks_contiguous_and_ordered(
 ) -> None:
     mixture = MixtureSpec(mixture_id=0, fractions={"Ar": 1.0})
     group = sweep_module._DeterministicSweepGroup(
-        base_config_path=tmp_path / "base.yaml",
+        calculation=object(),
+        input_files={},
         mixture=mixture,
         solver_id="propagator",
         indexed_e_over_n_Td=(
@@ -170,7 +169,7 @@ def test_parallel_job_builder_keeps_chunks_contiguous_and_ordered(
             (3, 40.0),
             (4, 50.0),
         ),
-        propagator_source_sha256="a" * 64,
+        implementation={"source_sha256": "a" * 64},
     )
 
     jobs = sweep_module._build_deterministic_jobs([group], workers=3)
@@ -217,18 +216,19 @@ def test_deterministic_worker_runs_one_solver_chunk_and_canonicalizes_ids(
                     diagnostics={"two_term": {"run_label": f"local_{index}"}},
                 )
             )
-        return SimpleNamespace(cases=cases)
+        return SimpleNamespace(cases=cases, metadata={"input_files": input_file_hashes(config)})
 
     monkeypatch.setattr(sweep_module, "run", fake_run)
     result = sweep_module._execute_deterministic_job(
         sweep_module._DeterministicSweepJob(
-            base_config_path=workflow.base_config_path,
+            calculation=workflow.calculation,
+            input_files=input_file_hashes(workflow.calculation),
             mixture=mixture,
             solver_id="two_term",
             case_indices=(2, 3),
             e_over_n_Td=(30.0, 40.0),
             canonicalize_case_ids=True,
-            propagator_source_sha256=None,
+            implementation=sweep_module.solver_implementations(["two_term"])["two_term"],
         )
     )
 

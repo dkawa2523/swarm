@@ -1,15 +1,48 @@
-base_config: ar_o2_base.yaml
-database: ../outputs/workflow_ar_o2.sqlite
-e_over_n_Td: [20.0, 50.0]
-mixtures:
-  - Ar: 1.0
-    O2: 0.0
-  - Ar: 0.99
-    O2: 0.01
-mc:
-  replicas: 1
-  base_seed: 12345
-quality:
-  mobility_rse: 0.2
-  diffusion_rse: 0.3
-  major_rate_rse: 0.5
+schema_version: 2
+run:
+  solvers:
+  - id: two_term
+  e_over_n_Td:
+  - 20.0
+  - 50.0
+  case_prefix: ex_ar_o2
+conditions:
+  gas_temperature_K: 300.0
+  pressure_Pa: 13.3
+  gas_mixture:
+  - species: Ar
+    fraction:
+    - 1.0
+    - 0.99
+    mass_amu: 39.948
+  - species: O2
+    fraction:
+    - 0.0
+    - 0.01
+    mass_amu: 31.998
+cross_sections:
+  format: csv
+  high_energy_extrapolation: hold
+  files:
+  - path: cross_sections/ar_o2_minimal.csv
+    format: csv
+physics:
+  angular_scattering:
+    model: isotropic
+  ionization:
+    energy_sharing: equal
+  energy_grid_policy:
+    threshold_refinement: false
+    max_eV_limit: 1000.0
+feature_policy:
+  unsupported: fail
+  degraded: record
+output:
+  directory: ../outputs/examples
+  base_name: ar_o2
+campaign:
+  database: ../outputs/workflow_ar_o2.sqlite
+  quality:
+    mobility_rse: 0.2
+    diffusion_rse: 0.3
+    major_rate_rse: 0.5

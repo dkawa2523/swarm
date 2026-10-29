@@ -10,6 +10,7 @@ from electron_swarm.orchestration.solver_product_contracts import (
     solver_product_contract,
 )
 from electron_swarm.physics.angular_scattering import expected_angular_metadata
+from electron_swarm.core.observables import transport_observables
 
 
 def attach_product_metadata(
@@ -36,6 +37,7 @@ def attach_product_metadata(
     metadata: dict[str, object] = {
         "schema_version": config.schema_version,
         "solver_method": solver_method(config, item.solver),
+        "collision_processes_treatment": item.treatment("collision_processes"),
         **angular_metadata,
         "angular_scattering_treatment": item.treatment("angular_scattering"),
         "angular_scattering_fidelity": item.fidelity("angular_scattering"),
@@ -44,6 +46,28 @@ def attach_product_metadata(
         "electron_electron_treatment": item.treatment("electron_electron"),
         "electron_electron_transport_stale": False,
         "ionization_source_model": config.physics.ionization.energy_sharing,
+        "growth_model": "temporal_growth"
+        if config.physics.ionization.population_model == "weighted_branching"
+        else "fixed_population",
+        "ionization_daughter_count": (
+            1
+            if config.physics.ionization.population_model
+            == "fixed_particle_single_daughter"
+            or config.physics.ionization.energy_sharing == "loss_only"
+            else 2
+        ),
+        "particle_diffusion_model": ";".join(
+            sorted(
+                {
+                    definition.quantity + ":" + definition.method
+                    for name, definition in transport_observables(
+                        case.transport.definition
+                    ).items()
+                    if name.startswith("diffusion_")
+                }
+            )
+        )
+        or "unavailable",
         "ionization_source_treatment": item.treatment("ionization_source"),
         "ionization_secondary_electron_energy_eV": (
             config.physics.ionization.secondary_electron_energy_eV

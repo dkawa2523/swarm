@@ -34,6 +34,16 @@ def _ionization_branching_model(config: SwarmConfig, population_model: str) -> s
     return "single_daughter_sampling"
 
 
+def _ionization_source_treatment(config: SwarmConfig) -> str:
+    model = config.physics.ionization
+    population = (
+        "temporal_growth_two_daughters"
+        if model.population_model == "weighted_branching"
+        else "fixed_population_single_daughter"
+    )
+    return f"{population}:{model.energy_sharing}"
+
+
 def _population_metadata(
     config: SwarmConfig, population_model: str
 ) -> dict[str, str | bool]:

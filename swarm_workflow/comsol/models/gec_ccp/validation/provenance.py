@@ -10,9 +10,7 @@ import re
 from typing import Any
 
 import electron_swarm.solvers.monte_carlo.evidence as _mc_evidence
-from electron_swarm.solvers.monte_carlo.source_identity import (
-    monte_carlo_source_sha256,
-)
+from electron_swarm.core.source_identity import solver_source_fingerprint
 
 from swarm_workflow.campaign.store import (
     WorkflowSchemaError,
@@ -32,6 +30,7 @@ from swarm_workflow.quality.solver import (
 from swarm_workflow.tables.contracts import (
     MC_QUALIFICATION_FUNCTION_EEDF_RESTRICTED_LMEA,
 )
+from swarm_workflow.comsol.input.export.contracts import FORMAT_VERSION
 
 from ..contracts import GecCcpMapping, GecCcpWorkflowError
 from .bundle_context import (
@@ -109,6 +108,8 @@ def _validate_manifest_identity_and_policy(
     if not manifest_path.exists():
         raise GecCcpWorkflowError(f"missing COMSOL bundle manifest: {manifest_path}")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if isinstance(manifest.get("format_version"), bool) or manifest.get("format_version") != FORMAT_VERSION:
+        raise GecCcpWorkflowError("COMSOL bundle format_version must be 2; rebuild obsolete bundles")
     if manifest.get("status") != "ok":
         raise GecCcpWorkflowError("COMSOL bundle manifest status is not ok")
     source = manifest.get("source")
@@ -366,8 +367,8 @@ def _mc_provenance(
     for row in decoded:
         field = float(row["e_over_n_Td"])
         particles = int(row["particles"])
-        warmup = int(row["warmup_collisions"])
-        collisions = int(row["max_collisions"])
+        warmup = int(row["warmup_trial_periods"])
+        collisions = int(row["production_trial_periods"])
         replicas = int(row["replicas"])
         if (
             not math.isfinite(field)
@@ -395,7 +396,7 @@ def _mc_provenance(
             seed_derivation is not None
             and seed_derivation != _mc_evidence.MC_SEED_DERIVATION_SCHEMA_VERSION
         )
-        or solver_source != monte_carlo_source_sha256()
+        or solver_source != solver_source_fingerprint("monte_carlo")["sha256"]
         or (expected_estimator is not None and estimator_version != expected_estimator)
         or tail_version
         not in {

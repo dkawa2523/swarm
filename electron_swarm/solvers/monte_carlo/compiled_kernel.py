@@ -268,9 +268,7 @@ def advance_weighted_barrier(
     interval_workspace = np.empty(
         (2, FLIGHT_RATE_MAX_REFINEMENT_DEPTH + 2), dtype=np.float64
     )
-    depth_workspace = np.empty(
-        FLIGHT_RATE_MAX_REFINEMENT_DEPTH + 2, dtype=np.int64
-    )
+    depth_workspace = np.empty(FLIGHT_RATE_MAX_REFINEMENT_DEPTH + 2, dtype=np.int64)
     # weighted time, displacement xyz, energy*time, energy*displacement xyz
     residence_totals = np.zeros(8, dtype=np.float64)
     event_observation_time_s = 0.0

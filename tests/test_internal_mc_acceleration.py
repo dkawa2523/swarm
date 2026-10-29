@@ -7,7 +7,9 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from electron_swarm import load_config, run
+from electron_swarm import run
+from swarm_workflow.campaign.document import load_case_template
+from electron_swarm.core.solver_configs import build_internal_solver_configs
 from electron_swarm.core.cross_sections import (
     CrossSectionProcess,
     ProcessType,
@@ -46,11 +48,11 @@ def test_tail_refinement_treatment_has_three_unambiguous_execution_states() -> N
 
 
 def test_explicit_mc_tail_budget_is_independent_of_deterministic_grid_policy() -> None:
-    config = load_config(
-        ROOT / "examples" / "argon_gec_ccp_monte_carlo_weighted_branching.yaml"
+    config = load_case_template(
+        ROOT / "examples" / "workflow_argon_gec_ccp_monte_carlo.yaml"
     )
     config.physics.energy_grid_policy.threshold_refinement = False
-    config.solvers.monte_carlo.tail_max_collisions = 8
+    config.solvers.monte_carlo.tail_trial_periods = 8
     cross_sections = load_active_mixture_inputs(
         config.cross_sections,
         config.conditions,
@@ -59,7 +61,7 @@ def test_explicit_mc_tail_budget_is_independent_of_deterministic_grid_policy() -
     setup = _prepare_monte_carlo_run(
         config,
         cross_sections,
-        config.solvers.monte_carlo,
+        build_internal_solver_configs(config.solvers, config.physics).monte_carlo,
         collect_audit=False,
     )
 
@@ -69,15 +71,15 @@ def test_explicit_mc_tail_budget_is_independent_of_deterministic_grid_policy() -
 
 
 def test_omitted_mc_tail_budget_disables_tail_phase_and_records_zero() -> None:
-    config = load_config(
-        ROOT / "examples" / "argon_gec_ccp_monte_carlo_weighted_branching.yaml"
+    config = load_case_template(
+        ROOT / "examples" / "workflow_argon_gec_ccp_monte_carlo.yaml"
     )
     config.run.e_over_n_Td = [30.0]
     config.solvers.monte_carlo.seed = 11
     config.solvers.monte_carlo.particles = 4
-    config.solvers.monte_carlo.warmup_collisions = 1
-    config.solvers.monte_carlo.max_collisions = 4
-    config.solvers.monte_carlo.tail_max_collisions = None
+    config.solvers.monte_carlo.warmup_trial_periods = 1
+    config.solvers.monte_carlo.production_trial_periods = 4
+    config.solvers.monte_carlo.tail_trial_periods = None
     config.solvers.monte_carlo.transport_correlation_lag_barriers = 4
     config.solvers.monte_carlo.numeric_kernel = "python"
     cross_sections = load_active_mixture_inputs(
@@ -88,7 +90,7 @@ def test_omitted_mc_tail_budget_disables_tail_phase_and_records_zero() -> None:
     setup = _prepare_monte_carlo_run(
         config,
         cross_sections,
-        config.solvers.monte_carlo,
+        build_internal_solver_configs(config.solvers, config.physics).monte_carlo,
         collect_audit=False,
     )
     case = run(config, write=False).cases[0]
@@ -99,7 +101,7 @@ def test_omitted_mc_tail_budget_disables_tail_phase_and_records_zero() -> None:
     assert setup.tail_collisions == 0
     assert setup.tail_strata_edges is None
     assert setup.tail_reaction_importance is None
-    assert provenance["tail_max_collisions"] == 0
+    assert provenance["tail_trial_periods"] == 0
     assert provenance["tail_collisions_executed"] == 0
     assert provenance["tail_refinement_treatment"] == "disabled"
     assert case.metadata["tail_refinement_treatment"] == "disabled"
@@ -196,14 +198,14 @@ def test_particle_ensemble_grows_geometrically_without_per_daughter_copy() -> No
 @pytest.mark.mc
 @pytest.mark.skipif(not NUMBA_AVAILABLE, reason="Numba is not installed")
 def test_compiled_weighted_kernel_is_statistically_equivalent_to_reference() -> None:
-    base = load_config(
-        ROOT / "examples" / "argon_gec_ccp_monte_carlo_weighted_branching.yaml"
+    base = load_case_template(
+        ROOT / "examples" / "workflow_argon_gec_ccp_monte_carlo.yaml"
     )
     base.run.e_over_n_Td = [1000.0]
     base.solvers.monte_carlo.particles = 96
-    base.solvers.monte_carlo.warmup_collisions = 24
-    base.solvers.monte_carlo.max_collisions = 96
-    base.solvers.monte_carlo.tail_max_collisions = 1
+    base.solvers.monte_carlo.warmup_trial_periods = 24
+    base.solvers.monte_carlo.production_trial_periods = 96
+    base.solvers.monte_carlo.tail_trial_periods = 1
     base.solvers.monte_carlo.tail_rate_rse_trigger = 1.0
     base.solvers.monte_carlo.transport_correlation_lag_barriers = 8
 
@@ -250,7 +252,7 @@ def test_compiled_weighted_kernel_is_statistically_equivalent_to_reference() -> 
     assert provenance["numeric_kernel_schema_version"] == (
         COMPILED_MC_KERNEL_SCHEMA_VERSION
     )
-    assert provenance["tail_max_collisions"] == 1
+    assert provenance["tail_trial_periods"] == 1
     assert provenance["tail_collisions_executed"] == 0
     assert provenance["tail_refinement_treatment"] == "configured_not_triggered"
     assert compiled.metadata["tail_refinement_treatment"] == (
@@ -267,15 +269,15 @@ def test_compiled_weighted_kernel_is_statistically_equivalent_to_reference() -> 
 @pytest.mark.mc
 @pytest.mark.skipif(not NUMBA_AVAILABLE, reason="Numba is not installed")
 def test_explicit_compiled_kernel_rejects_magnetic_orbit() -> None:
-    config = load_config(
-        ROOT / "examples" / "argon_gec_ccp_monte_carlo_weighted_branching.yaml"
+    config = load_case_template(
+        ROOT / "examples" / "workflow_argon_gec_ccp_monte_carlo.yaml"
     )
     config.run.e_over_n_Td = [30.0]
     config.solvers.monte_carlo.seed = 11
     config.solvers.monte_carlo.particles = 4
-    config.solvers.monte_carlo.warmup_collisions = 0
-    config.solvers.monte_carlo.max_collisions = 1
-    config.solvers.monte_carlo.tail_max_collisions = 1
+    config.solvers.monte_carlo.warmup_trial_periods = 0
+    config.solvers.monte_carlo.production_trial_periods = 1
+    config.solvers.monte_carlo.tail_trial_periods = 1
     config.physics.field.magnetic_field.enabled = True
     config.physics.field.magnetic_field.B_T = 0.01
     config.solvers.monte_carlo.numeric_kernel = "numba"
@@ -289,15 +291,15 @@ def test_explicit_compiled_kernel_rejects_magnetic_orbit() -> None:
 
 @pytest.mark.mc
 def test_detailed_event_audit_uses_reference_kernel_with_explicit_provenance() -> None:
-    config = load_config(
-        ROOT / "examples" / "argon_gec_ccp_monte_carlo_weighted_branching.yaml"
+    config = load_case_template(
+        ROOT / "examples" / "workflow_argon_gec_ccp_monte_carlo.yaml"
     )
     config.run.e_over_n_Td = [30.0]
     config.solvers.monte_carlo.seed = 9
     config.solvers.monte_carlo.particles = 4
-    config.solvers.monte_carlo.warmup_collisions = 1
-    config.solvers.monte_carlo.max_collisions = 4
-    config.solvers.monte_carlo.tail_max_collisions = 2
+    config.solvers.monte_carlo.warmup_trial_periods = 1
+    config.solvers.monte_carlo.production_trial_periods = 4
+    config.solvers.monte_carlo.tail_trial_periods = 2
     config.solvers.monte_carlo.transport_correlation_lag_barriers = 4
     config.solvers.monte_carlo.numeric_kernel = "numba"
 

@@ -17,7 +17,7 @@ from electron_swarm import load_config, run
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG = ROOT / "examples" / "argon_gec_ccp_monte_carlo_weighted_branching.yaml"
+DEFAULT_CONFIG = ROOT / "examples" / "workflow_argon_gec_ccp_monte_carlo.yaml"
 
 
 def _run_case(config, kernel: str):  # type: ignore[no-untyped-def]
@@ -51,9 +51,9 @@ def main() -> None:
     mc = base.solvers.monte_carlo
     mc.seed = args.seed
     mc.particles = args.particles
-    mc.warmup_collisions = args.warmup
-    mc.max_collisions = args.production
-    mc.tail_max_collisions = args.tail
+    mc.warmup_trial_periods = args.warmup
+    mc.production_trial_periods = args.production
+    mc.tail_trial_periods = args.tail
     mc.transport_correlation_lag_barriers = args.lag
 
     # Compile outside the timed region.  Persistent worker processes pay this
@@ -61,9 +61,9 @@ def main() -> None:
     warm = deepcopy(base)
     warm.run.e_over_n_Td = [float(args.fields[0])]
     warm.solvers.monte_carlo.particles = 2
-    warm.solvers.monte_carlo.warmup_collisions = 1
-    warm.solvers.monte_carlo.max_collisions = 1
-    warm.solvers.monte_carlo.tail_max_collisions = 1
+    warm.solvers.monte_carlo.warmup_trial_periods = 1
+    warm.solvers.monte_carlo.production_trial_periods = 1
+    warm.solvers.monte_carlo.tail_trial_periods = 1
     warm.solvers.monte_carlo.transport_correlation_lag_barriers = 4
     warm.solvers.monte_carlo.numeric_kernel = "numba"
     run(warm, write=False)
@@ -139,9 +139,9 @@ def main() -> None:
         },
         "settings": {
             "particles": args.particles,
-            "warmup_collisions": args.warmup,
-            "max_collisions": args.production,
-            "tail_max_collisions": args.tail,
+            "warmup_trial_periods": args.warmup,
+            "production_trial_periods": args.production,
+            "tail_trial_periods": args.tail,
             "transport_correlation_lag_barriers": args.lag,
             "seed": args.seed,
             "repeats": args.repeats,

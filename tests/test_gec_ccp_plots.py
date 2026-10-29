@@ -107,7 +107,7 @@ def test_plot_provenance_binds_bundle_hashes_and_closure_axes(
     (results / "swarm_tables").mkdir(parents=True)
     hashes = {
         "workflow_config_sha256": "c" * 64,
-        "base_config_sha256": "a" * 64,
+        "calculation_sha256": "a" * 64,
         "cross_sections_sha256": "b" * 64,
     }
     quality_thresholds = quality_thresholds_payload(QualityThresholds())
@@ -661,7 +661,7 @@ def _write_comparison_case(
     (results / "swarm_tables").mkdir(parents=True)
     hashes = {
         "workflow_config_sha256": "c" * 64,
-        "base_config_sha256": "a" * 64,
+        "calculation_sha256": "a" * 64,
         "cross_sections_sha256": "b" * 64,
     }
     quality_thresholds = quality_thresholds_payload(QualityThresholds())

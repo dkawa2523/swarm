@@ -22,6 +22,7 @@ class KineticOperatorBlock:
     collisions: EffectiveCollisionData
     energy_flux_matrix: sparse.csr_matrix
     collision_matrix: sparse.csr_matrix
+    net_creation_frequency_s_inv: np.ndarray
     matrix: sparse.csr_matrix
     discretization: str = "finite_volume_scharfetter_gummel"
 
@@ -46,10 +47,7 @@ def _bernoulli(x: np.ndarray | float) -> np.ndarray | float:
     neg_large = x_arr < -80.0
     mid = ~(small | pos_large | neg_large)
     out[small] = (
-        1.0
-        - x_arr[small] / 2.0
-        + x_arr[small] ** 2 / 12.0
-        - x_arr[small] ** 4 / 720.0
+        1.0 - x_arr[small] / 2.0 + x_arr[small] ** 2 / 12.0 - x_arr[small] ** 4 / 720.0
     )
     out[pos_large] = 0.0
     out[neg_large] = -x_arr[neg_large]
@@ -92,9 +90,7 @@ def assemble_energy_flux_operator(
     )
     if momentum_frequency.shape != np.asarray(energy).shape:
         raise ValueError("Momentum frequency must match the energy grid")
-    D_field = field_diffusion_eV2_s(
-        energy, electric_field_V_m, momentum_frequency
-    )
+    D_field = field_diffusion_eV2_s(energy, electric_field_V_m, momentum_frequency)
     eps_safe = np.maximum(energy, max(energy[1] - energy[0], 1.0e-12) * 0.5)
     A_field = D_field / (2.0 * eps_safe)
     D_center = np.maximum(collisions.elastic_D_eV2_s + D_field, 1.0e-80)

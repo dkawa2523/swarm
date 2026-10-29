@@ -1,0 +1,88 @@
+# Bounded input-configuration example; not full operating-range qualification.
+schema_version: 2
+run:
+  solvers:
+  - id: two_term
+  e_over_n_Td:
+  - 0.05
+  - 0.1
+  - 0.2
+  - 0.5
+  - 1.0
+  - 2.0
+  - 3.0
+  - 3.5
+  - 4.0
+  - 4.5
+  - 5.0
+  - 5.5
+  - 6.5
+  - 7.0
+  - 7.5
+  - 8.0
+  - 8.5
+  - 9.0
+  - 9.5
+  - 10.0
+  - 11.0
+  - 12.0
+  - 13.0
+  - 14.0
+  - 15.0
+  - 17.5
+  - 20.0
+  - 22.5
+  - 25.0
+  - 27.5
+  - 30.0
+  - 35.0
+  - 40.0
+  - 45.0
+  - 50.0
+  - 60.0
+  - 70.0
+  - 75.0
+  - 85.0
+  - 100.0
+  - 125.0
+  - 150.0
+  - 175.0
+  - 200.0
+  - 250.0
+  - 300.0
+  - 500.0
+  case_prefix: argon_gec_ccp__configured_example_bounded
+conditions:
+  gas_temperature_K: 300.0
+  pressure_Pa: 13.3322
+  gas_mixture:
+  - species: Ar
+    fraction: 1.0
+    mass_amu: 39.948
+cross_sections:
+  format: csv
+  high_energy_extrapolation: zero
+  files:
+  - path: ../../examples/cross_sections/argon_application_library.csv
+    species: Ar
+    format: csv
+physics:
+  angular_scattering:
+    model: isotropic
+  ionization:
+    energy_sharing: equal
+  energy_grid_policy:
+    tail_probability_target: 1.0e-09
+    max_eV_limit: 30000.0
+feature_policy:
+  unsupported: fail
+  degraded: record
+output:
+  directory: ../../outputs/configured_models/gec_ccp/cases
+  base_name: argon_gec_ccp
+campaign:
+  database: ../../outputs/configured_models/gec_ccp/swarm_bounded.sqlite
+  quality:
+    mobility_rse: 0.2
+    diffusion_rse: 0.3
+    major_rate_rse: 0.5

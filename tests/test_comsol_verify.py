@@ -8,6 +8,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from support.positive_column import complete_bundle_fixture, complete_mapping_fixture
+
 import swarm_workflow.comsol.models.positive_column.verify as comsol_verify
 from swarm_workflow.comsol.runtime import (
     ComsolAdapterError,
@@ -93,7 +95,7 @@ def test_verify_java_source_evaluates_mapped_function_tags(tmp_path: Path) -> No
     assert 'model.func("sw_muN")' in source
     assert 'tableValue(model, "sw_muN", 1e-20)' in source
     assert "featureTableValue(model" in source
-    assert '.getDoubleArray(xProperty)' in source
+    assert ".getDoubleArray(xProperty)" in source
     assert '"deNXdata"' in source
     assert '"mueNYdata"' in source
     assert '"denNYdata"' in source
@@ -192,9 +194,7 @@ def test_execute_verify_writes_expected_java_and_summary_without_comsol(
     assert manifest["control_points"] == (
         len(summary.plan.points) + len(summary.plan.feature_points)
     )
-    assert manifest["feature_table_control_points"] == len(
-        summary.plan.feature_points
-    )
+    assert manifest["feature_table_control_points"] == len(summary.plan.feature_points)
     assert len(manifest["closure_items"]) == 7
 
 
@@ -245,31 +245,37 @@ def test_verify_rejects_missing_output_mph_for_execution(tmp_path: Path) -> None
 
 def test_verify_rejects_missing_mapped_csv(tmp_path: Path) -> None:
     mapping_path = _write_verify_repo(tmp_path)
-    (tmp_path / "outputs" / "comsol_bundle" / "mixture_0000" / "transport_vs_en.csv").unlink()
+    (
+        tmp_path / "outputs" / "comsol_bundle" / "mixture_0000" / "transport_vs_en.csv"
+    ).unlink()
 
-    with pytest.raises(ComsolVerifyError, match="mapped function CSV does not exist"):
+    with pytest.raises(ComsolVerifyError, match="invalid or missing artifact"):
         plan_verify_comsol_functions(mapping_path)
 
 
 def test_verify_rejects_missing_mapped_column(tmp_path: Path) -> None:
     mapping_path = _write_verify_repo(tmp_path)
-    transport = tmp_path / "outputs" / "comsol_bundle" / "mixture_0000" / "transport_vs_en.csv"
+    transport = (
+        tmp_path / "outputs" / "comsol_bundle" / "mixture_0000" / "transport_vs_en.csv"
+    )
     transport.write_text(
         "E_over_N_Td,E_over_N_V_m2,mean_energy_eV\n10,1e-20,2\n",
         encoding="utf-8",
     )
 
-    with pytest.raises(ComsolVerifyError, match="reduced_mobility"):
+    with pytest.raises(ComsolVerifyError, match="artifact hash mismatch"):
         plan_verify_comsol_functions(mapping_path)
 
 
 def test_verify_rejects_unit_mismatch(tmp_path: Path) -> None:
     mapping_path = _write_verify_repo(tmp_path)
-    manifest_path = tmp_path / "outputs" / "comsol_bundle" / "mixture_0000" / "manifest.json"
+    manifest_path = (
+        tmp_path / "outputs" / "comsol_bundle" / "mixture_0000" / "manifest.json"
+    )
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["tables"]["transport_vs_en.csv"]["units"][
-        "reduced_mobility_m2_V_s_m3"
-    ] = "kg"
+    manifest["tables"]["transport_vs_en.csv"]["units"]["reduced_mobility_m2_V_s_m3"] = (
+        "kg"
+    )
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
     with pytest.raises(ComsolVerifyError, match="unit mismatch"):
@@ -278,7 +284,9 @@ def test_verify_rejects_unit_mismatch(tmp_path: Path) -> None:
 
 def test_verify_rejects_negative_expected_value(tmp_path: Path) -> None:
     mapping_path = _write_verify_repo(tmp_path)
-    transport = tmp_path / "outputs" / "comsol_bundle" / "mixture_0000" / "transport_vs_en.csv"
+    transport = (
+        tmp_path / "outputs" / "comsol_bundle" / "mixture_0000" / "transport_vs_en.csv"
+    )
     transport.write_text(
         (
             "E_over_N_Td,E_over_N_V_m2,mean_energy_eV,"
@@ -288,7 +296,7 @@ def test_verify_rejects_negative_expected_value(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    with pytest.raises(ComsolVerifyError, match="negative expected value"):
+    with pytest.raises(ComsolVerifyError, match="artifact hash mismatch"):
         plan_verify_comsol_functions(mapping_path)
 
 
@@ -350,17 +358,17 @@ def _write_verify_repo(root: Path, *, output_mph_exists: bool = False) -> Path:
         """
 schema_version: 2
 model:
-  input_mph: model/fake_input.mph
-  output_mph: model/work/fake_out.mph
+  input_mph: ../fake_input.mph
+  output_mph: ../work/fake_out.mph
   study: std1
   component: comp1
   physics: plas
 bundle:
-  path: outputs/comsol_bundle/mixture_0000
+  path: ../../outputs/comsol_bundle/mixture_0000
 logs:
-  path: model/logs
+  path: ../logs
 verify:
-  output_path: outputs/comsol_verify
+  output_path: ../../outputs/comsol_verify
   relative_tolerance: 1.0e-5
   absolute_tolerance: 1.0e-11
 functions:
@@ -405,6 +413,8 @@ run:
 """.lstrip(),
         encoding="utf-8",
     )
+    complete_bundle_fixture(bundle_dir)
+    complete_mapping_fixture(mapping_path)
     return mapping_path
 
 
@@ -460,15 +470,13 @@ def _write_bundle(bundle_dir: Path) -> None:
         "mean_energy_eV": "eV",
         "reduced_mobility_m2_V_s_m3": "m^2/(V s) m^3",
         "reduced_diffusion_L_m2_s_m3": "m^2/s m^3",
-        "reduced_electron_energy_mobility_m2_V_s_m3": (
-            "1/(V m s)"
-        ),
+        "reduced_electron_energy_mobility_m2_V_s_m3": ("1/(V m s)"),
         "reduced_electron_energy_diffusion_m2_s_m3": "1/(m s)",
         "process_type": "",
         "reduced_townsend_m2": "m^2",
     }
     manifest = {
-        "format_version": 1,
+        "format_version": 2,
         "tables": {
             "mean_energy_vs_en.csv": {
                 "columns": ["E_over_N_Td", "E_over_N_V_m2", "mean_energy_eV"],
@@ -489,9 +497,7 @@ def _write_bundle(bundle_dir: Path) -> None:
                 ],
                 "units": {
                     "E_over_N_V_m2": units["E_over_N_V_m2"],
-                    "reduced_mobility_m2_V_s_m3": units[
-                        "reduced_mobility_m2_V_s_m3"
-                    ],
+                    "reduced_mobility_m2_V_s_m3": units["reduced_mobility_m2_V_s_m3"],
                 },
             },
             "transport_vs_mean_energy.csv": {

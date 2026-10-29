@@ -1,0 +1,14 @@
+{
+  "schema": "swarm.archived_solve_output.v1",
+  "source_provenance_sha256": "b5765bd2ede0946bd97f2a6f498875aa01f036439542a64cde0d93290d9483ad",
+  "recorded_at_utc": "2026-09-13T15:15:49.526963Z",
+  "status": "ok",
+  "output_mph": {
+    "exists": true,
+    "modified_at_utc": "2026-09-13T15:15:48.639506Z",
+    "path": "C:\\Users\\user\\Desktop\\swarm_5\\comsol_modes\\work\\argon_gec_icp_two_term_function_eedf.mph",
+    "sha256": "7f6fcfbd41f56ad1b2b85e5eb13e589557ce7b5d9314d37bb7815e2646fe2896",
+    "size_bytes": 29905362
+  },
+  "stage": "solve_after_closure_readback_and_native_eedf_audit"
+}

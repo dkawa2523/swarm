@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from product_helpers import campaign_config
+
 import csv
 from dataclasses import asdict
 from hashlib import sha256
@@ -10,7 +12,7 @@ import shutil
 import pytest
 import yaml
 
-from electron_swarm import load_config
+from swarm_workflow.campaign.document import load_case_template, calculation_sha256
 from swarm_workflow.comsol.input import ComsolExportError, export_comsol_bundle
 from swarm_workflow.comsol.input.bundle_selection import validate_bundle_selection
 from swarm_workflow.selection import ClosureSelectionError, context_from_metadata
@@ -37,8 +39,8 @@ def test_missing_physical_context_is_not_reconstructed_from_legacy_paths(
 
     assert context_from_metadata(
         {
-            "base_config_path": str(base),
-            "base_config_sha256": sha256(base.read_bytes()).hexdigest(),
+            "calculation_path": str(base),
+            "calculation_sha256": sha256(base.read_bytes()).hexdigest(),
         }
     ) is None
 
@@ -65,7 +67,7 @@ def test_convergence_policy_parses_bounded_population_and_tail_factors() -> None
 @pytest.mark.parametrize(
     ("failure", "expected_action", "field", "expected_value"),
     (
-        ("mean_energy_stationarity", "extend_time", "max_collisions", 128),
+        ("mean_energy_stationarity", "extend_time", "production_trial_periods", 128),
         (
             "mc_weighted_growth_lineage_degenerate",
             "increase_particles",
@@ -75,7 +77,7 @@ def test_convergence_policy_parses_bounded_population_and_tail_factors() -> None
         (
             "required_rate_censored_all_zero:Ar:ionization:ionization",
             "extend_tail",
-            "tail_max_collisions",
+            "tail_trial_periods",
             128,
         ),
     ),
@@ -90,15 +92,15 @@ def test_advance_writes_and_enforces_only_the_recorded_followup(
     mc, fallback = _tables(tmp_path, failures={5.0: [failure]})
     base = (
         Path(__file__).resolve().parents[1]
-        / "examples/argon_gec_ccp_monte_carlo_weighted_branching.yaml"
+        / "examples/workflow_argon_gec_ccp_monte_carlo.yaml"
     )
-    xs_hash = _combined_hash(_cross_section_file_hashes(load_config(base)))
+    xs_hash = _combined_hash(_cross_section_file_hashes(load_case_template(base)))
     for directory in (mc, fallback):
         path = directory / "manifest.json"
         manifest = json.loads(path.read_text())
         manifest["hashes"]["cross_sections_sha256"] = xs_hash
         if directory == mc:
-            manifest["hashes"]["base_config_sha256"] = sha256(
+            manifest["hashes"]["calculation_sha256"] = sha256(
                 base.read_bytes()
             ).hexdigest()
         path.write_text(json.dumps(manifest))
@@ -106,20 +108,13 @@ def test_advance_writes_and_enforces_only_the_recorded_followup(
     original = tmp_path / "first.yaml"
     original.write_text(
         yaml.safe_dump(
-            {
-                "base_config": str(base),
-                "database": "first.sqlite",
-                "e_over_n_Td": [5.0, 10.0],
-                "mixtures": [{"Ar": 1.0}],
-                "mc": {
-                    "replicas": 4,
-                    "base_seed": 1729,
-                    "convergence": {},
-                    "sampling_plan": manifest["mc_sampling_plan"]["entries"],
-                },
-            }
+            campaign_config(str(base), database='first.sqlite', e_over_n_Td=[5.0, 10.0], mixtures=[{'Ar': 1.0}], mc={'replicas': 4, 'convergence': {}, 'sampling_plan': manifest['mc_sampling_plan']['entries']}, seed=1729)
         )
     )
+    source_manifest_path = mc / "manifest.json"
+    source_manifest = json.loads(source_manifest_path.read_text())
+    source_manifest["hashes"]["calculation_sha256"] = calculation_sha256(original)
+    source_manifest_path.write_text(json.dumps(source_manifest))
     decision_path = tmp_path / "first-decision.json"
     decide_monte_carlo_closure(mc, fallback, attempt=1, output=decision_path)
     assert json.loads(decision_path.read_text())["action"] == expected_action
@@ -135,15 +130,15 @@ def test_advance_writes_and_enforces_only_the_recorded_followup(
     )["next_sampling_plan"]
     assert next_workflow.mc_reuse_database == (tmp_path / "first.sqlite").resolve()
     assert getattr(next_workflow.mc_sampling_plan[0], field) == expected_value
-    assert next_workflow.mc_sampling_plan[1].max_collisions == 32
+    assert next_workflow.mc_sampling_plan[1].production_trial_periods == 32
     assert all(entry.replicas == 4 for entry in next_workflow.mc_sampling_plan)
 
     tampered = yaml.safe_load(output.read_text())
-    tampered["mc"]["sampling_plan"][0][field] *= 2
+    tampered["campaign"]["mc"]["sampling_plan"][0][field] *= 2
     output.write_text(yaml.safe_dump(tampered))
     with pytest.raises(MonteCarloPolicyError, match="next_sampling_plan"):
         load_workflow(output)
-    tampered["mc"]["sampling_plan"][0][field] //= 2
+    tampered["campaign"]["mc"]["sampling_plan"][0][field] //= 2
     output.write_text(yaml.safe_dump(tampered))
     decision_path.write_bytes(decision_path.read_bytes() + b"\n")
     with pytest.raises(
@@ -162,12 +157,7 @@ def _fallback_bundle(tmp_path: Path) -> tuple[Path, Path, Path]:
     workflow = tmp_path / "two_term_workflow.yaml"
     workflow.write_text(
         yaml.safe_dump(
-            {
-                "base_config": str(base),
-                "database": str(database),
-                "e_over_n_Td": [5.0, 10.0],
-                "mixtures": [{"Ar": 1.0}],
-            }
+            campaign_config(str(base), database=str(database), e_over_n_Td=[5.0, 10.0], mixtures=[{'Ar': 1.0}])
         )
     )
     run_sweep(workflow)
@@ -200,7 +190,7 @@ def test_selected_closure_is_portable_and_coefficient_changes_are_rejected(
     shutil.copytree(bundle, relocated)
     (source / "quality.csv").write_text("old source no longer available")
     assert validate_bundle_selection(relocated, required=True) == binding
-    table = relocated / "transport_vs_mean_energy.csv"
+    table = relocated / "transport_vs_en.csv"
     with table.open(newline="") as stream:
         rows = list(csv.DictReader(stream))
     rows[0]["reduced_mobility_m2_V_s_m3"] = "999"

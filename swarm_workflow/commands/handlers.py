@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import argparse
+import json
+import sqlite3
+
+from electron_swarm.runner import run
+from electron_swarm.orchestration.preparation import prepare_run
+from swarm_workflow.campaign.document import read_calculation
 from typing import Any
 
 from swarm_workflow.campaign.aggregate import aggregate_database
 from swarm_workflow.campaign.sweep import (
     advance_monte_carlo_workflow,
     run_sweep,
+    plan_sweep,
 )
 from swarm_workflow.comsol.input import ComsolExportError, export_comsol_bundle
 from swarm_workflow.selection import ClosureSelectionError
@@ -49,15 +56,126 @@ from swarm_workflow.quality.monte_carlo.policy import (
     decide_monte_carlo_closure,
 )
 from swarm_workflow.tables import build_tables
+from electron_swarm.core.output import OutputConfig
+from swarm_workflow.reaction_rates import export_reaction_rates
+from swarm_workflow.figures import plot_results
+from swarm_workflow.campaign.store import WorkflowSchemaError
 
 
-def run_sweep_command(args: Any, _parser: argparse.ArgumentParser) -> None:
-    summary = run_sweep(args.workflow)
+def run_command(args: Any, parser: argparse.ArgumentParser) -> None:
+    if args.json and not args.plan:
+        parser.error("--json requires --plan")
+    try:
+        document = read_calculation(args.config)
+        if document.campaign is not None:
+            if args.plan:
+                description = plan_sweep(args.config)
+            else:
+                summary = run_sweep(args.config)
+                partial = summary.status == "partial"
+                status = "partial" if partial else "completed"
+                print(
+                    f"{status} {summary.cases_written} new cases; database={summary.database_path}"
+                )
+                if document.template.output.export is not None:
+                    print(
+                        f"reaction_rates: {document.template.output.directory / (document.template.output.base_name + '_manifest.json')}"
+                    )
+                if document.template.output.figures:
+                    print(
+                        f"figures: {document.template.output.directory / (document.template.output.base_name + '_manifest.json')}"
+                    )
+                if partial:
+                    raise SystemExit(4)
+                return
+        else:
+            if len(document.mixtures) != 1:
+                raise ValueError(
+                    "multiple mixtures require campaign.database for explicit persistence and resume"
+                )
+            if args.plan:
+                description = prepare_run(document.template).description()
+            else:
+                result = run(document.template)
+                outcome = result.metadata["outcome"]
+                print(f"{outcome['status']}: {len(result.cases)} solver cases")
+                if document.template.output.export is not None:
+                    print(
+                        f"reaction_rates: {result.metadata['output_paths']['manifest_json']}"
+                    )
+                if document.template.output.figures:
+                    print(
+                        f"figures: {result.metadata['output_paths']['manifest_json']}"
+                    )
+                if outcome["status"] != "complete":
+                    raise SystemExit({"partial": 4, "skipped": 3}[outcome["status"]])
+                return
+    except (ValueError, OSError, NotImplementedError) as exc:
+        parser.error(str(exc))
+    if args.json:
+        print(json.dumps(description, indent=2))
+        return
     print(
-        "completed "
-        f"{summary.cases_written} cases "
-        f"({summary.mixtures} mixtures, {summary.e_over_n_values} E/N values)"
+        f"{description['status']}: {description['expected_case_count']} planned solver cases (before resume)"
     )
+    if description.get("execution") == "campaign":
+        print(
+            f"mixtures={len(description['mixtures'])}; E/N points={len(description['e_over_n_Td'])}; MC cases={description['monte_carlo_cases']}"
+        )
+        print(f"database: {description['database']}")
+        items = [item for plan in description["solver_plan"].values() for item in plan]
+    else:
+        items = description["solver_plan"]
+    for item in items:
+        print(
+            f"  {item['solver']}: {item['state']}"
+            + (f"; {item['warnings']}" if item.get("warnings") else "")
+        )
+    if description.get("export"):
+        export = description["export"]
+        print(
+            f"export: reaction_rates from {export['solver']}; {export['directory']}/{export['csv']}"
+        )
+    if description.get("figures"):
+        print(
+            f"figures: {', '.join(description['figures']['requested'])}; PNG/SVG and numerical CSV"
+        )
+    print(
+        "Use --plan --json for resolved settings, physical cases, and resource details."
+    )
+
+
+def plot_command(args: Any, parser: argparse.ArgumentParser) -> None:
+    try:
+        paths = plot_results(
+            args.source,
+            OutputConfig(args.output, args.base_name, figures=tuple(args.figures)),
+        )
+    except (
+        ValueError,
+        OSError,
+        NotImplementedError,
+        sqlite3.Error,
+        WorkflowSchemaError,
+    ) as exc:
+        parser.error(str(exc))
+    print(f"figures: {paths['manifest_json']}")
+
+
+def export_reaction_rates_command(args: Any, parser: argparse.ArgumentParser) -> None:
+    try:
+        paths = export_reaction_rates(
+            args.source, OutputConfig(args.output, args.base_name), solver=args.solver
+        )
+    except (
+        ValueError,
+        OSError,
+        NotImplementedError,
+        sqlite3.Error,
+        WorkflowSchemaError,
+    ) as exc:
+        parser.error(str(exc))
+    print(f"reaction_rates: {paths['manifest_json']}")
 
 
 def aggregate_command(args: Any, _parser: argparse.ArgumentParser) -> None:
@@ -223,8 +341,7 @@ def plot_gec_ccp_command(args: Any, parser: argparse.ArgumentParser) -> None:
     except GecCcpPlotError as exc:
         parser.error(str(exc))
     print(
-        f"wrote {len(summary.figures)} GEC CCP figure(s); "
-        f"manifest: {summary.manifest}"
+        f"wrote {len(summary.figures)} GEC CCP figure(s); manifest: {summary.manifest}"
     )
 
 
@@ -251,8 +368,10 @@ def compare_positive_column_command(
 ) -> None:
     try:
         summary = compare_comsol_profiles(
-            args.external_csv,
-            args.reference_csv,
+            args.external_results,
+            args.reference_results,
+            external_solution=args.external_solution,
+            reference_solution=args.reference_solution,
             output_dir=args.output,
             external_runtime_s=args.external_runtime,
             reference_runtime_s=args.reference_runtime,

@@ -1,0 +1,35 @@
+{
+  "schema": "swarm.distributed_source_models.v1",
+  "models": [
+    {
+      "file": "Model/positive_column_1d.mph",
+      "role": "positive_column_source",
+      "sha256": "294af1b3615a59e1e8a7a900666e911d6445eaeb58be92e7b173075894e96369",
+      "size_bytes": 4905198
+    },
+    {
+      "file": "Model/positive_column_1d_boltzmann.mph",
+      "role": "built_in_boltzmann_reference",
+      "sha256": "c17eb7161d695df689b6ac25d9b4662fe342c8fdbc39b03810b991d7516c07d0",
+      "size_bytes": 28110616
+    },
+    {
+      "file": "Model/boltzmann_argon.mph",
+      "role": "homogeneous_boltzmann_reference",
+      "sha256": "c93df93b69417af01d53fb357bb30d5c1aedbd3f92388a40cda6765f413d8a57",
+      "size_bytes": 14702094
+    },
+    {
+      "file": "comsol_modes/argon_gec_ccp.mph",
+      "role": "gec_ccp_source",
+      "sha256": "850961ca17424958b1abddef31ff63d49f74741fa93ce1fb5c1fc7ec621df05a",
+      "size_bytes": 24506900
+    },
+    {
+      "file": "comsol_modes/argon_gec_icp.mph",
+      "role": "gec_icp_source",
+      "sha256": "2ad9dc5ad4631bf855463a449a89f561b4e70c6004c2650d0a0c304666d7b556",
+      "size_bytes": 23229086
+    }
+  ]
+}

@@ -97,7 +97,7 @@ runnable.
 Two term:
 
 ```powershell
-py -3 -m swarm_workflow.cli sweep examples\workflow_argon_gec_icp_two_term.yaml
+py -3 -m swarm_workflow.cli run examples\workflow_argon_gec_icp_two_term.yaml
 py -3 -m swarm_workflow.cli build-tables outputs\argon_gec_icp\two_term_function_eedf_extended_support.sqlite --output outputs\argon_gec_icp\two_term_tables_tail_converged --source two_term
 py -3 -m swarm_workflow.cli export-comsol outputs\argon_gec_icp\two_term_tables_tail_converged --output outputs\argon_gec_icp\two_term_bundle
 py -3 -m swarm_workflow.cli run-gec-icp comsol_modes\maps\argon_gec_icp_two_term_function_eedf.yaml --bundle outputs\argon_gec_icp\two_term_bundle\mixture_0000
@@ -106,7 +106,7 @@ py -3 -m swarm_workflow.cli run-gec-icp comsol_modes\maps\argon_gec_icp_two_term
 The MC workflow computes all 14 anchors from an empty canonical database:
 
 ```powershell
-py -3 -m swarm_workflow.cli sweep examples\workflow_argon_gec_icp_monte_carlo.yaml
+py -3 -m swarm_workflow.cli run examples\workflow_argon_gec_icp_monte_carlo.yaml
 py -3 -m swarm_workflow.cli build-tables outputs\argon_gec_icp\monte_carlo_function_eedf.sqlite --output outputs\argon_gec_icp\monte_carlo_tables --source monte_carlo --mc-qualification-profile function_eedf_restricted_lmea
 py -3 -m swarm_workflow.cli export-comsol outputs\argon_gec_icp\monte_carlo_tables --output outputs\argon_gec_icp\monte_carlo_bundle
 py -3 -m swarm_workflow.cli run-gec-icp comsol_modes\maps\argon_gec_icp_monte_carlo_function_eedf_restricted_lmea.yaml --bundle outputs\argon_gec_icp\monte_carlo_bundle\mixture_0000
@@ -116,10 +116,10 @@ Propagator qualification is bound to the current implementation before target
 refinement and export:
 
 ```powershell
-py -3 tools\qualify_propagator_p1_deterministic.py --output docs\dev\results\propagator_p1_deterministic_qualification_20260908.json
-py -3 -m swarm_workflow.cli sweep examples\workflow_argon_gec_icp_propagator.yaml
-py -3 tools\qualify_propagator_target.py --target argon_gec_icp_restricted_local_mean_energy --fields-Td 1500 2500 2744.2936035 --operating-bracket-Td 1500 2500 --table-support-cap-Td 2744.2936035 --medium-grid 300 48 --fine-grid 600 72 --database outputs\argon_gec_icp\propagator_function_eedf_mean_energy_guarded.sqlite --config examples\argon_gec_icp_propagator.yaml --core-qualification docs\dev\results\propagator_p1_deterministic_qualification_20260908.json --workers 2 --memory-budget-mb 2048 --output docs\dev\results\propagator_gec_icp_mean_energy_guarded_qualification_20260913.json
-py -3 -m swarm_workflow.cli build-tables outputs\argon_gec_icp\propagator_function_eedf_mean_energy_guarded.sqlite --output outputs\argon_gec_icp\propagator_tables --source propagator --solver-qualification docs\dev\results\propagator_p1_deterministic_qualification_20260908.json --target-qualification docs\dev\results\propagator_gec_icp_mean_energy_guarded_qualification_20260913.json
+py -3 tools\qualify_propagator_p1_deterministic.py --output docs\dev\results\propagator_p1_core_qualification.json
+py -3 -m swarm_workflow.cli run examples\workflow_argon_gec_icp_propagator.yaml
+py -3 tools\qualify_propagator_target.py --target argon_gec_icp_restricted_local_mean_energy --fields-Td 1500 2500 2744.2936035 --operating-bracket-Td 1500 2500 --table-support-cap-Td 2744.2936035 --medium-grid 300 48 --fine-grid 600 72 --database outputs\argon_gec_icp\propagator_function_eedf_mean_energy_guarded.sqlite --config examples\workflow_argon_gec_icp_propagator.yaml --core-qualification docs\dev\results\propagator_p1_core_qualification.json --workers 2 --memory-budget-mb 2048 --output docs\dev\results\propagator_gec_icp_target_qualification.json
+py -3 -m swarm_workflow.cli build-tables outputs\argon_gec_icp\propagator_function_eedf_mean_energy_guarded.sqlite --output outputs\argon_gec_icp\propagator_tables --source propagator --solver-qualification docs\dev\results\propagator_p1_core_qualification.json --target-qualification docs\dev\results\propagator_gec_icp_target_qualification.json
 py -3 -m swarm_workflow.cli export-comsol outputs\argon_gec_icp\propagator_tables --output outputs\argon_gec_icp\propagator_bundle
 py -3 -m swarm_workflow.cli run-gec-icp comsol_modes\maps\argon_gec_icp_propagator_function_eedf.yaml --bundle outputs\argon_gec_icp\propagator_bundle\mixture_0000
 ```
@@ -161,8 +161,8 @@ is not a converged 10 ms reference.
 
 Current inspectable Propagator input evidence:
 
-- `docs/dev/results/propagator_p1_deterministic_qualification_20260908.json`
-- `docs/dev/results/propagator_gec_icp_mean_energy_guarded_qualification_20260913.json`
+- `docs/dev/results/propagator_p1_core_qualification.json`
+- `docs/dev/results/propagator_gec_icp_target_qualification.json`
 - `outputs/argon_gec_icp/propagator_tables/mixture_0000/manifest.json`
 - `outputs/argon_gec_icp/propagator_bundle/mixture_0000/manifest.json`
 - `outputs/argon_gec_icp/comsol_propagator_function_eedf/gec_icp_plan.json`

@@ -1,17 +1,16 @@
-"""Small, reproducible comparison of two exported COMSOL profiles."""
+"""Unit-aware, spatially weighted comparison of saved positive-column results."""
 
-from __future__ import annotations
-
-import csv
 from dataclasses import dataclass
 import math
 from pathlib import Path
-from typing import Any
+from tempfile import TemporaryDirectory
 
 import numpy as np
 
 from ...._io import write_csv, write_json
-
+from .contracts import PositiveColumnWorkflowError
+from .results import read_positive_column_results
+from .result_units import QUANTITIES
 
 PROFILE_COLUMNS = (
     "electron_density",
@@ -27,7 +26,7 @@ CONDITION_COLUMNS = ("applied_voltage", "gas_pressure")
 
 
 class ComsolCompareError(ValueError):
-    """Raised when exported COMSOL profiles cannot be compared."""
+    """The saved results do not define a compatible spatial comparison."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,357 +37,472 @@ class ComsolComparisonSummary:
     quantities: tuple[str, ...]
     speedup: float | None
     profile_plot: Path | None
+    profile_svg: Path | None
+    profiles_csv: Path
 
 
 def compare_comsol_profiles(
-    external_csv: str | Path,
-    reference_csv: str | Path,
+    external_results: str | Path,
+    reference_results: str | Path,
     *,
     output_dir: str | Path,
+    external_solution: int | None = None,
+    reference_solution: int | None = None,
     external_runtime_s: float | None = None,
     reference_runtime_s: float | None = None,
     create_plot: bool = False,
 ) -> ComsolComparisonSummary:
-    """Compare canonical profiles on their common spatial interval."""
-    external_path = Path(external_csv).resolve()
-    reference_path = Path(reference_csv).resolve()
+    """Compare one selected solution on the complete common spatial interval.
+
+    Inputs are result summaries with CSV hashes and units. The output directory
+    must be new; the complete comparison is published by one directory rename.
+    """
     output = Path(output_dir).resolve()
-    external = _read_profile(external_path)
-    reference = _read_profile(reference_path)
+    if output.exists():
+        raise ComsolCompareError(
+            "comparison output already exists; choose a new output directory"
+        )
+    try:
+        artifacts = [
+            read_positive_column_results(path)
+            for path in (external_results, reference_results)
+        ]
+        external, external_id = _profile(artifacts[0], external_solution)
+        reference, reference_id = _profile(artifacts[1], reference_solution)
+        _matching_physics(artifacts)
+    except (PositiveColumnWorkflowError, OSError, ValueError, KeyError) as error:
+        raise ComsolCompareError(str(error)) from error
     conditions = _matching_conditions(external, reference)
     quantities = tuple(
         name for name in PROFILE_COLUMNS if name in external and name in reference
     )
     if not quantities:
         raise ComsolCompareError("profiles have no common supported result columns")
-
-    x_reference = reference["x"]
-    lower = max(float(external["x"][0]), float(x_reference[0]))
-    upper = min(float(external["x"][-1]), float(x_reference[-1]))
-    mask = (x_reference >= lower) & (x_reference <= upper)
-    if int(np.count_nonzero(mask)) < 2:
+    lower = max(external["x"][0], reference["x"][0])
+    upper = min(external["x"][-1], reference["x"][-1])
+    if lower >= upper:
         raise ComsolCompareError("profiles do not share a usable spatial interval")
-    x = x_reference[mask]
-
-    metric_rows: list[dict[str, Any]] = []
-    for quantity in quantities:
-        candidate = np.interp(x, external["x"], external[quantity])
-        expected = reference[quantity][mask]
+    x = np.unique(
+        np.r_[
+            lower,
+            upper,
+            external["x"][(external["x"] > lower) & (external["x"] < upper)],
+            reference["x"][(reference["x"] > lower) & (reference["x"] < upper)],
+        ]
+    )
+    metric_rows, profile_rows, curves = [], [], {}
+    for name in quantities:
+        candidate = np.interp(x, external["x"], external[name])
+        expected = np.interp(x, reference["x"], reference[name])
         difference = candidate - expected
-        expected_norm = float(np.linalg.norm(expected))
-        l2_error = (
-            float(np.linalg.norm(difference) / expected_norm)
-            if expected_norm > 0.0
-            else None
-        )
-        expected_integral = float(np.trapezoid(expected, x))
-        candidate_integral = float(np.trapezoid(candidate, x))
-        integral_ratio = (
-            candidate_integral / expected_integral
-            if abs(expected_integral) > 0.0
-            else None
-        )
-        correlation = _correlation(candidate, expected)
+        if not np.all(np.isfinite(difference)):
+            raise ComsolCompareError(
+                "profile differences exceed the floating-point range"
+            )
+        l2, ratio = _relative_metrics(x, candidate, expected)
         metric_rows.append(
             {
-                "quantity": quantity,
-                "l2_relative_error": l2_error,
-                "shape_correlation": correlation,
-                "integral_ratio_external_over_reference": integral_ratio,
-                "external_min": float(np.min(candidate)),
-                "external_max": float(np.max(candidate)),
-                "reference_min": float(np.min(expected)),
-                "reference_max": float(np.max(expected)),
+                "quantity": name,
+                "unit": QUANTITIES[name].unit,
+                "l2_relative_error": l2,
+                "shape_correlation": _correlation(x, candidate, expected),
+                "integral_ratio_external_over_reference": ratio,
+                "external_min": float(candidate.min()),
+                "external_max": float(candidate.max()),
+                "reference_min": float(expected.min()),
+                "reference_max": float(expected.max()),
             }
         )
-
-    speedup = _speedup(external_runtime_s, reference_runtime_s)
-    current_conservation = None
-    if "total_current_density" in external and "total_current_density" in reference:
-        current_conservation = {
-            "external": _current_conservation(external),
-            "reference": _current_conservation(reference),
-        }
-    metrics_csv = output / "comparison_metrics.csv"
-    summary_json = output / "comparison_summary.json"
-    profile_plot = output / "spatial_profile_comparison.png" if create_plot else None
-    write_csv(
-        metrics_csv,
-        (
-            "quantity",
-            "l2_relative_error",
-            "shape_correlation",
-            "integral_ratio_external_over_reference",
-            "external_min",
-            "external_max",
-            "reference_min",
-            "reference_max",
-        ),
-        metric_rows,
-    )
-    if profile_plot is not None:
-        _plot_profiles(
-            profile_plot,
-            x,
-            external,
-            reference,
-            mask,
-            quantities,
-            metric_rows,
-            conditions,
+        profile_rows.extend(
+            dict(
+                quantity=name,
+                x_m=float(position),
+                external=float(a),
+                reference=float(b),
+                difference=float(d),
+                unit=QUANTITIES[name].unit,
+            )
+            for position, a, b, d in zip(
+                x, candidate, expected, difference, strict=True
+            )
         )
-    write_json(
-        summary_json,
-        {
-            "external_csv": str(external_path),
-            "reference_csv": str(reference_path),
-            "common_x_range_m": [float(x[0]), float(x[-1])],
-            "operating_conditions": conditions,
-            "quantities": list(quantities),
-            "runtime": {
-                "external_s": external_runtime_s,
-                "reference_s": reference_runtime_s,
-                "speedup_reference_over_external": speedup,
-            },
-            "current_conservation": current_conservation,
-            "profile_plot": str(profile_plot) if profile_plot is not None else None,
+        curves[name] = (candidate, expected)
+    runtimes = [external_runtime_s, reference_runtime_s]
+    if (runtimes[0] is None) != (runtimes[1] is None):
+        raise ComsolCompareError("supply both solve runtimes or neither")
+    scope = "user_supplied_solve_times"
+    if runtimes[0] is None:
+        runtimes = [
+            artifact.metadata.get("timing_s", {}).get("run") for artifact in artifacts
+        ]
+        scope = "saved_run_stage"
+    speedup = _speedup(*runtimes)
+    names = (
+        "comparison_metrics.csv",
+        "comparison_profiles.csv",
+        "comparison_summary.json",
+    )
+    plot_names = (
+        ("spatial_profile_comparison.png", "spatial_profile_comparison.svg")
+        if create_plot
+        else ()
+    )
+    metadata = {
+        "artifact_schema": "swarm.positive_column_comparison.v1",
+        "evidence_scope": "saved_result_comparison; no new solve or physical acceptance",
+        "sources": {
+            key: {
+                "summary": artifact.metadata["summary_path"],
+                "summary_sha256": artifact.metadata["summary_sha256"],
+                "csv_sha256": artifact.metadata["result_csv_sha256"],
+                "selection": selection,
+                "source_units": artifact.metadata["source_units"],
+            }
+            for key, artifact, selection in zip(
+                ("external", "reference"),
+                artifacts,
+                (external_id, reference_id),
+                strict=True,
+            )
         },
-    )
+        "physical_context": artifacts[0].metadata["physical_context"],
+        "common_x_range_m": [float(lower), float(upper)],
+        "operating_conditions": conditions,
+        "quantities": list(quantities),
+        "units": {name: QUANTITIES[name].unit for name in quantities},
+        "interpolation": "piecewise linear on the union of native nodes and overlap endpoints; no extrapolation",
+        "l2_measure": "sqrt(integral((external-reference)^2 dx) / integral(reference^2 dx))",
+        "runtime": {
+            "external_s": runtimes[0],
+            "reference_s": runtimes[1],
+            "scope": scope,
+            "speedup_reference_over_external": speedup,
+        },
+        "conductive_current_uniformity": {
+            "external": _current_uniformity(external),
+            "reference": _current_uniformity(reference),
+        }
+        if all("total_current_density" in profile for profile in (external, reference))
+        else None,
+        "formulations": {
+            key: artifact.metadata.get("mean_energy_formulation", {}).get("mode")
+            for key, artifact in zip(("external", "reference"), artifacts, strict=True)
+        },
+        "files": list(names[:2] + plot_names),
+    }
+    # Errors leave prior comparisons and source artifacts untouched.
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(
+        prefix=".positive-column-comparison-", dir=output.parent
+    ) as temporary:
+        staging = Path(temporary).resolve()
+        if staging.parent != output.parent:
+            raise ComsolCompareError("comparison staging escaped its destination")
+        write_csv(staging / names[0], tuple(metric_rows[0]), metric_rows)
+        write_csv(
+            staging / names[1],
+            ("quantity", "x_m", "external", "reference", "difference", "unit"),
+            profile_rows,
+        )
+        if create_plot:
+            _plot_profiles(staging, x, curves, metric_rows, conditions)
+        write_json(staging / names[2], metadata)
+        staging.rename(output)
     return ComsolComparisonSummary(
-        output_dir=output,
-        metrics_csv=metrics_csv,
-        summary_json=summary_json,
-        quantities=quantities,
-        speedup=speedup,
-        profile_plot=profile_plot,
+        output,
+        output / names[0],
+        output / names[2],
+        quantities,
+        speedup,
+        output / plot_names[0] if create_plot else None,
+        output / plot_names[1] if create_plot else None,
+        output / names[1],
     )
 
 
-def _matching_conditions(
-    external: dict[str, np.ndarray],
-    reference: dict[str, np.ndarray],
-) -> dict[str, float]:
-    conditions: dict[str, float] = {}
-    for name in CONDITION_COLUMNS:
+def _profile(artifact, selection):
+    available = sorted({row["solution_index"] for row in artifact.rows})
+    if selection is None:
+        if len(available) != 1:
+            raise ComsolCompareError(
+                f"profile comparison requires one saved solution; choose a solution index from {available}"
+            )
+        selection = available[0]
+    if (
+        isinstance(selection, bool)
+        or not isinstance(selection, int)
+        or selection not in available
+    ):
+        raise ComsolCompareError(
+            f"saved solution {selection!r} is unavailable; choose from {available}"
+        )
+    rows = [row for row in artifact.rows if row["solution_index"] == selection]
+    identity = {
+        name: rows[0][name]
+        for name in (
+            "dataset",
+            "solution_index",
+            "time_s",
+            "parameter_name",
+            "parameter_unit",
+            "parameter_value",
+        )
+    }
+    if identity["parameter_name"] not in {
+        None,
+        "t",
+        artifact.metadata.get("voltage_parameter"),
+    }:
+        raise ComsolCompareError(
+            "profile comparison supports saved time or the configured voltage parameter; other parameters are unsupported"
+        )
+    if len(rows) < 2 or "x" not in artifact.units:
+        raise ComsolCompareError(
+            "spatial comparison requires x and at least two points"
+        )
+    columns = {
+        name: np.array([row[name] for row in rows], dtype=float)
+        for name in ("x", *PROFILE_COLUMNS, *CONDITION_COLUMNS)
+        if name in rows[0]
+    }
+    if identity["time_s"] is not None:
+        columns["time_s"] = np.array([row["time_s"] for row in rows])
+    order = np.argsort(columns["x"])
+    if np.any(np.diff(columns["x"][order]) <= 0):
+        raise ComsolCompareError("spatial x values must be unique")
+    return {name: values[order] for name, values in columns.items()}, identity
+
+
+def _matching_physics(artifacts):
+    contexts = []
+    for artifact in artifacts:
+        context = artifact.metadata.get("physical_context")
+        if (
+            not isinstance(context, dict)
+            or "gas_temperature_K" not in context
+            or "gas_mixture" not in context
+        ):
+            raise ComsolCompareError("result is missing gas physical_context")
+        contexts.append(
+            {
+                **context,
+                "gas_mixture": sorted(
+                    context["gas_mixture"], key=lambda item: item["species"]
+                ),
+            }
+        )
+    if contexts[0] != contexts[1]:
+        raise ComsolCompareError("gas physical_context differs between results")
+
+
+def _matching_conditions(external, reference):
+    conditions = {}
+    names = CONDITION_COLUMNS + (
+        ("time_s",) if "time_s" in external or "time_s" in reference else ()
+    )
+    for name in names:
         if name not in external or name not in reference:
             raise ComsolCompareError(
                 f"both profiles must contain operating-condition column {name!r}"
             )
-        external_value = float(np.mean(external[name]))
-        reference_value = float(np.mean(reference[name]))
-        if not math.isclose(
-            external_value,
-            reference_value,
-            rel_tol=1.0e-9,
-            abs_tol=1.0e-12,
-        ):
+        for profile in (external, reference):
+            if not np.allclose(profile[name], profile[name][0], rtol=1e-9, atol=1e-12):
+                raise ComsolCompareError(
+                    f"operating condition {name!r} must be constant within a profile"
+                )
+        a, b = float(external[name][0]), float(reference[name][0])
+        if not math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-12):
             raise ComsolCompareError(
-                f"operating condition {name!r} differs: "
-                f"external={external_value:.12g}, reference={reference_value:.12g}"
+                f"operating condition {name!r} differs: external={a:g}, reference={b:g}"
             )
-        conditions[name] = external_value
+        conditions[name] = a
     return conditions
 
 
-def format_comsol_comparison(summary: ComsolComparisonSummary) -> str:
-    speedup = "not recorded" if summary.speedup is None else f"{summary.speedup:.3g}x"
-    lines = [
-        "COMSOL comparison complete",
-        f"quantities: {len(summary.quantities)}",
-        f"speedup: {speedup}",
-        f"metrics: {summary.metrics_csv}",
-        f"summary: {summary.summary_json}",
-    ]
-    if summary.profile_plot is not None:
-        lines.append(f"plot: {summary.profile_plot}")
-    return "\n".join(lines)
+def _square_integral(x, y):
+    return float(np.sum(np.diff(x) * (y[:-1] ** 2 + y[:-1] * y[1:] + y[1:] ** 2) / 3))
 
 
-def _plot_profiles(
-    path: Path,
-    x: np.ndarray,
-    external: dict[str, np.ndarray],
-    reference: dict[str, np.ndarray],
-    reference_mask: np.ndarray,
-    quantities: tuple[str, ...],
-    metric_rows: list[dict[str, Any]],
-    conditions: dict[str, float],
-) -> None:
+def _relative_metrics(x, a, b):
+    # Normalize units/magnitudes before squaring: the same length factor cancels
+    # in both ratios. Native curve values stay unchanged in the exported CSV.
+    x = (x - x[0]) / (x[-1] - x[0])
+    scale = float(np.max(np.abs(b)))
+    if scale == 0:
+        return None, None
     try:
-        import matplotlib
-
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-        from matplotlib.ticker import ScalarFormatter
-    except ImportError as exc:
-        raise ComsolCompareError(
-            "profile plotting requires the 'plot' extra: pip install -e .[plot]"
-        ) from exc
-
-    labels = {
-        "electron_density": ("Electron density", r"m$^{-3}$", 1.0, True),
-        "mean_electron_energy": ("Mean electron energy", "eV", 1.0, False),
-        "electric_potential": ("Electric potential", "V", 1.0, False),
-        "E_over_N": ("Reduced electric field", "Td", 1.0e21, True),
-        "electron_current_density": (
-            "Electron current density",
-            r"A m$^{-2}$",
-            1.0,
-            False,
-        ),
-        "total_current_density": (
-            "Total current density",
-            r"A m$^{-2}$",
-            1.0,
-            False,
-        ),
-        "excitation_source": ("Excitation source", r"m$^{-3}$ s$^{-1}$", 1.0, True),
-        "ionization_source": ("Ionization source", r"m$^{-3}$ s$^{-1}$", 1.0, True),
-    }
-    ncols = 2
-    nrows = math.ceil(len(quantities) / ncols)
-    fig, axes = plt.subplots(nrows, ncols, figsize=(13, 3.6 * nrows), sharex=True)
-    axes_array = np.atleast_1d(axes).ravel()
-    x_cm = x * 100.0
-    metrics = {row["quantity"]: row for row in metric_rows}
-
-    for axis, quantity in zip(axes_array, quantities, strict=False):
-        title, unit, scale, use_log = labels[quantity]
-        candidate = np.interp(x, external["x"], external[quantity]) * scale
-        expected = reference[quantity][reference_mask] * scale
-        axis.plot(x_cm, candidate, color="#0072B2", linewidth=1.8, label="External Swarm")
-        axis.plot(
-            x_cm,
-            expected,
-            color="#D55E00",
-            linewidth=1.6,
-            linestyle="--",
-            label="COMSOL built-in",
-        )
-        if use_log and np.all(candidate > 0.0) and np.all(expected > 0.0):
-            axis.set_yscale("log")
-        elif not use_log:
-            formatter = ScalarFormatter(useMathText=True)
-            formatter.set_powerlimits((-3, 4))
-            axis.yaxis.set_major_formatter(formatter)
-        row = metrics[quantity]
-        correlation = row["shape_correlation"]
-        ratio = row["integral_ratio_external_over_reference"]
-        correlation_text = "n/a" if correlation is None else f"{correlation:.3f}"
-        ratio_text = "n/a" if ratio is None else f"{ratio:.3f}"
-        axis.text(
-            0.02,
-            0.04,
-            f"corr={correlation_text}   L2={row['l2_relative_error']:.3f}   integral={ratio_text}",
-            transform=axis.transAxes,
-            fontsize=8.5,
-            bbox={"facecolor": "white", "alpha": 0.82, "edgecolor": "0.8"},
-        )
-        axis.set_title(title)
-        axis.set_ylabel(unit)
-        axis.grid(True, alpha=0.25)
-        if quantity == "total_current_density":
-            lower = x_cm[0] + 0.1 * (x_cm[-1] - x_cm[0])
-            upper = x_cm[-1] - 0.1 * (x_cm[-1] - x_cm[0])
-            bulk = (x_cm >= lower) & (x_cm <= upper)
-            inset = axis.inset_axes((0.54, 0.54, 0.43, 0.39))
-            inset.plot(x_cm[bulk], candidate[bulk], color="#0072B2", linewidth=1.2)
-            inset.plot(
-                x_cm[bulk],
-                expected[bulk],
-                color="#D55E00",
-                linewidth=1.1,
-                linestyle="--",
+        with np.errstate(over="raise", invalid="raise", divide="raise"):
+            a, b = a / scale, b / scale
+            delta = a - b
+            magnitude = float(np.max(np.abs(delta)))
+            l2 = (
+                magnitude
+                * math.sqrt(
+                    _square_integral(x, delta / magnitude) / _square_integral(x, b)
+                )
+                if magnitude
+                else 0.0
             )
-            inset.set_title("Central 80%", fontsize=8)
-            inset.tick_params(labelsize=7)
-            inset.grid(True, alpha=0.2)
+            integral = float(np.trapezoid(b, x))
+            ratio = float(np.trapezoid(a, x)) / integral if integral != 0 else None
+    except (FloatingPointError, OverflowError) as error:
+        raise ComsolCompareError(
+            "profile metrics exceed the floating-point range"
+        ) from error
+    if not math.isfinite(l2) or (ratio is not None and not math.isfinite(ratio)):
+        raise ComsolCompareError("profile metrics exceed the floating-point range")
+    return l2, ratio
 
-    for axis in axes_array[len(quantities) :]:
-        axis.set_visible(False)
-    for axis in axes_array[-ncols:]:
-        if axis.get_visible():
-            axis.set_xlabel("Axial position (cm)")
-    axes_array[0].legend(loc="best", frameon=True)
-    fig.suptitle(
-        "COMSOL spatial profiles at "
-        f"{conditions['applied_voltage']:.6g} V and "
-        f"{conditions['gas_pressure']:.6g} Pa",
-        fontsize=14,
+
+def _correlation(x, a, b):
+    if np.all(a == a[0]) or np.all(b == b[0]):
+        return None
+    x = (x - x[0]) / (x[-1] - x[0])
+    a, b = a / np.max(np.abs(a)), b / np.max(np.abs(b))
+    a = a - np.trapezoid(a, x)
+    b = b - np.trapezoid(b, x)
+    aa, bb = _square_integral(x, a), _square_integral(x, b)
+    if aa == 0 or bb == 0:
+        return None
+    ab = float(
+        np.sum(
+            np.diff(x)
+            * (
+                2 * a[:-1] * b[:-1]
+                + a[:-1] * b[1:]
+                + a[1:] * b[:-1]
+                + 2 * a[1:] * b[1:]
+            )
+            / 6
+        )
     )
-    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.98))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, dpi=180, bbox_inches="tight")
-    plt.close(fig)
+    return float(np.clip(ab / math.sqrt(aa * bb), -1.0, 1.0))
 
 
-def _read_profile(path: Path) -> dict[str, np.ndarray]:
-    if not path.is_file():
-        raise ComsolCompareError(f"result CSV does not exist: {path}")
-    with path.open("r", encoding="utf-8-sig", newline="") as fp:
-        rows = list(csv.DictReader(fp))
-    if len(rows) < 2 or "x" not in (rows[0] if rows else {}):
-        raise ComsolCompareError(f"result CSV requires x and at least two rows: {path}")
-    columns: dict[str, np.ndarray] = {}
-    for name in ("x", *PROFILE_COLUMNS, *CONDITION_COLUMNS):
-        if name not in rows[0]:
-            continue
-        try:
-            values = np.asarray([float(row[name]) for row in rows], dtype=float)
-        except (TypeError, ValueError, KeyError) as exc:
-            raise ComsolCompareError(f"{path}: column {name} is not numeric") from exc
-        if not np.all(np.isfinite(values)):
-            raise ComsolCompareError(f"{path}: column {name} contains non-finite values")
-        columns[name] = values
-    order = np.argsort(columns["x"])
-    x = columns["x"][order]
-    if np.any(np.diff(x) <= 0.0):
-        raise ComsolCompareError(f"{path}: x values must be unique")
-    return {name: values[order] for name, values in columns.items()}
-
-
-def _correlation(candidate: np.ndarray, reference: np.ndarray) -> float | None:
-    if float(np.std(candidate)) == 0.0 or float(np.std(reference)) == 0.0:
+def _speedup(external, reference):
+    for value in (external, reference):
+        if value is not None and (
+            isinstance(value, bool) or not math.isfinite(value) or value <= 0
+        ):
+            raise ComsolCompareError("solve runtimes must be positive and finite")
+    if external is None or reference is None:
         return None
-    value = float(np.corrcoef(candidate, reference)[0, 1])
-    return value if math.isfinite(value) else None
+    speedup = reference / external
+    if not math.isfinite(speedup):
+        raise ComsolCompareError("runtime ratio exceeds the floating-point range")
+    return speedup
 
 
-def _speedup(external_s: float | None, reference_s: float | None) -> float | None:
-    for value, name in ((external_s, "external"), (reference_s, "reference")):
-        if value is not None and (not math.isfinite(value) or value <= 0.0):
-            raise ComsolCompareError(f"{name} runtime must be positive and finite")
-    if external_s is None or reference_s is None:
-        return None
-    return reference_s / external_s
-
-
-def _current_conservation(profile: dict[str, np.ndarray]) -> dict[str, Any]:
-    """Summarize total current globally and away from the two sheath regions."""
-    x = profile["x"]
+def _current_uniformity(profile):
+    native = profile["x"]
     current = profile["total_current_density"]
-    span = float(x[-1] - x[0])
-    lower = float(x[0] + 0.1 * span)
-    upper = float(x[-1] - 0.1 * span)
-    bulk = current[(x >= lower) & (x <= upper)]
 
-    def stats(values: np.ndarray) -> dict[str, float | None]:
-        mean = float(np.mean(values))
-        standard_deviation = float(np.std(values))
+    def stats(lower, upper):
+        x = np.unique(np.r_[lower, native[(native > lower) & (native < upper)], upper])
+        values = np.interp(x, native, current)
+        fraction = (x - lower) / (upper - lower)
+        scale = float(np.max(np.abs(values)))
+        normalized = values / scale if scale else values
+        normalized_mean = float(np.trapezoid(normalized, fraction))
+        mean = normalized_mean * scale
+        std = (
+            math.sqrt(_square_integral(fraction, normalized - normalized_mean)) * scale
+        )
         return {
             "mean_A_per_m2": mean,
-            "standard_deviation_A_per_m2": standard_deviation,
-            "relative_standard_deviation": (
-                standard_deviation / abs(mean) if mean != 0.0 else None
-            ),
-            "min_A_per_m2": float(np.min(values)),
-            "max_A_per_m2": float(np.max(values)),
+            "standard_deviation_A_per_m2": std,
+            "relative_standard_deviation": std / abs(mean) if mean != 0 else None,
+            "min_A_per_m2": float(values.min()),
+            "max_A_per_m2": float(values.max()),
         }
 
+    lower, upper = float(native[0]), float(native[-1])
+    a, b = lower + 0.1 * (upper - lower), upper - 0.1 * (upper - lower)
     return {
-        "full_domain": stats(current),
-        "bulk_central_80_percent": {
-            "x_range_m": [lower, upper],
-            **stats(bulk),
-        },
+        "measure": "piecewise-linear spatial integrals",
+        "full_domain": stats(lower, upper),
+        "central_80_percent": {"x_range_m": [a, b], **stats(a, b)},
     }
+
+
+def _plot_profiles(directory, x, curves, metrics, conditions):
+    try:
+        from matplotlib.figure import Figure
+    except ImportError as error:
+        raise ComsolCompareError(
+            "profile plotting requires electron-swarm[plot]"
+        ) from error
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib import rc_context
+
+    with rc_context({"svg.fonttype": "none", "text.usetex": False}):
+        fig = Figure(figsize=(12, 3.4 * math.ceil(len(curves) / 2) + 0.7))
+        FigureCanvasAgg(fig)
+        axes = np.atleast_1d(fig.subplots(math.ceil(len(curves) / 2), 2)).ravel()
+        for axis, row in zip(axes, metrics):
+            quantity = QUANTITIES[row["quantity"]]
+            a, b = curves[row["quantity"]]
+            axis.plot(x, a * quantity.display_scale, marker=".", label="External")
+            axis.plot(
+                x,
+                b * quantity.display_scale,
+                linestyle="--",
+                marker=".",
+                label="Reference",
+            )
+            if quantity.logarithmic and np.all(a > 0) and np.all(b > 0):
+                axis.set_yscale("log")
+            axis.set_title(quantity.label)
+            axis.set_ylabel(quantity.display_unit or quantity.unit)
+            axis.set_xlabel("Axial position [m]")
+            axis.grid(True, alpha=0.2)
+            axis.legend()
+            value = row["l2_relative_error"]
+            axis.text(
+                0.02,
+                0.02,
+                f"Spatial L2: {value:.4g}"
+                if value is not None
+                else "Spatial L2: undefined (zero reference)",
+                transform=axis.transAxes,
+                fontsize=8,
+            )
+        for axis in axes[len(curves) :]:
+            axis.set_visible(False)
+        fig.suptitle(
+            f"Positive column | {conditions['applied_voltage']:g} V; {conditions['gas_pressure']:g} Pa"
+            + (f"; t={conditions['time_s']:g} s" if "time_s" in conditions else "")
+        )
+        fig.tight_layout(rect=(0, 0.025, 1, 0.95))
+        fig.text(
+            0.02,
+            0.008,
+            "Saved solutions; piecewise-linear comparison on common support. No independent physical validation is inferred.",
+            fontsize=8,
+        )
+        for suffix in ("png", "svg"):
+            fig.savefig(directory / f"spatial_profile_comparison.{suffix}", dpi=160)
+        fig.clear()
+
+
+def format_comsol_comparison(summary):
+    return "\n".join(
+        [
+            "Positive-column comparison written",
+            f"quantities: {len(summary.quantities)}",
+            "speedup: "
+            + (
+                f"{summary.speedup:.3g}x"
+                if summary.speedup is not None
+                else "not recorded"
+            ),
+            f"metrics: {summary.metrics_csv}",
+            f"profiles: {summary.profiles_csv}",
+            f"summary: {summary.summary_json}",
+            *(
+                [f"plot: {summary.profile_plot}", f"svg: {summary.profile_svg}"]
+                if summary.profile_plot
+                else []
+            ),
+        ]
+    )

@@ -8,8 +8,8 @@ from typing import Any
 
 from . import contracts as _contracts
 from . import repository as _repository
-from ..campaign.statistics import summarize_replicates
-from .math import strictly_monotonic
+from electron_swarm.core.statistics import summarize_replicates
+
 
 def _load_elastic_energy_loss(
     connection: sqlite3.Connection,
@@ -38,9 +38,7 @@ def _load_elastic_energy_loss(
     if not relevant:
         return None, None
 
-    extracted: list[
-        tuple[float, int, float, dict[str, Any], int | None] | None
-    ] = []
+    extracted: list[tuple[float, int, float, dict[str, Any], int | None] | None] = []
     for row in relevant:
         try:
             payload = json.loads(str(row["diagnostics_json"]))
@@ -110,7 +108,9 @@ def _load_elastic_energy_loss(
     for e_over_n in sorted(allowed_e):
         stats = summarize_replicates(values_by_e[e_over_n])
         if stats.mean is None:
-            raise _contracts.TableBuildError("elastic energy-loss aggregate is unavailable")
+            raise _contracts.TableBuildError(
+                "elastic energy-loss aggregate is unavailable"
+            )
         if solver == _contracts.MC_SOLVER and not stats.uncertainty_available:
             raise _contracts.TableBuildError(
                 "monte_carlo elastic energy loss requires independent-replica "
@@ -121,9 +121,7 @@ def _load_elastic_energy_loss(
                 "mean_energy_eV": mean_by_e[e_over_n],
                 **_repository._en_fields(e_over_n),
                 "elastic_energy_loss_rate_coefficient_eV_m3_s": stats.mean,
-                "elastic_energy_loss_standard_error_eV_m3_s": (
-                    stats.standard_error
-                ),
+                "elastic_energy_loss_standard_error_eV_m3_s": (stats.standard_error),
                 "elastic_energy_loss_relative_standard_error": (
                     stats.relative_standard_error
                 ),
@@ -132,17 +130,13 @@ def _load_elastic_energy_loss(
                 "ci95_critical_value": stats.ci95_critical_value,
                 "estimate_status": (
                     "deterministic_operator_moment"
-                    if solver in {_contracts.TWO_TERM_SOLVER, _contracts.PROPAGATOR_SOLVER}
+                    if solver
+                    in {_contracts.TWO_TERM_SOLVER, _contracts.PROPAGATOR_SOLVER}
                     else stats.estimate_status
                 ),
                 "valid_replicates": stats.valid_replicates,
                 "uncertainty_available": int(stats.uncertainty_available),
             }
-        )
-    if not strictly_monotonic(row["mean_energy_eV"] for row in output):
-        raise _contracts.TableBuildError(
-            "elastic energy-loss closure cannot be represented as a "
-            "single-valued function of mean energy"
         )
     return output, canonical_contract
 
@@ -150,15 +144,12 @@ def _load_elastic_energy_loss(
 def _mc_replica_seed(diagnostics: dict[str, Any]) -> int:
     transport = diagnostics.get("internal_monte_carlo_transport")
     provenance = (
-        transport.get("mc_run_provenance")
-        if isinstance(transport, dict)
-        else None
+        transport.get("mc_run_provenance") if isinstance(transport, dict) else None
     )
     seed = provenance.get("seed") if isinstance(provenance, dict) else None
     if isinstance(seed, bool) or not isinstance(seed, int):
         raise _contracts.TableBuildError(
-            "monte_carlo elastic energy-loss artifact lacks an integer "
-            "replica seed"
+            "monte_carlo elastic energy-loss artifact lacks an integer replica seed"
         )
     return seed
 
@@ -181,9 +172,7 @@ def _propagator_elastic_energy_loss_record(
         "status": "available",
         "symbol": "K_epsilon_el",
         "estimator": "same_discrete_finite_temperature_elastic_sg_operator",
-        "operator": (
-            "finite_volume_scharfetter_gummel_elastic_energy_generator"
-        ),
+        "operator": ("finite_volume_scharfetter_gummel_elastic_energy_generator"),
         "source_eedf": "same_solved_energy_angle_distribution",
         "neutral_thermal_motion_model": "finite_temperature_fokker_planck",
         "gas_temperature_terms_included": True,
@@ -208,9 +197,7 @@ def _propagator_elastic_energy_loss_record(
         "estimator": required["estimator"],
         "operator": required["operator"],
         "source_eedf": required["source_eedf"],
-        "neutral_thermal_motion_model": required[
-            "neutral_thermal_motion_model"
-        ],
+        "neutral_thermal_motion_model": required["neutral_thermal_motion_model"],
         "gas_temperature_terms_included": True,
         "gas_temperature_K": gas_temperature,
         "sign_convention": required["sign_convention"],
@@ -228,15 +215,15 @@ def _two_term_elastic_energy_loss_record(
     if artifact is None:
         return None
     if not isinstance(artifact, dict):
-        raise _contracts.TableBuildError("two_term elastic energy-loss artifact is invalid")
+        raise _contracts.TableBuildError(
+            "two_term elastic energy-loss artifact is invalid"
+        )
     required = {
         "schema": "swarm.elastic_energy_loss.v1",
         "status": "available",
         "symbol": "K_epsilon_el",
         "estimator": "same_discrete_elastic_collision_operator_energy_moment",
-        "operator": (
-            "native_finite_volume_scharfetter_gummel_elastic_A_D_zero_field"
-        ),
+        "operator": ("native_finite_volume_scharfetter_gummel_elastic_A_D_zero_field"),
         "operator_isolation": (
             "zero_field_reassembly_from_same_elastic_A_D_coefficients"
         ),
@@ -264,9 +251,7 @@ def _two_term_elastic_energy_loss_record(
         "operator": required["operator"],
         "operator_isolation": required["operator_isolation"],
         "source_eedf": required["source_eedf"],
-        "neutral_thermal_motion_model": required[
-            "neutral_thermal_motion_model"
-        ],
+        "neutral_thermal_motion_model": required["neutral_thermal_motion_model"],
         "gas_temperature_terms_included": True,
         "gas_temperature_K": gas_temperature,
         "sign_convention": required["sign_convention"],
@@ -285,14 +270,10 @@ def _mc_elastic_energy_loss_record(
         return None
     transport = diagnostics.get("internal_monte_carlo_transport")
     provenance = (
-        transport.get("mc_run_provenance")
-        if isinstance(transport, dict)
-        else None
+        transport.get("mc_run_provenance") if isinstance(transport, dict) else None
     )
     gas_temperature = _repository._float_or_none(
-        provenance.get("gas_temperature_K")
-        if isinstance(provenance, dict)
-        else None
+        provenance.get("gas_temperature_K") if isinstance(provenance, dict) else None
     )
     scattering_types = {"elastic", "effective", "momentum"}
     supported: list[tuple[float, float, str]] = []
@@ -300,7 +281,9 @@ def _mc_elastic_energy_loss_record(
     missing_sampled_loss = False
     for item in rates:
         if not isinstance(item, dict):
-            raise _contracts.TableBuildError("monte_carlo reaction-rate diagnostic is invalid")
+            raise _contracts.TableBuildError(
+                "monte_carlo reaction-rate diagnostic is invalid"
+            )
         if str(item.get("process_type", "")).lower() not in scattering_types:
             continue
         if item.get("event_sampling_enabled") is not True:
@@ -328,8 +311,7 @@ def _mc_elastic_energy_loss_record(
         neutral_model = loss.get("neutral_thermal_motion_model")
         gas_temperature_terms = loss.get("gas_temperature_terms_included")
         if (
-            neutral_model
-            != "maxwellian_relative_speed_exact_binary_collision"
+            neutral_model != "maxwellian_relative_speed_exact_binary_collision"
             or gas_temperature_terms is not True
         ):
             raise _contracts.TableBuildError(

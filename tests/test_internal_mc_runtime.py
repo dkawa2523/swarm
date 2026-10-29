@@ -9,7 +9,8 @@ import numpy as np
 import pytest
 
 import electron_swarm.solvers.monte_carlo.batch as mc_batch
-from electron_swarm import load_config, run
+from electron_swarm import run
+from swarm_workflow.campaign.document import load_case_template
 from electron_swarm.core.constants import E_CHARGE_C, ELECTRON_MASS_KG
 from electron_swarm.solvers.monte_carlo.kinematics import boris_push
 from electron_swarm.solvers.monte_carlo.seeding import derive_case_seed
@@ -143,16 +144,16 @@ def test_monte_carlo_batch_derives_one_rng_per_field_independent_of_order(
 
 @pytest.mark.mc
 def test_fixed_base_seed_is_exact_and_each_field_matches_standalone() -> None:
-    config = load_config(
-        ROOT / "examples" / "argon_gec_ccp_monte_carlo_weighted_branching.yaml"
+    config = load_case_template(
+        ROOT / "examples" / "workflow_argon_gec_ccp_monte_carlo.yaml"
     )
     config.run.e_over_n_Td = [25.0, 75.0]
     mc = config.solvers.monte_carlo
-    mc.population_model = "fixed_particle_single_daughter"
+    config.physics.ionization.population_model = "fixed_particle_single_daughter"
     mc.particles = 4
-    mc.warmup_collisions = 1
-    mc.max_collisions = 3
-    mc.tail_max_collisions = None
+    mc.warmup_trial_periods = 1
+    mc.production_trial_periods = 3
+    mc.tail_trial_periods = None
     mc.seed = 123
     mc.numeric_kernel = "python"
 
@@ -166,9 +167,10 @@ def test_fixed_base_seed_is_exact_and_each_field_matches_standalone() -> None:
     assert first[1].mean_energy_eV == standalone.mean_energy_eV
     np.testing.assert_array_equal(first[1].eedf_counts, standalone.eedf_counts)
     np.testing.assert_array_equal(first[1].eedf, standalone.eedf)
-    assert first[1].metadata["monte_carlo_case_seed"] == standalone.metadata[
-        "monte_carlo_case_seed"
-    ]
+    assert (
+        first[1].metadata["monte_carlo_case_seed"]
+        == standalone.metadata["monte_carlo_case_seed"]
+    )
     expected_case_seed = derive_case_seed(base_seed=123, e_over_n_Td=75.0)
     assert standalone.metadata["monte_carlo_base_seed"] == 123
     assert standalone.metadata["monte_carlo_case_seed"] == expected_case_seed
@@ -189,18 +191,20 @@ def test_fixed_base_seed_is_exact_and_each_field_matches_standalone() -> None:
             by_field[field].eedf_counts,
             reordered_by_field[field].eedf_counts,
         )
-        assert by_field[field].mean_energy_eV == reordered_by_field[field].mean_energy_eV
+        assert (
+            by_field[field].mean_energy_eV == reordered_by_field[field].mean_energy_eV
+        )
 
 
 def test_direct_monte_carlo_requires_explicit_seed() -> None:
-    config = load_config(
-        ROOT / "examples" / "argon_gec_ccp_monte_carlo_weighted_branching.yaml"
+    config = load_case_template(
+        ROOT / "examples" / "workflow_argon_gec_ccp_monte_carlo.yaml"
     )
     config.run.e_over_n_Td = [25.0]
     config.solvers.monte_carlo.particles = 4
-    config.solvers.monte_carlo.warmup_collisions = 1
-    config.solvers.monte_carlo.max_collisions = 2
-    config.solvers.monte_carlo.tail_max_collisions = None
+    config.solvers.monte_carlo.warmup_trial_periods = 1
+    config.solvers.monte_carlo.production_trial_periods = 2
+    config.solvers.monte_carlo.tail_trial_periods = None
     config.solvers.monte_carlo.seed = None
 
     with pytest.raises(ValueError, match=r"monte_carlo\.seed is required"):

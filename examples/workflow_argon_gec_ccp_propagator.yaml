@@ -1,10 +1,8 @@
-base_config: argon_gec_ccp_propagator.yaml
-# Use the same offline E/N anchor contract as the two-term Function-EEDF
-# target.  COMSOL consumes these tables in one 1 W study; this is not a COMSOL
-# coefficient or power sweep.  P0/P1 is independently qualified; the separate
-# target qualification and COMSOL acceptance decide physical-target release.
-database: ../outputs/argon_gec_ccp/propagator_function_eedf_restricted_lmea.sqlite
-e_over_n_Td:
+schema_version: 2
+run:
+  solvers:
+  - id: propagator
+  e_over_n_Td:
   - 0.05
   - 0.1
   - 0.2
@@ -59,15 +57,50 @@ e_over_n_Td:
   - 3000.0
   - 3500.0
   - 4000.0
-mixtures:
-  - Ar: 1.0
-quality:
-  mobility_rse: 0.2
-  diffusion_rse: 0.3
-  major_rate_rse: 0.5
-execution:
-  deterministic:
-    # Contiguous chunks retain operator caching and E/N warm starts.  SQLite
-    # writes remain in the parent process and total reserved memory is bounded.
-    workers: 8
-    global_memory_budget_mb: 4096
+  case_prefix: argon_gec_ccp_propagator
+conditions:
+  gas_temperature_K: 300.0
+  pressure_Pa: 13.3322
+  gas_mixture:
+  - species: Ar
+    fraction: 1.0
+    mass_amu: 39.948
+cross_sections:
+  format: csv
+  high_energy_extrapolation: zero
+  files:
+  - path: cross_sections/argon_application_library.csv
+    species: Ar
+    format: csv
+physics:
+  angular_scattering:
+    model: isotropic
+  ionization:
+    energy_sharing: equal
+  energy_grid_policy:
+    tail_probability_target: 1.0e-09
+    max_eV_limit: 30000.0
+solvers:
+  propagator:
+    method: stationary_response
+    energy_cells: 300
+    polar_cells: 48
+    max_iterations: 2000
+    convergence_tolerance: 1.0e-08
+    max_memory_mb: 256
+feature_policy:
+  unsupported: fail
+  degraded: record
+output:
+  directory: ../outputs/argon_gec_ccp/propagator_gec_ccp_cases
+  base_name: argon_gec_ccp_propagator
+campaign:
+  database: ../outputs/argon_gec_ccp/propagator_function_eedf_restricted_lmea.sqlite
+  quality:
+    mobility_rse: 0.2
+    diffusion_rse: 0.3
+    major_rate_rse: 0.5
+  execution:
+    deterministic:
+      workers: 8
+      global_memory_budget_mb: 4096

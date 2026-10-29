@@ -10,8 +10,7 @@ The public entry points are:
 
 | Purpose | Two term | Monte Carlo | Propagator P1 |
 | --- | --- | --- | --- |
-| Base configuration | `examples/argon_gec_ccp_base.yaml` | `examples/argon_gec_ccp_monte_carlo_weighted_branching.yaml` | `examples/argon_gec_ccp_propagator.yaml` |
-| Sweep workflow | `examples/workflow_argon_gec_ccp_two_term.yaml` | `examples/workflow_argon_gec_ccp_monte_carlo.yaml` | `examples/workflow_argon_gec_ccp_propagator.yaml` |
+| Swarm configuration | `examples/workflow_argon_gec_ccp_two_term.yaml` | `examples/workflow_argon_gec_ccp_monte_carlo.yaml` | `examples/workflow_argon_gec_ccp_propagator.yaml` |
 | COMSOL mapping | `comsol_modes/maps/argon_gec_ccp_two_term_function_eedf.yaml` | `comsol_modes/maps/argon_gec_ccp_monte_carlo_function_eedf_restricted_lmea.yaml` | `comsol_modes/maps/argon_gec_ccp_propagator_function_eedf.yaml` |
 | Result role | physical target | physical target after MC qualification | physical target after core and target-grid qualification |
 
@@ -86,7 +85,7 @@ silently depend on a prior campaign.
 For two term:
 
 ```powershell
-swarm-workflow sweep examples\workflow_argon_gec_ccp_two_term.yaml
+swarm-workflow run examples\workflow_argon_gec_ccp_two_term.yaml
 swarm-workflow build-tables outputs\argon_gec_ccp\two_term_function_eedf_restricted_lmea.sqlite --output outputs\argon_gec_ccp\two_term_function_eedf_restricted_lmea_tables --source two_term
 swarm-workflow export-comsol outputs\argon_gec_ccp\two_term_function_eedf_restricted_lmea_tables --output outputs\argon_gec_ccp\two_term_function_eedf_restricted_lmea_bundle
 swarm-workflow run-gec-ccp comsol_modes\maps\argon_gec_ccp_two_term_function_eedf.yaml --bundle outputs\argon_gec_ccp\two_term_function_eedf_restricted_lmea_bundle\mixture_0000
@@ -95,7 +94,7 @@ swarm-workflow run-gec-ccp comsol_modes\maps\argon_gec_ccp_two_term_function_eed
 For Monte Carlo:
 
 ```powershell
-swarm-workflow sweep examples\workflow_argon_gec_ccp_monte_carlo.yaml
+swarm-workflow run examples\workflow_argon_gec_ccp_monte_carlo.yaml
 swarm-workflow build-tables outputs\argon_gec_ccp\monte_carlo_function_eedf_restricted_lmea.sqlite --output outputs\argon_gec_ccp\monte_carlo_function_eedf_restricted_lmea_tables --source monte_carlo --mc-qualification-profile function_eedf_restricted_lmea
 swarm-workflow decide-mc --mc-tables outputs\argon_gec_ccp\monte_carlo_function_eedf_restricted_lmea_tables\mixture_0000 --two-term-tables outputs\argon_gec_ccp\two_term_function_eedf_restricted_lmea_tables\mixture_0000 --attempt 1 --output outputs\argon_gec_ccp\mc_solver_selection.json
 swarm-workflow export-comsol outputs\argon_gec_ccp\monte_carlo_function_eedf_restricted_lmea_tables --selection outputs\argon_gec_ccp\mc_solver_selection.json --output outputs\argon_gec_ccp\monte_carlo_function_eedf_restricted_lmea_bundle
@@ -105,7 +104,7 @@ swarm-workflow run-gec-ccp comsol_modes\maps\argon_gec_ccp_monte_carlo_function_
 For the bounded propagator target:
 
 ```powershell
-swarm-workflow sweep examples\workflow_argon_gec_ccp_propagator.yaml
+swarm-workflow run examples\workflow_argon_gec_ccp_propagator.yaml
 py -3 tools\qualify_propagator_target.py `
   --target argon_gec_ccp_restricted_local_mean_energy `
   --fields-Td 3000 3500 4000 `
@@ -116,18 +115,18 @@ py -3 tools\qualify_propagator_target.py `
   --mixture-id 0 `
   --fine-max-memory-mb 1024 `
   --database outputs\argon_gec_ccp\propagator_function_eedf_restricted_lmea.sqlite `
-  --config examples\argon_gec_ccp_propagator.yaml `
-  --core-qualification docs\dev\results\propagator_p1_deterministic_qualification_20260908.json `
+  --config examples\workflow_argon_gec_ccp_propagator.yaml `
+  --core-qualification docs\dev\results\propagator_p1_core_qualification.json `
   --workers 3 `
   --memory-budget-mb 3072 `
-  --output docs\dev\results\propagator_gec_ccp_target_qualification_20260915.json
-swarm-workflow build-tables outputs\argon_gec_ccp\propagator_function_eedf_restricted_lmea.sqlite --output outputs\argon_gec_ccp\propagator_function_eedf_restricted_lmea_tables --source propagator --solver-qualification docs\dev\results\propagator_p1_deterministic_qualification_20260908.json --target-qualification docs\dev\results\propagator_gec_ccp_target_qualification_20260915.json
+  --output docs\dev\results\propagator_gec_ccp_target_qualification.json
+swarm-workflow build-tables outputs\argon_gec_ccp\propagator_function_eedf_restricted_lmea.sqlite --output outputs\argon_gec_ccp\propagator_function_eedf_restricted_lmea_tables --source propagator --solver-qualification docs\dev\results\propagator_p1_core_qualification.json --target-qualification docs\dev\results\propagator_gec_ccp_target_qualification.json
 swarm-workflow export-comsol outputs\argon_gec_ccp\propagator_function_eedf_restricted_lmea_tables --output outputs\argon_gec_ccp\propagator_function_eedf_restricted_lmea_bundle
 swarm-workflow run-gec-ccp comsol_modes\maps\argon_gec_ccp_propagator_function_eedf.yaml --bundle outputs\argon_gec_ccp\propagator_function_eedf_restricted_lmea_bundle\mixture_0000
 ```
 
 The generic qualification CLI writes
-`swarm.propagator_target_qualification.v1`. The GEC-CCP adapter then validates
+`swarm.propagator_target_qualification.v2`. The GEC-CCP adapter then validates
 that artifact against its own explicit fields, bracket, support cap, mixture,
 grid pair, and refinement limits during preflight.
 

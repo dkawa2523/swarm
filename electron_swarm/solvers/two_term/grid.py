@@ -6,7 +6,7 @@ import numpy as np
 
 from electron_swarm.core.cross_sections import CrossSectionSet
 from electron_swarm.core.solver_configs import TwoTermInternalConfig
-from electron_swarm.grids.energy import build_energy_grid
+from electron_swarm.grids.energy import EnergyGrid, bound_energy_grid, build_energy_grid
 from electron_swarm.solvers.boltzmann_common.grid import cell_edges_from_centers
 
 
@@ -20,7 +20,11 @@ def make_energy_grid(
     grid = cfg.energy_grid
     n = int(n_override or grid.n)
     emin = max(float(grid.min_eV), 0.0)
-    emax = float(max_eV_override if max_eV_override is not None else grid.max_eV)
+    limit = float(cfg.adaptive_grid.max_max_eV)
+    emax = min(
+        float(max_eV_override if max_eV_override is not None else grid.max_eV),
+        limit,
+    )
     if n < 8:
         raise ValueError("Boltzmann energy grid requires at least 8 cells")
     if emax <= emin:
@@ -53,7 +57,8 @@ def make_energy_grid(
         edges, widths = cell_edges_from_centers(energy)
     else:
         raise ValueError(f"Unsupported energy spacing: {grid.spacing}")
-    return energy, edges, widths
+    bounded = bound_energy_grid(EnergyGrid(energy, edges, widths), limit)
+    return bounded.centers_eV, bounded.edges_eV, bounded.widths_eV
 
 
 def grid_metadata(

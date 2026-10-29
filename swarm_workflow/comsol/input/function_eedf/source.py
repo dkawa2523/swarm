@@ -7,6 +7,8 @@ import math
 
 import numpy as np
 
+from electron_swarm.grids.energy import reported_cell_edges
+
 from .contracts import FunctionEedfError
 
 
@@ -28,18 +30,14 @@ def _prepare_source_slice(
     density = np.asarray([item[2] for item in values], dtype=float)
     if len(centers) < 2 or np.any(np.diff(centers) <= 0.0):
         raise FunctionEedfError("source energy grid must be strictly increasing")
-    if np.any(~np.isfinite(widths)) or np.any(widths <= 0.0):
-        raise FunctionEedfError("source energy widths must be positive")
+    try:
+        edges = reported_cell_edges(centers, widths)
+    except ValueError as exc:
+        raise FunctionEedfError(f"source EEDF has an invalid cell grid: {exc}") from exc
     if np.any(~np.isfinite(density)) or np.any(density < 0.0):
         raise FunctionEedfError("source EEDF must be finite and nonnegative")
-    left = np.maximum(0.0, centers - 0.5 * widths)
-    right = centers + 0.5 * widths
-    overlap = right[:-1] - left[1:]
-    scale = np.maximum.reduce(
-        [np.ones_like(overlap), np.abs(right[:-1]), np.abs(left[1:])]
-    )
-    if np.any(overlap > 1.0e-10 * scale):
-        raise FunctionEedfError("source EEDF bins overlap")
+    left = edges[:-1]
+    right = edges[1:]
     masses = density * widths
     source_norm = float(np.sum(masses))
     if not math.isfinite(source_norm) or source_norm <= 0.0:

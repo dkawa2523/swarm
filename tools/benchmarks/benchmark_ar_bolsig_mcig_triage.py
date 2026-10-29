@@ -17,7 +17,9 @@ from tools.benchmarks.eedf_compare import compare_eedf_cases
 from tools.benchmarks.references.common import (
     ReferenceCaseResult,
     reference_comparison_metrics,
-    reference_to_swarm_case,
+    reference_comparison_case,
+    reference_comparison_status,
+    combined_reference_status,
 )
 from tools.benchmarks.benchmark_ar_external_references import (
     BOLSIG_THRESHOLDS,
@@ -50,6 +52,9 @@ TRIAGE_FIELDS = [
 ]
 
 METRIC_FIELDS = [
+    "status",
+    "unavailable_metrics",
+    "failed_metrics",
     "E_over_N_Td",
     "reference",
     "candidate",
@@ -96,6 +101,16 @@ def _metric_row(
     confidence: str = "",
 ) -> dict[str, object]:
     return {
+        **(
+            reference_comparison_status(
+                metrics,
+                MCIG_THRESHOLDS if reference == "mcig" else BOLSIG_THRESHOLDS,
+                confidence_status=confidence,
+                angular_model_status=angular_status or "match",
+            )
+            if reference in {"mcig", "bolsig_plus"}
+            else {}
+        ),
         "E_over_N_Td": eover,
         "reference": reference,
         "candidate": _solver_label(candidate)
@@ -249,9 +264,9 @@ def run_triage(
             eedf_rows.append(_metric_row(eover, "bolsig_plus", two, metrics))
             transport_rows.append(_metric_row(eover, "bolsig_plus", two, metrics))
             rate_rows.append(_metric_row(eover, "bolsig_plus", two, metrics))
-            statuses["two_term_vs_bolsig"] = (
-                "PASS" if not _is_bad(metrics, BOLSIG_THRESHOLDS) else "FAIL"
-            )
+            statuses["two_term_vs_bolsig"] = reference_comparison_status(
+                metrics, BOLSIG_THRESHOLDS
+            )["status"]
             if statuses["two_term_vs_bolsig"] == "FAIL":
                 implementation_bug = True
                 likely.append("code_or_bolsig_input_mismatch")
@@ -269,14 +284,22 @@ def run_triage(
             statuses["two_term_vs_bolsig"] = "missing"
 
         if bolsig is not None and mcig is not None:
-            bolsig_case = reference_to_swarm_case(bolsig)
+            bolsig_case = reference_comparison_case(bolsig)
             metrics = reference_comparison_metrics(mcig, bolsig_case)
             eedf_rows.append(
-                _metric_row(eover, "mcig", "reference:bolsig_plus", metrics)
+                _metric_row(
+                    eover,
+                    "mcig",
+                    "reference:bolsig_plus",
+                    metrics,
+                    angular_status=_angular_status(mcig, bolsig_case)[0],
+                )
             )
-            statuses["mcig_vs_bolsig"] = (
-                "PASS" if not _is_bad(metrics, MCIG_THRESHOLDS) else "DEGRADED"
-            )
+            statuses["mcig_vs_bolsig"] = reference_comparison_status(
+                metrics,
+                MCIG_THRESHOLDS,
+                angular_model_status=_angular_status(mcig, bolsig_case)[0],
+            )["status"]
             if statuses["mcig_vs_bolsig"] == "DEGRADED":
                 physics_limit = True
                 likely.append(
@@ -346,7 +369,16 @@ def run_triage(
                         "increase MCIG statistics before treating this as a solver mismatch",
                         "low",
                     )
-                    continue
+                    if (
+                        reference_comparison_status(
+                            metrics,
+                            MCIG_THRESHOLDS,
+                            confidence_status=confidence,
+                            angular_model_status=angular_status,
+                        )["status"]
+                        == "PASS_WITHIN_MC_UNCERTAINTY"
+                    ):
+                        continue
                 if angular_status != "match":
                     likely.append("angular_model_mismatch")
                     _add_failure(
@@ -428,17 +460,8 @@ def run_triage(
                 and str(row["candidate"]).startswith("multi_term_lmax")
                 and row["candidate"] != "multi_term_lmax1"
             ]
-            statuses["multi_lmax_gt1_vs_mcig"] = (
-                "PASS"
-                if high_l_rows
-                and all(
-                    float(row.get("eedf_relative_l1", 0.0))
-                    <= MCIG_THRESHOLDS["eedf_relative_l1"]
-                    for row in high_l_rows
-                )
-                else "DEGRADED"
-                if high_l_rows
-                else "missing"
+            statuses["multi_lmax_gt1_vs_mcig"] = combined_reference_status(
+                row["status"] for row in high_l_rows
             )
             mc_rows = [
                 row
@@ -447,17 +470,8 @@ def run_triage(
                 and row["reference"] == "mcig"
                 and row["candidate"] == "monte_carlo"
             ]
-            statuses["internal_mc_vs_mcig"] = (
-                "PASS"
-                if mc_rows
-                and all(
-                    float(row.get("eedf_relative_l1", 0.0))
-                    <= MCIG_THRESHOLDS["eedf_relative_l1"]
-                    for row in mc_rows
-                )
-                else "DEGRADED"
-                if mc_rows
-                else "missing"
+            statuses["internal_mc_vs_mcig"] = combined_reference_status(
+                row["status"] for row in mc_rows
             )
         else:
             statuses["multi_lmax_gt1_vs_mcig"] = "missing"
@@ -471,11 +485,17 @@ def run_triage(
             )
         overall = (
             "FAIL"
-            if implementation_bug
+            if implementation_bug or "FAIL" in statuses.values()
             else "DEGRADED"
             if physics_limit
             or mc_uncertain
             or any("mismatch" in item for item in likely)
+            or "DEGRADED" in statuses.values()
+            else "PARTIAL"
+            if any(
+                value in {"missing", "PARTIAL", "UNAVAILABLE"}
+                for value in statuses.values()
+            )
             else "PASS"
         )
         matrix_rows.append(
@@ -512,11 +532,7 @@ def run_triage(
     write_csv(paths["transport"], transport_rows, METRIC_FIELDS)
     write_csv(paths["rates"], rate_rows, METRIC_FIELDS)
     write_csv(paths["failures"], failure_rows, FAILURE_FIELDS)
-    status = "PASS"
-    if any(row["overall_status"] == "FAIL" for row in matrix_rows):
-        status = "FAIL"
-    elif any(row["overall_status"] == "DEGRADED" for row in matrix_rows):
-        status = "DEGRADED"
+    status = combined_reference_status(row["overall_status"] for row in matrix_rows)
     if all(
         row["likely_cause"] == "no_external_reference_available" for row in matrix_rows
     ):

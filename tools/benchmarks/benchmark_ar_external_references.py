@@ -13,17 +13,18 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import yaml
-
 from electron_swarm import run
 from electron_swarm.core.config import SwarmConfig
 from electron_swarm.core.config_parser import load_config_from_raw
+from electron_swarm.core.yaml_input import read_yaml_mapping
 from tools.benchmarks.references import load_reference_cases
 from tools.benchmarks.references.common import (
     ExternalReferenceConfig,
     ReferenceCaseResult,
     parse_external_reference_configs,
     reference_comparison_metrics,
+    reference_comparison_status,
+    combined_reference_status,
 )
 from tools.benchmarks.references.runner import run_external_reference_command
 from tools.benchmarks.common import variant_config, write_csv
@@ -41,6 +42,11 @@ MCIG_THRESHOLDS = {
 }
 
 SUMMARY_FIELDS = [
+    "reference_source_path",
+    "reference_source_sha256",
+    "reference_geometry",
+    "reference_normalization_before",
+    "reference_mean_energy_source",
     "reference_id",
     "reference_case_id",
     "candidate_solver",
@@ -48,6 +54,8 @@ SUMMARY_FIELDS = [
     "candidate_lmax",
     "E_over_N_Td",
     "status",
+    "unavailable_metrics",
+    "failed_metrics",
     "confidence_status",
     "angular_model_status",
     "mean_energy_relative_difference",
@@ -93,9 +101,7 @@ def load_benchmark_config(
 ) -> tuple[SwarmConfig, list[ExternalReferenceConfig]]:
     """Load product config plus benchmark-only external references."""
 
-    raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-    if not isinstance(raw, dict):
-        raise ValueError("benchmark config root must be a mapping")
+    raw = read_yaml_mapping(config_path)
     reference_configs = parse_external_reference_configs(
         raw,
         base=config_path.resolve().parent,
@@ -405,8 +411,7 @@ def _failure(
 
 
 def _rate_metric(metrics: dict[str, float], rate_name: str) -> float | str:
-    value = metrics.get("major_rate_relative_difference", "")
-    return value if rate_name else value
+    return metrics.get(f"{rate_name}_rate_relative_difference", "")
 
 
 def _angular_status(reference_case: ReferenceCaseResult, candidate) -> tuple[str, str]:
@@ -425,6 +430,8 @@ def _mc_confidence_status(
     candidate,
     metrics: dict[str, float],
 ) -> tuple[str, float | str]:
+    if reference_case.metadata.get("uncertainty_unavailable") is True:
+        return "unknown", ""
     ci = reference_case.metadata.get("scalar_ci95")
     if not isinstance(ci, dict) or not ci:
         return "unknown", ""
@@ -438,6 +445,8 @@ def _mc_confidence_status(
         ("diffusion_T_m2_s", "diffusion_T_m2_s"),
     ):
         if scalar not in ci or scalar not in reference_case.scalars:
+            continue
+        if getattr(candidate, attr) is None:
             continue
         total += 1
         if abs(
@@ -789,33 +798,38 @@ def run_benchmark(
                 if reference_case.reference_id == "mcig"
                 else ("not_applicable", "")
             )
-            status = "PASS"
             thresholds = (
                 MCIG_THRESHOLDS
                 if reference_case.reference_id == "mcig"
                 else BOLSIG_THRESHOLDS
             )
-            for threshold_name, threshold in thresholds.items():
-                if metrics.get(threshold_name, 0.0) > threshold:
-                    status = "FAIL"
-            if (
-                reference_case.reference_id == "mcig"
-                and confidence_status == "pass_within_mc_uncertainty"
-            ):
-                status = "PASS_WITHIN_MC_UNCERTAINTY"
-            if (
-                reference_case.reference_id == "mcig"
-                and angular_model_status != "match"
-            ):
-                status = "DEGRADED"
+            verdict = reference_comparison_status(
+                metrics,
+                thresholds,
+                confidence_status=confidence_status,
+                angular_model_status=angular_model_status,
+            )
             common = {
+                "reference_source_path": reference_case.metadata.get("source_path", ""),
+                "reference_source_sha256": reference_case.metadata.get(
+                    "source_sha256", ""
+                ),
+                "reference_geometry": reference_case.metadata.get(
+                    "distribution_geometry", ""
+                ),
+                "reference_normalization_before": reference_case.metadata.get(
+                    "eedf_normalization_before", ""
+                ),
+                "reference_mean_energy_source": reference_case.metadata.get(
+                    "mean_energy_source", ""
+                ),
                 "reference_id": reference_case.reference_id,
                 "reference_case_id": reference_case.case_id,
                 "candidate_solver": candidate.solver,
                 "candidate_method": candidate.metadata.get("solver_method", ""),
                 "candidate_lmax": candidate.metadata.get("lmax", ""),
                 "E_over_N_Td": candidate.e_over_n_Td,
-                "status": status,
+                **verdict,
                 "confidence_status": confidence_status,
                 "angular_model_status": angular_model_status,
                 "mc_confidence_interval_coverage": confidence_coverage,
@@ -823,6 +837,9 @@ def run_benchmark(
             summary_rows.append(
                 {
                     **common,
+                    "major_rate_relative_difference": metrics.get(
+                        "major_rate_relative_difference", ""
+                    ),
                     "mean_energy_relative_difference": metrics.get(
                         "mean_energy_relative_difference", ""
                     ),
@@ -883,22 +900,39 @@ def run_benchmark(
             for bolsig_case in bolsig_cases:
                 if abs(mcig_case.e_over_n_Td - bolsig_case.e_over_n_Td) > 1.0e-9:
                     continue
-                from tools.benchmarks.references.common import reference_to_swarm_case
+                from tools.benchmarks.references.common import reference_comparison_case
 
-                bolsig_as_case = reference_to_swarm_case(bolsig_case)
+                bolsig_as_case = reference_comparison_case(bolsig_case)
                 metrics = reference_comparison_metrics(mcig_case, bolsig_as_case)
                 angular_model_status, _angular_evidence = _angular_status(
                     mcig_case,
                     bolsig_as_case,
                 )
                 common = {
+                    "reference_source_path": mcig_case.metadata.get("source_path", ""),
+                    "reference_source_sha256": mcig_case.metadata.get(
+                        "source_sha256", ""
+                    ),
+                    "reference_geometry": mcig_case.metadata.get(
+                        "distribution_geometry", ""
+                    ),
+                    "reference_normalization_before": mcig_case.metadata.get(
+                        "eedf_normalization_before", ""
+                    ),
+                    "reference_mean_energy_source": mcig_case.metadata.get(
+                        "mean_energy_source", ""
+                    ),
                     "reference_id": "mcig",
                     "reference_case_id": mcig_case.case_id,
                     "candidate_solver": "reference:bolsig_plus",
                     "candidate_method": "bolsig_plus",
                     "candidate_lmax": "",
                     "E_over_N_Td": mcig_case.e_over_n_Td,
-                    "status": "DEGRADED" if angular_model_status != "match" else "PASS",
+                    **reference_comparison_status(
+                        metrics,
+                        MCIG_THRESHOLDS,
+                        angular_model_status=angular_model_status,
+                    ),
                     "confidence_status": "unknown"
                     if mcig_case.metadata.get("uncertainty_unavailable", False)
                     else "reported",
@@ -947,11 +981,7 @@ def run_benchmark(
     written_plot = (
         _write_plot(out_dir, base_name, reference_cases, solver_cases) if plot else None
     )
-    status = "PASS"
-    if [row for row in summary_rows if row.get("status") == "FAIL"]:
-        status = "FAIL"
-    elif [row for row in summary_rows if row.get("status") == "DEGRADED"]:
-        status = "DEGRADED"
+    status = combined_reference_status(row["status"] for row in summary_rows)
     if not reference_cases:
         status = "SKIP_EXTERNAL_REFERENCE"
     report_path.parent.mkdir(parents=True, exist_ok=True)

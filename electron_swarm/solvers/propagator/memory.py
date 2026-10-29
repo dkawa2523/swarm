@@ -24,8 +24,8 @@ def preflight_memory_bytes(
         else 0
     )
     krylov_vectors = (
-        krylov_subspace_dimension(cells) + 8
-    ) * cells * np.dtype(float).itemsize
+        (krylov_subspace_dimension(cells) + 8) * cells * np.dtype(float).itemsize
+    )
     response_blocks = (
         4
         * int(energy_cells)

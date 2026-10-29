@@ -1,0 +1,4 @@
+{
+  "status": "blocked",
+  "reason": "bundle manifest requires the canonical SHA-256 chain for workflow config, base config, and cross sections"
+}

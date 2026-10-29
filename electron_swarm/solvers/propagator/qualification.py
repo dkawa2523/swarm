@@ -39,8 +39,7 @@ def qualify_p1_inputs(
     )
     if unsupported:
         raise NotImplementedError(
-            "propagator P1 does not implement active process types "
-            f"{unsupported}"
+            f"propagator P1 does not implement active process types {unsupported}"
         )
     channels = resolve_particle_scattering(
         cross_sections,

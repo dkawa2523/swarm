@@ -10,10 +10,10 @@ from electron_swarm.core.config import SwarmConfig
 from electron_swarm.core.constants import TOWNSEND
 from electron_swarm.core.cross_sections import CrossSectionSet
 from electron_swarm.core.solver_configs import TwoTermInternalConfig
-from electron_swarm.physics.kinetics import gas_number_density
+from electron_swarm.core.gas import gas_number_density
 from electron_swarm.solvers.boltzmann_common.collisions import (
-    assemble_collision_operator,
     build_effective_collision_data,
+    build_inelastic_collision_data,
 )
 from electron_swarm.solvers.boltzmann_common.grid import (
     KineticGrid,
@@ -54,7 +54,7 @@ def solve_native_distribution(
 ) -> NativeDistributionResult:
     """Solve the stationary EEDF and retain its final case assembly."""
 
-    max_eV = float(cfg.energy_grid.max_eV)
+    max_eV = min(float(cfg.energy_grid.max_eV), cfg.adaptive_grid.max_max_eV)
     previous: tuple[np.ndarray, np.ndarray] | None = None
     last_diag: NativeSolveDiagnostics | None = None
     last_block: KineticOperatorBlock | None = None
@@ -199,7 +199,7 @@ def assemble_native_operator_block(
         electric_field,
         collisions,
     )
-    collision = assemble_collision_operator(
+    inelastic = build_inelastic_collision_data(
         config,
         cross_sections,
         grid.energy_eV,
@@ -213,8 +213,9 @@ def assemble_native_operator_block(
         electric_field_V_m=float(electric_field),
         collisions=collisions,
         energy_flux_matrix=energy_flux,
-        collision_matrix=collision,
-        matrix=(energy_flux + collision).tocsr(),
+        collision_matrix=inelastic.matrix,
+        net_creation_frequency_s_inv=inelastic.net_creation_frequency_s_inv,
+        matrix=(energy_flux + inelastic.matrix).tocsr(),
     )
 
 
@@ -283,7 +284,13 @@ def solve_native_on_grid(
             p_new = np.clip(p_new, 0.0, None)
             p_new = normalize_eedf(p_new, widths)
         lp = op @ p_new
-        new_growth = weighted_integral(lp, widths)
+        # Conservative field/recoil terms cancel analytically. Summing their
+        # large discrete actions invents roundoff-scale growth and can keep
+        # the eigenvalue iteration moving even for a purely elastic gas.
+        # Use the number source assembled from the same reaction transfers.
+        new_growth = weighted_integral(
+            block.net_creation_frequency_s_inv * p_new, widths
+        )
         eig_res = lp - new_growth * p_new
         residual_numerator = float(np.sum(np.abs(eig_res) * widths))
         residual_denominator = max(
@@ -350,10 +357,11 @@ def solve_normalized(op: sparse.csr_matrix, widths: np.ndarray) -> np.ndarray:
     n = op.shape[0]
     mat = op.tolil(copy=True)
     rhs = np.zeros(n)
-    # Replace one equation by normalization integral F dE = 1. Choose the row
-    # with the largest diagonal magnitude to reduce boundary-condition bias.
-    diag_abs = np.abs(op.diagonal())
-    row = int(np.argmax(diag_abs)) if np.any(diag_abs > 0.0) else n - 1
+    # Keep the stiff thermal/origin equations intact. Replacing their largest
+    # diagonal row amplifies roundoff in the small ionizing tail at low field.
+    # The outer row is redundant with number balance and normalization; the
+    # full original eigenproblem is still checked after solving.
+    row = n - 1
     mat[row, :] = widths
     rhs[row] = 1.0
     csr = mat.tocsr()

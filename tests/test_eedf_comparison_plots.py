@@ -30,7 +30,7 @@ _MIXTURE = {
 _CROSS_SECTIONS_SHA256 = "a" * 64
 _MC_IDENTITY = {
     "workflow_config_sha256": "b" * 64,
-    "base_config_sha256": "c" * 64,
+    "calculation_sha256": "c" * 64,
     "mc_sampling_plan_json": "[]",
     "mc_transport_estimator_schema_version": "test_transport.v1",
     "mc_eedf_estimator_schema_version": "test_eedf.v1",
@@ -258,6 +258,45 @@ def test_table_and_mc_loaders_preserve_normalization_and_uncertainty(
     assert np.all(mc.cases[1.0].ci95_half_density_eV_inv > 0.0)
 
 
+@pytest.mark.parametrize("solver", ["two_term", "multi_term"])
+def test_table_loader_preserves_bounded_reported_cell_geometry(
+    tmp_path: Path, solver: str,
+) -> None:
+    root = tmp_path / solver
+    _write_table(root, solver=solver)
+    # The first and last cells are clipped at 0 and 3 eV. The solver nodes
+    # therefore need not be the midpoints of their reported cells.
+    centers = (0.1, 1.0, 2.0, 3.0)
+    widths = (0.55, 0.95, 1.0, 0.5)
+    mean = sum(center * width for center, width in zip(centers, widths, strict=True)) / 3.0
+    with (root / "mean_energy_vs_en.csv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.writer(handle)
+        writer.writerow(("E_over_N_Td", "mean_energy_eV"))
+        writer.writerows((field, mean) for field in (1, 5))
+    with (root / "eedf.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(
+            ("electron_energy_eV", "energy_width_eV", "E_over_N_Td", "eedf")
+        )
+        for field in (1, 5):
+            for center, width in zip(centers, widths, strict=True):
+                writer.writerow((center, width, field, 1.0 / 3.0))
+    manifest_path = root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for name in ("eedf.csv", "mean_energy_vs_en.csv"):
+        manifest["tables"][name]["sha256"] = _sha256(root / name)
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    dataset = load_table_eedf(root, solver, require_manifest=True)
+
+    for case in dataset.cases.values():
+        assert case.edges_eV == pytest.approx([0.0, 0.55, 1.5, 2.5, 3.0])
+        assert case.widths_eV == pytest.approx(widths)
+        assert case.source_normalization == pytest.approx(1.0)
+
+
 def test_mc_loader_rejects_database_changed_after_table_materialization(
     tmp_path: Path,
 ) -> None:
@@ -274,7 +313,7 @@ def test_mc_loader_rejects_database_changed_after_table_materialization(
     with sqlite3.connect(database) as connection:
         connection.execute(
             "UPDATE metadata SET value = ? WHERE key = ?",
-            ("changed", "base_config_sha256"),
+            ("changed", "calculation_sha256"),
         )
 
     with pytest.raises(EedfComparisonError, match="does not match its source manifest"):

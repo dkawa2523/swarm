@@ -121,10 +121,7 @@ def _response_krylov_subspace_dimension(
     if expanded == base:
         return base
     origin_frequency = float(
-        sum(
-            item.collision_frequency_s_inv[0]
-            for item in operator.collisions.elastic
-        )
+        sum(item.collision_frequency_s_inv[0] for item in operator.collisions.elastic)
     )
     grazing_cosine = float(np.min(np.abs(operator.grid.mu_centers)))
     optical_depth = (
@@ -158,7 +155,9 @@ def _positive_perron_evaluation(
 
     def action(vector: np.ndarray) -> np.ndarray:
         budget.consume()
-        return system.apply(np.asarray(vector, dtype=float).reshape(shape)).population.reshape(-1)
+        return system.apply(
+            np.asarray(vector, dtype=float).reshape(shape)
+        ).population.reshape(-1)
 
     linear = LinearOperator((cells, cells), matvec=action, dtype=float)
     state = normalized_population(initial).reshape(-1)
@@ -167,8 +166,14 @@ def _positive_perron_evaluation(
     for _ in range(3):
         mapped = action(state)
         mass = float(np.sum(mapped))
-        if mass <= 0.0 or np.any(~np.isfinite(mapped)) or np.min(mapped) < -1.0e-13 * max(float(np.max(np.abs(mapped))), 1.0):
-            raise FloatingPointError("positive response map produced a nonpositive iterate")
+        if (
+            mass <= 0.0
+            or np.any(~np.isfinite(mapped))
+            or np.min(mapped) < -1.0e-13 * max(float(np.max(np.abs(mapped))), 1.0)
+        ):
+            raise FloatingPointError(
+                "positive response map produced a nonpositive iterate"
+            )
         state = mapped / mass
     positive_seed = state.copy()
     krylov_dimension = _response_krylov_subspace_dimension(
@@ -205,9 +210,7 @@ def _positive_perron_evaluation(
         values: np.ndarray,
         vectors: np.ndarray,
     ) -> list[tuple[float, int, complex, np.ndarray, float]]:
-        candidates: list[
-            tuple[float, int, complex, np.ndarray, float]
-        ] = []
+        candidates: list[tuple[float, int, complex, np.ndarray, float]] = []
         for index, raw_eigenvalue in enumerate(values):
             eigenvalue = complex(raw_eigenvalue)
             vector = np.asarray(vectors[:, index])
@@ -219,8 +222,7 @@ def _positive_perron_evaluation(
                 not np.isfinite(eigenvalue.real)
                 or not np.isfinite(eigenvalue.imag)
                 or eigenvalue.real <= 0.0
-                or abs(eigenvalue.imag)
-                > 1.0e-8 * max(abs(eigenvalue.real), 1.0)
+                or abs(eigenvalue.imag) > 1.0e-8 * max(abs(eigenvalue.real), 1.0)
                 or imaginary_fraction > 1.0e-8
             ):
                 continue
@@ -231,9 +233,9 @@ def _positive_perron_evaluation(
                 float(np.sum(np.abs(real_vector))),
                 1.0e-300,
             )
-            negative_fraction = float(
-                np.sum(np.maximum(-real_vector, 0.0))
-            ) / absolute_mass
+            negative_fraction = (
+                float(np.sum(np.maximum(-real_vector, 0.0))) / absolute_mass
+            )
             if negative_fraction <= 1.0e-6:
                 candidates.append(
                     (
@@ -270,9 +272,7 @@ def _positive_perron_evaluation(
             "positive response Arnoldi subspace contained no real "
             "cone-compatible Perron vector"
         )
-    _, selected_index, eigenvalue, state, negative_fraction = (
-        cone_candidates[0]
-    )
+    _, selected_index, eigenvalue, state, negative_fraction = cone_candidates[0]
     largest_returned_real_part = float(np.max(np.real(eigenvalues)))
     if largest_returned_real_part - eigenvalue.real > max(
         20.0 * eigensolver_tolerance * max(abs(eigenvalue.real), 1.0),
@@ -284,9 +284,7 @@ def _positive_perron_evaluation(
     if len(cone_candidates) > 1:
         second_cone_eigenvalue = cone_candidates[1][0]
         if eigenvalue.real - second_cone_eigenvalue <= max(
-            20.0
-            * eigensolver_tolerance
-            * max(abs(eigenvalue.real), 1.0),
+            20.0 * eigensolver_tolerance * max(abs(eigenvalue.real), 1.0),
             1.0e-11,
         ):
             raise RuntimeError(
@@ -300,9 +298,7 @@ def _positive_perron_evaluation(
     perron_real_part_gap = (
         float("inf")
         if not other_real_parts
-        else (
-            float(eigenvalue.real) - max(other_real_parts)
-        )
+        else (float(eigenvalue.real) - max(other_real_parts))
         / max(abs(float(eigenvalue.real)), 1.0e-300)
     )
 
@@ -331,7 +327,9 @@ def _positive_perron_evaluation(
         mapped = application.population.reshape(-1)
         radius = float(np.sum(mapped))
         if radius <= 0.0 or not np.isfinite(radius):
-            raise FloatingPointError("positive response has a nonpositive spectral radius")
+            raise FloatingPointError(
+                "positive response has a nonpositive spectral radius"
+            )
         candidate = mapped / radius
         scale = max(float(np.max(np.abs(candidate))), 1.0)
         if float(np.min(candidate)) < -1.0e-8 * scale:
@@ -368,15 +366,11 @@ def _positive_perron_evaluation(
         ritz_pairs=ritz_pairs,
         cone_compatible_ritz_pairs=len(cone_candidates),
         perron_real_part_gap=perron_real_part_gap,
-        shell_rational_error_estimate=(
-            system.maximum_shell_rational_error_estimate
-        ),
+        shell_rational_error_estimate=(system.maximum_shell_rational_error_estimate),
         shell_coefficient_error_estimate=(
             system.maximum_shell_coefficient_error_estimate
         ),
-        shell_maximum_coefficient_segments=(
-            system.maximum_shell_coefficient_segments
-        ),
+        shell_maximum_coefficient_segments=(system.maximum_shell_coefficient_segments),
     )
 
 
@@ -395,10 +389,7 @@ def _diagnostics(
         angular_frequency += transfer.collision_frequency_s_inv
     activity = float(
         np.sum(
-            (
-                angular_frequency
-                + operator.collisions.nonlocal_outflow_s_inv
-            )[:, None]
+            (angular_frequency + operator.collisions.nonlocal_outflow_s_inv)[:, None]
             * state
         )
     )
@@ -407,13 +398,7 @@ def _diagnostics(
     if tail_start is None:
         tail_start = 0.8 * float(operator.grid.energy_edges_eV[-1])
     tail = float(
-        np.sum(
-            np.abs(
-                state[
-                    operator.grid.energy_centers_eV >= float(tail_start), :
-                ]
-            )
-        )
+        np.sum(np.abs(state[operator.grid.energy_centers_eV >= float(tail_start), :]))
     )
     negative = float(np.sum(np.maximum(-state, 0.0)))
     return PropagatorConvergenceDiagnostics(
@@ -427,31 +412,21 @@ def _diagnostics(
         normalization_error=abs(float(np.sum(state)) - 1.0),
         negative_population_mass=negative,
         tail_probability=tail,
-        outer_acceleration_flux_fraction=(
-            evaluation.outer_escape_s_inv / activity
-        ),
+        outer_acceleration_flux_fraction=(evaluation.outer_escape_s_inv / activity),
         number_balance_residual=abs(number_defect) / activity,
         stop_reason="iterating",
         timings_s={
             "response_system_build_s": evaluation.system_build_time_s,
             "response_boundary_residual_L1": evaluation.boundary_residual_L1,
-            "response_spectral_radius_error": abs(
-                evaluation.spectral_radius - 1.0
-            ),
-            "response_operator_memory_bytes": float(
-                evaluation.system_memory_bytes
-            ),
-            "response_build_blas_threads": float(
-                RESPONSE_BUILD_BLAS_THREADS
-            ),
+            "response_spectral_radius_error": abs(evaluation.spectral_radius - 1.0),
+            "response_operator_memory_bytes": float(evaluation.system_memory_bytes),
+            "response_build_blas_threads": float(RESPONSE_BUILD_BLAS_THREADS),
             "response_krylov_dimension": float(evaluation.krylov_dimension),
             "response_ritz_pairs": float(evaluation.ritz_pairs),
             "response_cone_compatible_ritz_pairs": float(
                 evaluation.cone_compatible_ritz_pairs
             ),
-            "response_perron_real_part_gap": (
-                evaluation.perron_real_part_gap
-            ),
+            "response_perron_real_part_gap": (evaluation.perron_real_part_gap),
             "response_shell_rational_error_estimate": (
                 evaluation.shell_rational_error_estimate
             ),
@@ -462,9 +437,7 @@ def _diagnostics(
                 evaluation.shell_maximum_coefficient_segments
             ),
             "mean_energy_eV": mean_energy_eV(operator.grid, state),
-            "drift_velocity_m_s": flux_drift_velocity_m_s(
-                operator.grid, state
-            ),
+            "drift_velocity_m_s": flux_drift_velocity_m_s(operator.grid, state),
         },
     )
 
@@ -521,8 +494,7 @@ def solve_steady_state(
     def evaluation_score(evaluation: _PerronEvaluation) -> float:
         return max(
             abs(evaluation.spectral_radius - 1.0) / root_target,
-            abs(growth_balance_defect(evaluation))
-            / growth_balance_target(evaluation),
+            abs(growth_balance_defect(evaluation)) / growth_balance_target(evaluation),
         )
 
     def nonlinear_fixed_point_converged(
@@ -541,10 +513,8 @@ def solve_steady_state(
 
         fixed_point_tolerance = max(tolerance, 1.0e-8)
         return bool(
-            abs(evaluation.spectral_radius - 1.0)
-            <= fixed_point_tolerance
-            and evaluation.response_residual_L1
-            <= fixed_point_tolerance
+            abs(evaluation.spectral_radius - 1.0) <= fixed_point_tolerance
+            and evaluation.response_residual_L1 <= fixed_point_tolerance
             and abs(growth_balance_defect(evaluation))
             <= growth_balance_target(evaluation)
         )
@@ -574,21 +544,13 @@ def solve_steady_state(
             _PerronEvaluation | None, _PerronEvaluation | None
         ]:
             positive = [
-                item
-                for item in evaluations
-                if growth_balance_defect(item) >= 0.0
+                item for item in evaluations if growth_balance_defect(item) >= 0.0
             ]
             negative = [
-                item
-                for item in evaluations
-                if growth_balance_defect(item) <= 0.0
+                item for item in evaluations if growth_balance_defect(item) <= 0.0
             ]
-            lower_item = max(
-                positive, key=lambda item: item.growth_s_inv, default=None
-            )
-            upper_item = min(
-                negative, key=lambda item: item.growth_s_inv, default=None
-            )
+            lower_item = max(positive, key=lambda item: item.growth_s_inv, default=None)
+            upper_item = min(negative, key=lambda item: item.growth_s_inv, default=None)
             if (
                 lower_item is not None
                 and upper_item is not None
@@ -603,8 +565,7 @@ def solve_steady_state(
                 break
             fallback_growth = float(
                 np.clip(
-                    macro_state.growth_s_inv
-                    + growth_balance_defect(macro_state),
+                    macro_state.growth_s_inv + growth_balance_defect(macro_state),
                     bounds.lower_s_inv,
                     bounds.upper_s_inv,
                 )
@@ -612,13 +573,10 @@ def solve_steady_state(
             balance_growth = fallback_growth
             if len(evaluations) >= 2:
                 previous = evaluations[-2]
-                delta_growth = (
-                    macro_state.growth_s_inv - previous.growth_s_inv
-                )
-                delta_defect = (
-                    growth_balance_defect(macro_state)
-                    - growth_balance_defect(previous)
-                )
+                delta_growth = macro_state.growth_s_inv - previous.growth_s_inv
+                delta_defect = growth_balance_defect(
+                    macro_state
+                ) - growth_balance_defect(previous)
                 if delta_growth != 0.0:
                     slope = delta_defect / delta_growth
                     if np.isfinite(slope) and slope < 0.0:
@@ -628,14 +586,10 @@ def solve_steady_state(
                         )
                         lower, upper = bracket_from_evaluations()
                         proposed_lower = (
-                            bounds.lower_s_inv
-                            if lower is None
-                            else lower.growth_s_inv
+                            bounds.lower_s_inv if lower is None else lower.growth_s_inv
                         )
                         proposed_upper = (
-                            bounds.upper_s_inv
-                            if upper is None
-                            else upper.growth_s_inv
+                            bounds.upper_s_inv if upper is None else upper.growth_s_inv
                         )
                         if (
                             np.isfinite(proposed)
@@ -663,10 +617,7 @@ def solve_steady_state(
 
         lower, upper = bracket_from_evaluations()
         expansion = max(
-            abs(
-                evaluations[-1].growth_s_inv
-                - evaluations[0].growth_s_inv
-            ),
+            abs(evaluations[-1].growth_s_inv - evaluations[0].growth_s_inv),
             1.0,
         )
         for _ in range(12):
@@ -675,19 +626,13 @@ def solve_steady_state(
             lower, upper = bracket_from_evaluations()
             if lower is not None and upper is not None:
                 break
-            if all(
-                growth_balance_defect(item) > 0.0
-                for item in evaluations
-            ):
+            if all(growth_balance_defect(item) > 0.0 for item in evaluations):
                 anchor = max(evaluations, key=lambda item: item.growth_s_inv)
                 candidate_growth = min(
                     bounds.upper_s_inv,
                     anchor.growth_s_inv + expansion,
                 )
-            elif all(
-                growth_balance_defect(item) < 0.0
-                for item in evaluations
-            ):
+            elif all(growth_balance_defect(item) < 0.0 for item in evaluations):
                 anchor = min(evaluations, key=lambda item: item.growth_s_inv)
                 candidate_growth = max(
                     bounds.lower_s_inv,
@@ -695,9 +640,7 @@ def solve_steady_state(
                 )
             else:
                 break
-            if any(
-                candidate_growth == item.growth_s_inv for item in evaluations
-            ):
+            if any(candidate_growth == item.growth_s_inv for item in evaluations):
                 break
             candidate = _positive_perron_evaluation(
                 operator,
@@ -729,10 +672,7 @@ def solve_steady_state(
         raise PropagatorConvergenceError(str(exc), diagnostics) from exc
 
     lower, upper = bracket_from_evaluations()
-    if (
-        not nonlinear_fixed_point_converged(best)
-        and (lower is None or upper is None)
-    ):
+    if not nonlinear_fixed_point_converged(best) and (lower is None or upper is None):
         diagnostics = _diagnostics(
             operator,
             best,
@@ -748,9 +688,7 @@ def solve_steady_state(
     root_iterations = 0
     if not nonlinear_fixed_point_converged(best):
         assert lower is not None and upper is not None
-        evaluation_by_growth = {
-            item.growth_s_inv: item for item in evaluations
-        }
+        evaluation_by_growth = {item.growth_s_inv: item for item in evaluations}
 
         def evaluate_number_balance(candidate_growth: float) -> float:
             nonlocal best, root_iterations
@@ -823,12 +761,8 @@ def solve_steady_state(
         lower, upper = bracket_from_evaluations()
     diagnostics = _diagnostics(operator, best, budget, controls)
     diagnostics.timings_s["growth_root_iterations"] = float(root_iterations)
-    diagnostics.timings_s["growth_response_system_builds"] = float(
-        len(evaluations)
-    )
-    diagnostics.timings_s["growth_secant_steps"] = float(
-        macro_secant_steps
-    )
+    diagnostics.timings_s["growth_response_system_builds"] = float(len(evaluations))
+    diagnostics.timings_s["growth_secant_steps"] = float(macro_secant_steps)
     diagnostics.timings_s["growth_bracket_width_s_inv"] = float(
         0.0
         if lower is None or upper is None

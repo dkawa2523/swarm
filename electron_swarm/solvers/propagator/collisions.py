@@ -32,7 +32,7 @@ from electron_swarm.physics.electron_neutral import (
     ionization_daughter_energy_arrays,
     speed_from_energy_m_s,
 )
-from electron_swarm.physics.kinetics import gas_number_density
+from electron_swarm.core.gas import gas_number_density
 from electron_swarm.solvers.propagator.angular_kernel import (
     isotropic_destination_weights,
     maxent_p1_transition_stack,
@@ -54,12 +54,7 @@ def _process_id(species: str, process: str) -> str:
 
 def _bernoulli(value: float) -> float:
     if abs(value) < 1.0e-7:
-        return float(
-            1.0
-            - value / 2.0
-            + value * value / 12.0
-            - value**4 / 720.0
-        )
+        return float(1.0 - value / 2.0 + value * value / 12.0 - value**4 / 720.0)
     if value > 80.0:
         return 0.0
     if value < -80.0:
@@ -72,16 +67,12 @@ def _maxwell_log_cell_mass(edges_eV: np.ndarray, kT_eV: float) -> np.ndarray:
 
     scaled = np.asarray(edges_eV, dtype=float) / float(kT_eV)
     root = np.sqrt(np.maximum(scaled, 0.0))
-    log_upper_gamma = -scaled + np.log(
-        root + 0.5 * np.sqrt(np.pi) * erfcx(root)
-    )
+    log_upper_gamma = -scaled + np.log(root + 0.5 * np.sqrt(np.pi) * erfcx(root))
     log_ratio = log_upper_gamma[1:] - log_upper_gamma[:-1]
     if np.any(log_ratio >= 0.0):
         raise FloatingPointError("Maxwell cell measure is not strictly decreasing")
     return (
-        1.5 * np.log(float(kT_eV))
-        + log_upper_gamma[:-1]
-        + np.log(-np.expm1(log_ratio))
+        1.5 * np.log(float(kT_eV)) + log_upper_gamma[:-1] + np.log(-np.expm1(log_ratio))
     )
 
 
@@ -150,9 +141,7 @@ def _cell_average_quadrature(
             if lower < threshold < upper:
                 breaks.append(threshold)
     breaks.extend(
-        value
-        for value in map(float, kinematic_breaks_eV)
-        if lower < value < upper
+        value for value in map(float, kinematic_breaks_eV) if lower < value < upper
     )
     partition = np.unique(np.asarray(breaks, dtype=float))
     nodes, weights = np.polynomial.legendre.leggauss(_CELL_QUADRATURE_ORDER)
@@ -189,14 +178,10 @@ def _deposit_target(
         return
     upper = int(np.searchsorted(centers, target_eV, side="right"))
     lower = upper - 1
-    upper_weight = (target_eV - centers[lower]) / (
-        centers[upper] - centers[lower]
-    )
+    upper_weight = (target_eV - centers[lower]) / (centers[upper] - centers[lower])
     rows.extend((lower, upper))
     columns.extend((source, source))
-    entries.extend(
-        ((1.0 - upper_weight) * amount_s_inv, upper_weight * amount_s_inv)
-    )
+    entries.extend(((1.0 - upper_weight) * amount_s_inv, upper_weight * amount_s_inv))
 
 
 def _weak_inelastic_transfer(
@@ -223,9 +208,7 @@ def _weak_inelastic_transfer(
         ProcessType.ATTACHMENT: 0,
         ProcessType.EXCITATION: 1,
         ProcessType.IONIZATION: (
-            1
-            if config.physics.ionization.energy_sharing == "loss_only"
-            else 2
+            1 if config.physics.ionization.energy_sharing == "loss_only" else 2
         ),
     }[process.process_type]
     sharing_breaks: tuple[float, ...] = ()
@@ -234,10 +217,7 @@ def _weak_inelastic_transfer(
         and config.physics.ionization.energy_sharing == "primary_secondary"
     ):
         sharing_breaks = (
-            threshold
-            + float(
-                config.physics.ionization.secondary_electron_energy_eV
-            ),
+            threshold + float(config.physics.ionization.secondary_electron_energy_eV),
         )
 
     for source, (lower, upper) in enumerate(
@@ -254,17 +234,10 @@ def _weak_inelastic_transfer(
             process.sigma(energy),
             0.0,
         )
-        rate = (
-            density_m3
-            * fraction
-            * sigma
-            * speed_from_energy_m_s(energy)
-        )
+        rate = density_m3 * fraction * sigma * speed_from_energy_m_s(energy)
         quadrature_rate = quadrature_weights * rate
         frequency[source] = float(np.sum(quadrature_rate))
-        incident_energy_rate[source] = float(
-            np.dot(quadrature_rate, energy)
-        )
+        incident_energy_rate[source] = float(np.dot(quadrature_rate, energy))
         if daughter_count == 0:
             continue
         if process.process_type == ProcessType.EXCITATION:
@@ -280,8 +253,8 @@ def _weak_inelastic_transfer(
             )
         for node_index, event_rate in enumerate(quadrature_rate):
             for daughter in daughters:
-                daughter_energy_rate[source] += (
-                    float(event_rate) * float(daughter[node_index])
+                daughter_energy_rate[source] += float(event_rate) * float(
+                    daughter[node_index]
                 )
                 _deposit_target(
                     rows,
@@ -371,18 +344,9 @@ def _elastic_energy_generator(
     for transfer in elastic:
         ratio = ELECTRON_MASS_KG / (transfer.target_mass_amu * AMU_KG)
         drift += (
-            2.0
-            * ratio
-            * transfer.momentum_frequency_s_inv
-            * (0.5 * kT_eV - energy)
+            2.0 * ratio * transfer.momentum_frequency_s_inv * (0.5 * kT_eV - energy)
         )
-        diffusion += (
-            2.0
-            * ratio
-            * transfer.momentum_frequency_s_inv
-            * energy
-            * kT_eV
-        )
+        diffusion += 2.0 * ratio * transfer.momentum_frequency_s_inv * energy * kT_eV
 
     density_operator = sparse.lil_matrix(
         (grid.energy_cells, grid.energy_cells), dtype=float
@@ -394,9 +358,7 @@ def _elastic_energy_generator(
     log_equilibrium = log_equilibrium_mass - np.log(widths)
     for index in range(grid.energy_cells - 1):
         spacing = float(energy[index + 1] - energy[index])
-        edge_diffusion = 0.5 * (
-            float(diffusion[index]) + float(diffusion[index + 1])
-        )
+        edge_diffusion = 0.5 * (float(diffusion[index]) + float(diffusion[index + 1]))
         if spacing <= 0.0 or edge_diffusion <= 0.0:
             continue
         peclet = float(log_equilibrium[index + 1] - log_equilibrium[index])
@@ -409,9 +371,7 @@ def _elastic_energy_generator(
 
     density_csr = density_operator.tocsr()
     mass_operator = (
-        sparse.diags(widths)
-        @ density_csr
-        @ sparse.diags(1.0 / widths)
+        sparse.diags(widths) @ density_csr @ sparse.diags(1.0 / widths)
     ).tocsr()
     mass_operator.eliminate_zeros()
     column_error = float(
@@ -507,10 +467,7 @@ def build_collision_operator(
             active = collision_frequency > 0.0
             if np.any(
                 active
-                & (
-                    (mean_cosine < -1.0 - 1.0e-10)
-                    | (mean_cosine > 1.0 + 1.0e-10)
-                )
+                & ((mean_cosine < -1.0 - 1.0e-10) | (mean_cosine > 1.0 + 1.0e-10))
             ):
                 raise ValueError(
                     f"{channels.species}: cell-integrated total and momentum "
@@ -600,15 +557,15 @@ def build_collision_operator(
     if not elastic_maps:
         raise ValueError("propagator requires an elastic scattering channel")
     elastic_tuple = tuple(elastic_maps)
-    elastic_energy, elastic_A, elastic_D, elastic_equilibrium = _elastic_energy_generator(
-        config,
-        grid,
-        elastic_tuple,
+    elastic_energy, elastic_A, elastic_D, elastic_equilibrium = (
+        _elastic_energy_generator(
+            config,
+            grid,
+            elastic_tuple,
+        )
     )
     elastic_diagonal = elastic_energy.diagonal()
-    elastic_gain = (
-        elastic_energy - sparse.diags(elastic_diagonal)
-    ).tocsr()
+    elastic_gain = (elastic_energy - sparse.diags(elastic_diagonal)).tocsr()
     elastic_outflow = -elastic_diagonal
     inelastic_outflow = np.zeros(grid.energy_cells, dtype=float)
     for item in inelastic_maps:
@@ -680,18 +637,16 @@ def angular_collision_loss_matrix(
         else:
             assert transfer.angular_kernel is not None
             probability = transfer.angular_kernel[energy_index]
-        density_transition = (
-            probability
-            * widths[None, :]
-            / widths[:, None]
-        )
+        density_transition = probability * widths[None, :] / widths[:, None]
         result += frequency * (np.eye(len(widths)) - density_transition)
     weighted_error = float(np.max(np.abs(widths @ result)))
     scale = max(float(np.linalg.norm(result, ord=1)), 1.0)
     off_diagonal = result.copy()
     np.fill_diagonal(off_diagonal, 0.0)
     if weighted_error > 2.0e-12 * scale or np.max(off_diagonal) > 2.0e-14 * scale:
-        raise FloatingPointError("angular collision block is not a conservative M-matrix")
+        raise FloatingPointError(
+            "angular collision block is not a conservative M-matrix"
+        )
     return result
 
 
@@ -724,8 +679,7 @@ def collision_inflow(
         source = transfer.collision_frequency_s_inv[:, None] * values
         if transfer.isotropic:
             redirected = (
-                np.sum(source, axis=1)[:, None]
-                * operator.isotropic_weights[None, :]
+                np.sum(source, axis=1)[:, None] * operator.isotropic_weights[None, :]
             )
         else:
             assert transfer.angular_kernel is not None
@@ -748,8 +702,7 @@ def collision_generator_action(
     for transfer in operator.elastic:
         angular_outflow += transfer.collision_frequency_s_inv[:, None] * values
     return collision_inflow(operator, values) - (
-        angular_outflow
-        + operator.nonlocal_outflow_s_inv[:, None] * values
+        angular_outflow + operator.nonlocal_outflow_s_inv[:, None] * values
     )
 
 

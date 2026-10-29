@@ -10,11 +10,8 @@ from electron_swarm.core.results import SwarmCaseResult
 from electron_swarm.core.solver_configs import MultiTermInternalConfig
 from electron_swarm.solvers.base import IndependentCaseSolver
 
-from .case import build_multiterm_case
-from .observables import build_solution
-from .operator import assemble_pn_operator
+from .refinement import solve_refined_case
 from .result import to_case_result
-from .steady import solve_stationary_pn
 
 
 MULTITERM_SOLVER_NAME = "multi_term"
@@ -40,18 +37,14 @@ class MultiTermSolver(IndependentCaseSolver):
             raise NotImplementedError(
                 f"Unsupported multi_term method {self.solver_config.method!r}"
             )
-        case = build_multiterm_case(
+        case, solution = solve_refined_case(
             self.config,
             self.cross_sections,
             self.solver_config,
             e_over_n_Td,
+            case_id,
+            self.name,
         )
-        operator = assemble_pn_operator(case)
-        state = solve_stationary_pn(
-            operator,
-            self.solver_config.convergence,
-        )
-        solution = build_solution(case, operator, state, case_id, self.name)
         return to_case_result(
             case,
             solution,

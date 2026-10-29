@@ -17,8 +17,8 @@ def test_source_guard_rejects_changed_input(
     monkeypatch.setattr(qualifier, "ROOT", tmp_path)
     monkeypatch.setattr(
         qualifier,
-        "propagator_qualification_source_fingerprint",
-        lambda _root: {"schema": "test", "sha256": "a" * 64},
+        "solver_source_fingerprint",
+        lambda _solver, _root: {"schema": "test", "sha256": "a" * 64},
     )
     inputs = (source,)
     starting_state = qualifier._qualification_source_state(inputs)
@@ -44,8 +44,8 @@ def test_source_guard_rejects_changed_implementation(
     )
     monkeypatch.setattr(
         qualifier,
-        "propagator_qualification_source_fingerprint",
-        lambda _root: next(fingerprints),
+        "solver_source_fingerprint",
+        lambda _solver, _root: next(fingerprints),
     )
     inputs = (source,)
     starting_state = qualifier._qualification_source_state(inputs)

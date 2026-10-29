@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from product_helpers import campaign_config
+
 from copy import deepcopy
 from dataclasses import replace
 from pathlib import Path
@@ -9,7 +11,8 @@ from types import SimpleNamespace
 import pytest
 import yaml
 
-from electron_swarm import load_config, run
+from swarm_workflow.campaign.document import load_case_template
+from electron_swarm import run
 from swarm_workflow.campaign import mean_energy_support
 from swarm_workflow.campaign.config import load_workflow
 import swarm_workflow.campaign.provenance as provenance_module
@@ -27,16 +30,11 @@ def _write_support_workflow(
     data = base_product_config(tmp_path, [solver])
     data["run"]["e_over_n_Td"] = [10.0]
     base = write_config(tmp_path, data, "base.yaml")
-    workflow: dict[str, object] = {
-        "base_config": base.name,
-        "database": "swarm.sqlite",
-        "e_over_n_Td": [10.0, 20.0],
-        "mixtures": [{"Ar": 1.0}],
-    }
+    workflow: dict[str, object] = campaign_config(base, database='swarm.sqlite', e_over_n_Td=[10.0, 20.0], mixtures=[{'Ar': 1.0}])
     if solver == "monte_carlo":
-        workflow["mc"] = {"base_seed": 7}
+        workflow["solvers"]["monte_carlo"]["seed"] = 7
     if required_mean_eV is not None:
-        workflow["mean_energy_support"] = {
+        workflow["campaign"]["mean_energy_support"] = {
             "required_max_mean_energy_eV": required_mean_eV,
             "relative_guard": 0.0,
             "maximum_steps": 1,
@@ -99,7 +97,7 @@ def test_upper_extension_rejects_a_nonmonotonic_upper_endpoint() -> None:
 def test_deterministic_continuation_reuses_solver_and_recalculates_next_step(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    config = load_config("examples/argon_gec_icp_propagator.yaml")
+    config = load_case_template("examples/workflow_argon_gec_icp_propagator.yaml")
     requested_fields: list[float] = []
 
     def fake_run(step_config: object, *, write: bool) -> object:
@@ -141,7 +139,7 @@ def test_deterministic_continuation_reuses_solver_and_recalculates_next_step(
 
 
 def test_monte_carlo_support_cannot_bypass_statistical_campaign() -> None:
-    config = load_config("examples/argon_gec_icp_propagator.yaml")
+    config = load_case_template("examples/workflow_argon_gec_icp_propagator.yaml")
 
     with pytest.raises(ValueError, match="statistical campaign"):
         mean_energy_support.continue_deterministic_mean_energy_support(
@@ -162,7 +160,7 @@ def test_workflow_support_config_is_typed_hashed_and_rejects_monte_carlo(
     )
     plain = load_workflow(workflow_path)
     raw = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
-    raw["mean_energy_support"] = {
+    raw["campaign"]["mean_energy_support"] = {
         "required_max_mean_energy_eV": 100.0,
         "relative_guard": 0.0,
         "maximum_steps": 1,

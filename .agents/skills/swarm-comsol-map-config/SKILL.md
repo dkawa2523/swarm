@@ -15,6 +15,7 @@ Current adapters are:
 | --- | --- | --- | --- |
 | Positive column | `swarm_workflow/comsol/models/positive_column/` | `run-positive-column` | `docs/comsol_workflow.md` |
 | Argon GEC-CCP | `swarm_workflow/comsol/models/gec_ccp/` | `run-gec-ccp` | `docs/comsol_gec_ccp.md` |
+| Argon GEC-ICP | `swarm_workflow/comsol/models/gec_icp/` | `run-gec-icp` | `docs/comsol_gec_icp.md` |
 
 If the requested plasma model has no package and CLI command, this is not a map-only task. Use `swarm-comsol-model-adapter`; do not force its MPH tags into the positive-column or GEC schema.
 
@@ -26,7 +27,7 @@ If the requested plasma model has no package and CLI command, this is not a map-
 4. Keep the source MPH immutable and ensure no output or generated artifact can overwrite it. Keep result and log locations explicit; the adapter may intentionally colocate generated Java with its run artifacts.
 5. Keep optional reference/baseline solves off unless the user explicitly requests a comparison.
 
-Both current adapters require `schema_version: 2`; their remaining schemas are model-specific. The current GEC Propagator map uses `swarm_mobility_einstein`, spreadsheet Function EEDF, and `external_solver_native` elastic loss and declares `results.role: physical_target`; it also requires the maintained core and GEC target qualification artifacts. Do not restore the obsolete `diagnostic_control` label.
+All current adapters require `schema_version: 2`; their remaining schemas are model-specific. The current GEC Propagator map uses `swarm_mobility_einstein`, spreadsheet Function EEDF, and `external_solver_native` elastic loss and declares `results.role: physical_target`; it also requires the maintained core and GEC target qualification artifacts. Do not restore the obsolete `diagnostic_control` label.
 
 For MC, require a solver-selection artifact only when the adapter schema calls for it. Map each reaction to the exact bundle process/channel and MPH feature; an individual excitation or ionization channel is not a total source.
 
@@ -47,3 +48,14 @@ py -3 -c "from swarm_workflow.comsol.models.gec_ccp.mapping import load_gec_ccp_
 Run the matching command with `--dry-run` under `swarm-comsol-run` when a bundle is available. GEC preparation includes its offline MPH inspection. Positive-column preparation validates mapping/file/table structure, quality and ranges, then generates Java; it does not replace independent bundle-hash verification or licensed property/formulation readback. A dry-run is never a physical solve.
 
 Finish with the adapter, map path, source solver, ownership split, reaction bindings, operating conditions, output/log paths, reference setting, and validation result.
+
+Resolve hand-written mapping paths from that YAML directory. Effective mappings preserve resolved absolute paths. The mapping bundle path is sufficient for a normal run; CLI --bundle is an optional explicit override, not a second required input. Positive-column results.output_directory owns generated run artifacts.
+
+Positive-column results require `dataset`, explicit `solutions: all|last`, and
+`fields: [{name, expression, unit}]`. Do not use the removed `probes` key.
+Fields are expressions on the saved dataset, not arbitrary point probes;
+coordinate and interpolated-time settings are unsupported and must fail.
+Check the actual saved solution topology: only one outer solution and at most
+one inner parameter are supported. `run.voltages_V` is continuation to the final
+voltage, not a parameter sweep. The maintained transient map explicitly selects
+`last`; CSV output preserves saved solution, point, time, and parameter identity.

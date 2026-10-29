@@ -13,12 +13,12 @@ from electron_swarm.core.cross_sections import (
 )
 from electron_swarm.core.numerics import f0_from_eedf
 from electron_swarm.core.results import RateResult
+from electron_swarm.core.gas import gas_number_density
 from electron_swarm.physics.kinetics import (
     RateConvolution,
     cell_integrated_rate_coefficient,
-    gas_number_density,
 )
-from electron_swarm.solvers.boltzmann_common.grid import cell_edges_from_centers
+from electron_swarm.grids.energy import reported_cell_edges
 
 
 def weighted_integral(values: np.ndarray, widths: np.ndarray) -> float:
@@ -169,12 +169,8 @@ def f0_reduced_transport_from_inverse_sigma(
     f0 = f0_from_eedf(energy, eedf)
     dF0 = nonuniform_center_gradient(f0, energy)
     gamma = float(np.sqrt(2.0 * E_CHARGE_C / ELECTRON_MASS_KG))
-    mobility = -gamma / 3.0 * weighted_integral(
-        energy * inverse_sigma * dF0, widths
-    )
-    diffusion = gamma / 3.0 * weighted_integral(
-        energy * inverse_sigma * f0, widths
-    )
+    mobility = -gamma / 3.0 * weighted_integral(energy * inverse_sigma * dF0, widths)
+    diffusion = gamma / 3.0 * weighted_integral(energy * inverse_sigma * f0, widths)
     energy_mobility = (
         -gamma
         / (3.0 * mean_energy)
@@ -205,9 +201,7 @@ def compute_rates_from_eedf(
     solver_name: str,
 ) -> RateConvolution:
     N = gas_number_density(config)
-    edges, reconstructed_widths = cell_edges_from_centers(energy)
-    if not np.allclose(reconstructed_widths, widths, rtol=1.0e-12, atol=0.0):
-        raise ValueError("Rate-convolution widths do not match the energy grid")
+    edges = reported_cell_edges(energy, widths)
     cell_midpoints = 0.5 * (edges[:-1] + edges[1:])
     rates: list[RateResult] = []
     ion_rate = 0.0
@@ -229,9 +223,7 @@ def compute_rates_from_eedf(
                 cell_midpoints, widths, np.maximum(-values, 0.0), proc
             )
         else:
-            k = cell_integrated_rate_coefficient(
-                cell_midpoints, widths, values, proc
-            )
+            k = cell_integrated_rate_coefficient(cell_midpoints, widths, values, proc)
         kmix = frac * k
         if proc.process_type == ProcessType.IONIZATION:
             ion_rate += kmix

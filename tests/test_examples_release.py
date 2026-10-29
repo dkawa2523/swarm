@@ -1,10 +1,17 @@
 from __future__ import annotations
 
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 from pathlib import Path
+import json
+import subprocess
+import sys
 
 import pandas as pd
 import pytest
+import yaml
 
 import electron_swarm
 from electron_swarm import load_config, run
@@ -21,8 +28,6 @@ LIGHT_EXAMPLES = [
     ROOT / "examples" / "multi_term_direct_lmax1.yaml",
     ROOT / "examples" / "multi_term_direct_lmax4.yaml",
     ROOT / "examples" / "pn_dcs_moment_table.yaml",
-    ROOT / "examples" / "ar_o2_base.yaml",
-    ROOT / "examples" / "argon_comsol_base.yaml",
 ]
 MC_EXAMPLES = [
     ROOT / "examples" / "compare_three_solvers.yaml",
@@ -38,8 +43,6 @@ def test_examples_are_schema_v2_configs() -> None:
         "compare_three_solvers.yaml",
         "magnetic_mc.yaml",
         "pn_dcs_moment_table.yaml",
-        "ar_o2_base.yaml",
-        "argon_comsol_base.yaml",
     }
     assert required_examples <= {path.name for path in PRODUCT_EXAMPLES}
     for path in PRODUCT_EXAMPLES:
@@ -68,6 +71,23 @@ def test_readme_quickstart_target_runs() -> None:
     result = run(load_config(ROOT / "examples" / "two_term.yaml"), write=False)
     assert len(result.cases) == 1
     assert result.cases[0].solver == "two_term"
+
+
+def test_module_cli_plan_validates_without_computing_or_writing(tmp_path: Path) -> None:
+    data = yaml.safe_load((ROOT / "examples/two_term.yaml").read_text())
+    data["output"]["directory"] = str(tmp_path / "not-created")
+    for entry in data["cross_sections"]["files"]:
+        entry["path"] = str((ROOT / "examples" / entry["path"]).resolve())
+    path = tmp_path / "config.yaml"
+    path.write_text(yaml.safe_dump(data), encoding="utf-8")
+    completed = subprocess.run(
+        [sys.executable, "-m", "electron_swarm", str(path), "--plan"],
+        cwd=ROOT, capture_output=True, text=True, check=True,
+    )
+    plan = json.loads(completed.stdout)
+    assert plan
+    assert not (tmp_path / "not-created").exists()
+    assert "RuntimeWarning" not in completed.stderr
 
 
 def test_direct_lmax1_example_runs_as_pn_product_path() -> None:
@@ -106,7 +126,7 @@ def test_release_metadata_is_product_shaped() -> None:
     assert project["name"] == "electron-swarm"
     assert project["version"] == electron_swarm.__version__
     assert project["readme"] == "README.md"
-    assert project["scripts"]["electron-swarm"] == "electron_swarm.runner:main"
+    assert project["scripts"]["electron-swarm"] == "electron_swarm.cli:main"
     assert project["scripts"]["swarm-workflow"] == "swarm_workflow.cli:main"
 
     dependencies = set(project["dependencies"])

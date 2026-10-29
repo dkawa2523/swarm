@@ -13,7 +13,8 @@ from electron_swarm.core.cross_sections import (
 from electron_swarm.core.results import EnergyAngleDistributionResult
 from electron_swarm.core.results import RateResult
 from electron_swarm.physics.electron_neutral import speed_from_energy_m_s
-from electron_swarm.physics.kinetics import RateConvolution, gas_number_density
+from electron_swarm.core.gas import gas_number_density
+from electron_swarm.physics.kinetics import RateConvolution
 from electron_swarm.solvers.propagator.collisions import (
     cell_average_collision_rate,
 )
@@ -46,9 +47,7 @@ def mean_energy_eV(
     population: np.ndarray,
 ) -> float:
     values = normalized_population(population)
-    return float(
-        np.sum(values * grid.energy_centers_eV[:, None])
-    )
+    return float(np.sum(values * grid.energy_centers_eV[:, None]))
 
 
 def flux_drift_velocity_m_s(
@@ -69,11 +68,7 @@ def flux_drift_velocity_m_s(
         / widths
     )
     return float(
-        np.sum(
-            values
-            * cell_average_speed[:, None]
-            * grid.mu_centers[None, :]
-        )
+        np.sum(values * cell_average_speed[:, None] * grid.mu_centers[None, :])
     )
 
 
@@ -82,20 +77,12 @@ def energy_angle_distribution(
     population: np.ndarray,
 ) -> EnergyAngleDistributionResult:
     values = normalized_population(population)
-    density = values / (
-        grid.energy_widths_eV[:, None] * grid.mu_widths[None, :]
-    )
+    density = values / (grid.energy_widths_eV[:, None] * grid.mu_widths[None, :])
     normalization = float(
-        np.sum(
-            density
-            * grid.energy_widths_eV[:, None]
-            * grid.mu_widths[None, :]
-        )
+        np.sum(density * grid.energy_widths_eV[:, None] * grid.mu_widths[None, :])
     )
     if not np.isclose(normalization, 1.0, rtol=0.0, atol=2.0e-13):
-        raise FloatingPointError(
-            "energy-angle distribution failed normalization"
-        )
+        raise FloatingPointError("energy-angle distribution failed normalization")
     return EnergyAngleDistributionResult(
         energy_eV=grid.energy_centers_eV.copy(),
         energy_widths_eV=grid.energy_widths_eV.copy(),
@@ -116,9 +103,7 @@ def elastic_energy_loss_rate_coefficient_eV_m3_s(
         collisions.elastic_energy_generator_s_inv @ values,
         dtype=float,
     )
-    energy_change_rate = float(
-        np.sum(elastic_action * grid.energy_centers_eV[:, None])
-    )
+    energy_change_rate = float(np.sum(elastic_action * grid.energy_centers_eV[:, None]))
     density = float(gas_number_density_m3)
     if density <= 0.0 or not np.isfinite(density):
         raise ValueError("gas number density must be finite and positive")

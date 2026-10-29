@@ -32,7 +32,7 @@ solvers:
     lmax: 4
   monte_carlo:
     particles: 2048
-    max_collisions: 5000
+    production_trial_periods: 5000
     seed: 41
 
 comparison:

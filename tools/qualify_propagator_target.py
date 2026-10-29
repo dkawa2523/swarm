@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from electron_swarm import load_config  # noqa: E402
+from swarm_workflow.campaign.document import load_case_template, calculation_sha256  # noqa: E402
 from electron_swarm.core.config import SwarmConfig  # noqa: E402
 from swarm_workflow.quality.solver import (  # noqa: E402
     PROPAGATOR_TARGET_QUALIFICATION_SCHEMA,
@@ -40,14 +40,16 @@ from swarm_workflow.quality.solver import (  # noqa: E402
     propagator_target_qualifier_fingerprint,
     validate_propagator_core_qualification,
 )
-from swarm_workflow.quality.propagator_source import (  # noqa: E402
+from electron_swarm.core.source_identity import (  # noqa: E402
     PROPAGATOR_SOLVER_SOURCE_METADATA_KEY,
-    propagator_qualification_source_fingerprint,
+    solver_source_fingerprint,
+)
+from swarm_workflow.quality.propagator_refinement import (  # noqa: E402
+    compare_propagator_cases as _comparison,
 )
 from tools.qualify_propagator_p1_deterministic import (  # noqa: E402
     EEDF_L1_REFINEMENT_LIMIT,
     SCALAR_REFINEMENT_LIMIT,
-    _comparison,
     _run_case,
     _variant,
 )
@@ -59,7 +61,7 @@ DEFAULT_CORE_QUALIFICATION = (
     / "docs"
     / "dev"
     / "results"
-    / "propagator_p1_deterministic_qualification_20260908.json"
+    / "propagator_p1_core_qualification.json"
 )
 _TARGET_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*\Z")
 
@@ -85,8 +87,8 @@ def _require_unchanged_target_inputs(
 ) -> None:
     try:
         core = validate_propagator_core_qualification(core_qualification_path)
-        config_sha256 = file_sha256(config_path)
-        cross_sections_sha256 = _cross_sections_sha256(load_config(config_path))
+        config_sha256 = calculation_sha256(config_path)
+        cross_sections_sha256 = _cross_sections_sha256(load_case_template(config_path))
         medium_digest, metadata = propagator_target_medium_evidence(
             database,
             spec.fields_Td,
@@ -95,7 +97,8 @@ def _require_unchanged_target_inputs(
         )
         current_state = {
             "core_qualification": core.identity_entry(),
-            "base_config_sha256": config_sha256,
+            "calculation_sha256": config_sha256,
+            "configuration_file_sha256": file_sha256(config_path),
             "cross_sections_sha256": cross_sections_sha256,
             "medium_evidence_sha256": medium_digest,
             "medium_metadata": metadata,
@@ -294,15 +297,15 @@ def _fine_worker(
     expected_core_source_sha256: str,
     expected_target_qualifier_sha256: str,
 ) -> tuple[dict[str, Any], Any | None]:
-    if file_sha256(config_path) != expected_config_sha256:
+    if calculation_sha256(config_path) != expected_config_sha256:
         raise RuntimeError("target qualification config changed before worker start")
-    base = load_config(config_path)
+    base = load_case_template(config_path)
     if _cross_sections_sha256(base) != expected_cross_sections_sha256:
         raise RuntimeError(
             "target qualification cross sections changed before worker start"
         )
     if (
-        propagator_qualification_source_fingerprint(ROOT)["sha256"]
+        solver_source_fingerprint("propagator", ROOT)["sha256"]
         != expected_core_source_sha256
     ):
         raise RuntimeError(
@@ -341,13 +344,13 @@ def run_target_qualification(
     target_fingerprint = propagator_target_qualifier_fingerprint(ROOT)
     core = validate_propagator_core_qualification(core_qualification_path)
     core_entry = core.identity_entry()
-    config_sha256 = file_sha256(config_path)
-    config = load_config(config_path)
+    config_sha256 = calculation_sha256(config_path)
+    config = load_case_template(config_path)
     cross_sections_sha256 = _cross_sections_sha256(config)
     medium, metadata, medium_digest = _read_medium_cases(database, spec)
-    if metadata.get("base_config_sha256") != config_sha256:
+    if metadata.get("calculation_sha256") != config_sha256:
         raise ValueError(
-            "workflow database base config does not match the target config"
+            "workflow database calculation does not match the target config"
         )
     if metadata.get("cross_sections_sha256") != cross_sections_sha256:
         raise ValueError(
@@ -360,7 +363,8 @@ def run_target_qualification(
         )
     starting_state = {
         "core_qualification": core_entry,
-        "base_config_sha256": config_sha256,
+        "calculation_sha256": config_sha256,
+        "configuration_file_sha256": file_sha256(config_path),
         "cross_sections_sha256": cross_sections_sha256,
         "medium_evidence_sha256": medium_digest,
         "medium_metadata": dict(metadata),
@@ -471,8 +475,9 @@ def run_target_qualification(
         "inputs": {
             "database": str(database),
             "medium_evidence_sha256": medium_digest,
-            "base_config": str(config_path),
-            "base_config_sha256": config_sha256,
+            "calculation": str(config_path),
+            "calculation_sha256": config_sha256,
+            "configuration_file_sha256": file_sha256(config_path),
             "workflow_config_sha256": metadata.get("workflow_config_sha256"),
             "cross_sections_sha256": cross_sections_sha256,
             PROPAGATOR_SOLVER_SOURCE_METADATA_KEY: core_source_sha256,

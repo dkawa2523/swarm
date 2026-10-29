@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
+from electron_swarm.core.yaml_input import read_yaml_mapping
+
 import csv
 from dataclasses import dataclass
 import json
+import math
+import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
-import yaml
 
-from ...._paths import discover_repo_root, resolve_path
+from ...._paths import resolve_path
 from ...runtime import ComsolRunContext
+from .lookup import ReactionIdentity, LookupValidationError, read_lookup
+from .result_units import canonical_unit
 
 
 class ComsolMappingError(ValueError):
@@ -30,6 +35,20 @@ class ModelSpec:
 @dataclass(frozen=True, slots=True)
 class BundleSpec:
     path: Path
+    source: str
+
+
+@dataclass(frozen=True, slots=True)
+class ModelGasComponent:
+    species: str
+    fraction: float
+    mass_amu: float
+
+
+@dataclass(frozen=True, slots=True)
+class ModelPhysicalContext:
+    gas_temperature_K: float
+    gas_mixture: tuple[ModelGasComponent, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,6 +116,7 @@ class ReactionLookupMapping:
     x_column: str
     y_column: str
     process_type: str
+    identity: ReactionIdentity
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,10 +128,18 @@ class RunMapping:
 
 
 @dataclass(frozen=True, slots=True)
-class ResultProbe:
+class ResultField:
     name: str
     expression: str
     unit: str
+
+
+@dataclass(frozen=True, slots=True)
+class ResultOutput:
+    output_directory: Path
+    dataset: str
+    solutions: Literal["all", "last"]
+    fields: tuple[ResultField, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,13 +148,14 @@ class ComsolModelMapping:
     root: Path
     model: ModelSpec
     bundle: BundleSpec
+    physical_context: ModelPhysicalContext
     logs: LogSpec
     verify: VerifySpec
     functions: tuple[FunctionMapping, ...]
     closure: ClosureMapping
     reaction_lookups: tuple[ReactionLookupMapping, ...]
     run: RunMapping
-    probes: tuple[ResultProbe, ...]
+    results: ResultOutput | None
 
 
 def comsol_run_context(mapping: ComsolModelMapping) -> ComsolRunContext:
@@ -245,7 +274,7 @@ def load_comsol_mapping(
     validate_files: bool = False,
 ) -> ComsolModelMapping:
     mapping_path = Path(path).resolve()
-    root = discover_repo_root(mapping_path)
+    root = mapping_path.parent
     data = _read_yaml_mapping(mapping_path)
     if data.get("schema_version") != 2:
         raise ComsolMappingError(
@@ -255,6 +284,7 @@ def load_comsol_mapping(
         "schema_version",
         "model",
         "bundle",
+        "physical_context",
         "logs",
         "verify",
         "functions",
@@ -270,6 +300,12 @@ def load_comsol_mapping(
         )
     model = _parse_model(_required_mapping(data, "model"), root)
     bundle = _parse_bundle(_required_mapping(data, "bundle"), root)
+    if "physical_context" not in data:
+        raise ComsolMappingError(
+            "positive-column schema v2 migration required: add physical_context "
+            "with gas_temperature_K and gas_mixture"
+        )
+    physical = _parse_physical_context(_required_mapping(data, "physical_context"))
     logs = _parse_logs(data.get("logs", {}), root)
     verify = _parse_verify(data.get("verify", {}), root)
     functions = _parse_functions(_required_mapping(data, "functions"), bundle)
@@ -280,19 +316,20 @@ def load_comsol_mapping(
         bundle,
     )
     run = _parse_run(_required_mapping(data, "run"))
-    probes = _parse_results(data.get("results", {}))
+    results = _parse_results(data["results"], root) if "results" in data else None
     mapping = ComsolModelMapping(
         path=mapping_path,
         root=root,
         model=model,
         bundle=bundle,
+        physical_context=physical,
         logs=logs,
         verify=verify,
         functions=functions,
         closure=closure,
         reaction_lookups=reaction_lookups,
         run=run,
-        probes=probes,
+        results=results,
     )
     if validate_files:
         validate_comsol_mapping_files(mapping)
@@ -326,6 +363,10 @@ def validate_comsol_mapping_files(
         tables = {}
 
     for function in mapping.functions:
+        if function.file not in tables:
+            raise ComsolMappingError(
+                f"mapped function is not manifest-listed: {function.file}"
+            )
         if not function.path.exists():
             raise ComsolMappingError(
                 f"mapped function CSV does not exist for {function.name}: "
@@ -352,10 +393,13 @@ def validate_comsol_mapping_files(
             _validate_function_units(function, table_meta, manifest)
 
     for lookup in mapping.reaction_lookups:
+        if lookup.table not in tables:
+            raise ComsolMappingError(
+                f"reaction lookup is not manifest-listed: {lookup.table}"
+            )
         if not lookup.path.exists():
             raise ComsolMappingError(
-                f"reaction lookup table does not exist for {lookup.name}: "
-                f"{lookup.path}"
+                f"reaction lookup table does not exist for {lookup.name}: {lookup.path}"
             )
         header = _csv_header(lookup.path)
         missing = [
@@ -368,19 +412,26 @@ def validate_comsol_mapping_files(
                 f"reaction lookup {lookup.name} table {lookup.table} is missing "
                 + ", ".join(missing)
             )
-        if not _csv_has_value(lookup.path, "process_type", lookup.process_type):
-            raise ComsolMappingError(
-                f"reaction lookup {lookup.name} process_type "
-                f"{lookup.process_type!r} not found in {lookup.table}"
+        try:
+            read_lookup(
+                lookup.path, lookup.x_column, lookup.y_column, reaction=lookup.identity
             )
+        except LookupValidationError as exc:
+            raise ComsolMappingError(str(exc)) from exc
 
     table = mapping.closure.mean_energy
+    if table.table not in tables:
+        raise ComsolMappingError(
+            f"mean-energy lookup is not manifest-listed: {table.table}"
+        )
     if not table.path.exists():
         raise ComsolMappingError(
             f"mean-energy lookup table does not exist: {table.path}"
         )
     header = _csv_header(table.path)
-    missing = [column for column in (table.x_column, table.y_column) if column not in header]
+    missing = [
+        column for column in (table.x_column, table.y_column) if column not in header
+    ]
     if missing:
         raise ComsolMappingError(
             f"mean-energy lookup table {table.table} is missing " + ", ".join(missing)
@@ -394,12 +445,21 @@ def validate_comsol_mapping_files(
         "reduced_electron_energy_diffusion_m2_s_m3",
     }
     if not transport_path.exists():
-        raise ComsolMappingError(f"transport lookup table does not exist: {transport_path}")
+        raise ComsolMappingError(
+            f"transport lookup table does not exist: {transport_path}"
+        )
     missing_transport = sorted(transport_columns - set(_csv_header(transport_path)))
     if missing_transport:
         raise ComsolMappingError(
             "transport lookup table is missing " + ", ".join(missing_transport)
         )
+    from .bundle import validate_positive_column_bundle
+    from .contracts import PositiveColumnWorkflowError
+
+    try:
+        validate_positive_column_bundle(mapping.bundle.path, mapping=mapping)
+    except PositiveColumnWorkflowError as exc:
+        raise ComsolMappingError(str(exc)) from exc
 
 
 def _missing_input_mph_hint(path: Path) -> str:
@@ -412,7 +472,7 @@ def _missing_input_mph_hint(path: Path) -> str:
 def _missing_bundle_hint(path: Path) -> str:
     return (
         "Generate the Ar-only bundle first, for example: "
-        "swarm-workflow sweep examples/workflow_argon_comsol.yaml; "
+        "swarm-workflow run examples/workflow_argon_comsol.yaml; "
         "swarm-workflow aggregate outputs/argon_comsol/swarm.sqlite --output "
         "outputs/argon_comsol/aggregate; "
         "swarm-workflow build-tables outputs/argon_comsol/swarm.sqlite --output "
@@ -426,8 +486,7 @@ def _missing_bundle_hint(path: Path) -> str:
 def _read_yaml_mapping(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise ComsolMappingError(f"mapping YAML does not exist: {path}")
-    with path.open("r", encoding="utf-8") as fp:
-        data = yaml.safe_load(fp) or {}
+    data = read_yaml_mapping(path)
     if not isinstance(data, dict):
         raise ComsolMappingError("mapping YAML root must be a mapping")
     return data
@@ -444,7 +503,56 @@ def _parse_model(raw: dict[str, Any], root: Path) -> ModelSpec:
 
 
 def _parse_bundle(raw: dict[str, Any], root: Path) -> BundleSpec:
-    return BundleSpec(path=resolve_path(_required_str(raw, "path"), root))
+    if raw.get("source") != "two_term":
+        raise ComsolMappingError(
+            "positive-column schema v2 migration required: bundle.source must "
+            "declare two_term; other solver closures are unsupported by this adapter"
+        )
+    return BundleSpec(
+        path=resolve_path(_required_str(raw, "path"), root), source=raw["source"]
+    )
+
+
+def _parse_physical_context(raw: dict[str, Any]) -> ModelPhysicalContext:
+    temperature = raw.get("gas_temperature_K")
+    if (
+        isinstance(temperature, bool)
+        or not isinstance(temperature, (float, int))
+        or not math.isfinite(temperature)
+        or temperature <= 0
+    ):
+        raise ComsolMappingError(
+            "physical_context.gas_temperature_K must be finite and positive"
+        )
+    mixture = raw.get("gas_mixture")
+    # This MPH's fixed chemistry is pure argon; unrelated mixtures need their own adapter.
+    if (
+        not isinstance(mixture, list)
+        or len(mixture) != 1
+        or not isinstance(mixture[0], dict)
+    ):
+        raise ComsolMappingError(
+            "positive-column physical_context.gas_mixture must be pure Ar"
+        )
+    item = mixture[0]
+    if (
+        item.get("species") != "Ar"
+        or item.get("fraction") != 1.0
+        or isinstance(item.get("fraction"), bool)
+    ):
+        raise ComsolMappingError(
+            "positive-column physical_context.gas_mixture must be pure Ar"
+        )
+    mass = item.get("mass_amu")
+    if (
+        isinstance(mass, bool)
+        or not isinstance(mass, (float, int))
+        or not math.isclose(mass, 39.948, rel_tol=1e-12)
+    ):
+        raise ComsolMappingError("positive-column Ar mass_amu must be 39.948")
+    return ModelPhysicalContext(
+        float(temperature), (ModelGasComponent("Ar", 1.0, float(mass)),)
+    )
 
 
 def _parse_logs(raw: object, root: Path) -> LogSpec:
@@ -545,8 +653,7 @@ def _parse_closure(
         )
     if property_name != "MeanElectronEnergyModel":
         raise ComsolMappingError(
-            "closure.mean_energy_formulation.property must be "
-            "'MeanElectronEnergyModel'"
+            "closure.mean_energy_formulation.property must be 'MeanElectronEnergyModel'"
         )
     expected_value = _MEAN_ENERGY_COMSOL_VALUES[mode]
     if comsol_value != expected_value:
@@ -589,11 +696,24 @@ def _parse_reaction_lookups(
             raise ComsolMappingError("reaction lookup names must be non-empty strings")
         if not isinstance(item, dict):
             raise ComsolMappingError(f"reaction_lookups.{name} must be a mapping")
+        if any(key not in item for key in ("species", "process", "threshold_eV")):
+            raise ComsolMappingError(
+                f"positive-column schema v2 migration required: reaction_lookups.{name} "
+                "must identify species, process, process_type, and threshold_eV"
+            )
+        threshold = item["threshold_eV"]
+        if (
+            isinstance(threshold, bool)
+            or not isinstance(threshold, (int, float))
+            or not math.isfinite(threshold)
+            or threshold < 0
+        ):
+            raise ComsolMappingError(
+                f"reaction_lookups.{name}.threshold_eV must be finite and nonnegative"
+            )
         form = _required_str(item, "form")
         if form != "townsend":
-            raise ComsolMappingError(
-                f"reaction_lookups.{name}.form must be 'townsend'"
-            )
+            raise ComsolMappingError(f"reaction_lookups.{name}.form must be 'townsend'")
         source_model = _optional_str(item, "source_model", "townsend_flux")
         if source_model != "townsend_flux":
             raise ComsolMappingError(
@@ -632,6 +752,12 @@ def _parse_reaction_lookups(
                 x_column=x_column,
                 y_column=y_column,
                 process_type=_required_str(item, "process_type"),
+                identity=ReactionIdentity(
+                    _required_str(item, "species"),
+                    _required_str(item, "process"),
+                    _required_str(item, "process_type"),
+                    float(threshold),
+                ),
             )
         )
     return tuple(lookups)
@@ -659,28 +785,69 @@ def _parse_run(raw: dict[str, Any]) -> RunMapping:
     )
 
 
-def _parse_results(raw: object) -> tuple[ResultProbe, ...]:
-    if raw is None:
-        return ()
+def _parse_results(raw: object, root: Path) -> ResultOutput:
     if not isinstance(raw, dict):
         raise ComsolMappingError("results must be a mapping")
-    probes = raw.get("probes", [])
-    if probes is None:
-        probes = []
-    if not isinstance(probes, list):
-        raise ComsolMappingError("results.probes must be a list")
+    if "probes" in raw:
+        raise ComsolMappingError(
+            "results.probes was an expression list, not point probes; migrate to "
+            "results.fields and explicitly select results.dataset and results.solutions"
+        )
+    unknown = set(raw) - {"output_directory", "dataset", "solutions", "fields"}
+    if unknown:
+        raise ComsolMappingError(f"unsupported results fields: {sorted(unknown)}")
+    dataset = _required_str(raw, "dataset")
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", dataset):
+        raise ComsolMappingError("results.dataset must be a COMSOL dataset tag")
+    solutions = _required_str(raw, "solutions")
+    if solutions not in {"all", "last"}:
+        raise ComsolMappingError(
+            "results.solutions must be all or last saved solutions"
+        )
+    output = _optional_str(raw, "output_directory", "outputs/comsol_positive_column")
+    if not output.strip() or "\0" in output:
+        raise ComsolMappingError("results.output_directory must be a nonempty path")
+    result_fields = raw.get("fields")
+    if not isinstance(result_fields, list) or not result_fields:
+        raise ComsolMappingError("results.fields must be a nonempty list")
     parsed = []
-    for index, item in enumerate(probes):
+    reserved = {
+        "dataset",
+        "solution_index",
+        "point_index",
+        "time_s",
+        "parameter_name",
+        "parameter_unit",
+        "parameter_value",
+    }
+    names = set()
+    for index, item in enumerate(result_fields):
         if not isinstance(item, dict):
-            raise ComsolMappingError(f"results.probes[{index}] must be a mapping")
+            raise ComsolMappingError(f"results.fields[{index}] must be a mapping")
+        unknown = set(item) - {"name", "expression", "unit"}
+        if unknown:
+            raise ComsolMappingError(
+                f"unsupported results.fields[{index}] fields: {sorted(unknown)}"
+            )
+        name = _required_str(item, "name")
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) or name in reserved:
+            raise ComsolMappingError(f"invalid or reserved result field name: {name!r}")
+        if name in names:
+            raise ComsolMappingError(f"duplicate result field name: {name}")
+        names.add(name)
+        unit = _required_str(item, "unit")
+        try:
+            canonical_unit(name, unit)
+        except ValueError as error:
+            raise ComsolMappingError(str(error)) from error
         parsed.append(
-            ResultProbe(
-                name=_required_str(item, "name"),
+            ResultField(
+                name=name,
                 expression=_required_str(item, "expression"),
-                unit=_required_str(item, "unit"),
+                unit=unit,
             )
         )
-    return tuple(parsed)
+    return ResultOutput(resolve_path(output, root), dataset, solutions, tuple(parsed))
 
 
 def _required_mapping(raw: dict[str, Any], key: str) -> dict[str, Any]:
@@ -720,7 +887,7 @@ def _optional_nonnegative_float(
     if not isinstance(value, (int, float)) or isinstance(value, bool):
         raise ComsolMappingError(f"verify.{key} must be a number")
     number = float(value)
-    if number < 0.0:
+    if not math.isfinite(number) or number < 0.0:
         raise ComsolMappingError(f"verify.{key} must be non-negative")
     return number
 
@@ -763,14 +930,6 @@ def _csv_header(path: Path) -> tuple[str, ...]:
         except StopIteration as exc:
             raise ComsolMappingError(f"mapped function CSV is empty: {path}") from exc
     return tuple(header)
-
-
-def _csv_has_value(path: Path, column: str, expected: str) -> bool:
-    with path.open("r", encoding="utf-8", newline="") as fp:
-        for row in csv.DictReader(fp):
-            if row.get(column) == expected:
-                return True
-    return False
 
 
 def _validate_function_units(

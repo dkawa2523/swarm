@@ -6,6 +6,11 @@ from dataclasses import asdict, replace
 from hashlib import sha256
 import json
 
+from electron_swarm.core.source_identity import (
+    SOLVER_IMPLEMENTATIONS_KEY,
+    solver_implementations,
+)
+
 from ..quality.monte_carlo.policy import campaign_provenance
 from ..quality.policy import (
     QUALITY_THRESHOLDS_METADATA_KEY,
@@ -13,6 +18,7 @@ from ..quality.policy import (
 )
 from . import config as _workflow_config
 from .quality import resolve_quality_thresholds, source_quality_thresholds_json
+from .identity import WORKFLOW_IMPLEMENTATION_KEY, workflow_execution_identity
 from .store import (
     PROPAGATOR_SOLVER_SOURCE_METADATA_KEY,
     WorkflowStore,
@@ -53,11 +59,13 @@ def workflow_config_sha256(
     mc_solver_source_sha256: str | None = None,
     propagator_solver_source_sha256: str | None = None,
     deterministic_execution_payload: dict[str, object] | None = None,
+    implementations: dict[str, object] | None = None,
 ) -> str:
     """Hash validated workflow semantics with every filesystem path resolved."""
 
     payload: dict[str, object] = {
-        "base_config_path": str(workflow.base_config_path),
+        "workflow_implementation": workflow_execution_identity(),
+        "calculation_path": str(workflow.path),
         "database_path": str(workflow.database_path),
         "e_over_n_Td": list(workflow.e_over_n_Td),
         "mixtures": [
@@ -71,6 +79,8 @@ def workflow_config_sha256(
             asdict(workflow.quality) if quality_payload is None else quality_payload
         ),
     }
+    if implementations is not None:
+        payload["solver_implementations"] = implementations
     if workflow.mc_enabled:
         payload["mc"] = {
             "e_over_n_Td": (
@@ -105,9 +115,7 @@ def workflow_config_sha256(
     if mc_solver_source_sha256 is not None:
         payload[MC_SOLVER_SOURCE_METADATA_KEY] = mc_solver_source_sha256
     if propagator_solver_source_sha256 is not None:
-        payload[PROPAGATOR_SOLVER_SOURCE_METADATA_KEY] = (
-            propagator_solver_source_sha256
-        )
+        payload[PROPAGATOR_SOLVER_SOURCE_METADATA_KEY] = propagator_solver_source_sha256
     encoded = json.dumps(
         payload,
         sort_keys=True,
@@ -150,6 +158,9 @@ def resume_provenance(
             PROPAGATOR_SOLVER_SOURCE_METADATA_KEY
         ),
         deterministic_execution_payload=deterministic_execution_payload,
+        implementations=json.loads(current[SOLVER_IMPLEMENTATIONS_KEY])
+        if SOLVER_IMPLEMENTATIONS_KEY in current
+        else None,
     )
     if stored_hash != compatible_hash:
         return current, False
@@ -163,3 +174,35 @@ def resume_provenance(
         },
         source_quality_json != evaluation_quality_json,
     )
+
+
+def require_current_implementations(
+    metadata: dict[str, str], source: str | None = None
+) -> None:
+    """Reject missing or stale solver/runtime identity before reusing data."""
+
+    try:
+        recorded = json.loads(metadata[SOLVER_IMPLEMENTATIONS_KEY])
+        if not isinstance(recorded, dict) or not recorded:
+            raise ValueError("empty or malformed solver implementation provenance")
+        selected = [source] if source is not None else list(recorded)
+        current = solver_implementations(selected)
+        matches = all(recorded.get(key) == current[key] for key in selected)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(
+            "workflow lacks solver implementation provenance; regenerate the database"
+        ) from exc
+    if not matches:
+        raise ValueError(
+            "solver implementation or numerical runtime changed; regenerate the database"
+        )
+    try:
+        workflow_record = json.loads(metadata[WORKFLOW_IMPLEMENTATION_KEY])
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError(
+            "workflow lacks execution implementation provenance; regenerate the database"
+        ) from error
+    if workflow_record != workflow_execution_identity():
+        raise ValueError(
+            "workflow execution implementation changed; regenerate the database"
+        )

@@ -14,13 +14,14 @@ from swarm_workflow.quality.policy import (
 )
 from swarm_workflow.tables.contracts import (
     RATE_EVIDENCE_TABLE,
+    FORMAT_VERSION as SOURCE_FORMAT_VERSION,
     UNITS,
     ZERO_EVENT_CONFIDENCE,
 )
 
 from .contracts import (
     COMSOL_FUNCTION_EEDF_TABLE,
-    COPIED_TABLE_ROLES,
+    TABLE_ROLES,
     FORMAT_VERSION,
     ComsolExportError,
 )
@@ -48,20 +49,16 @@ def _canonical_eedf_source(
     return copied_source
 
 
-def _validate_source_artifact(
-    path: Path,
+def _validate_source_role(
+    name: str,
     metadata: object,
     *,
     expected_roles: set[str],
 ) -> None:
-    if not path.is_file() or not isinstance(metadata, dict):
-        raise ComsolExportError(f"invalid source artifact: {path}")
+    if not isinstance(metadata, dict):
+        raise ComsolExportError(f"invalid source artifact: {name}")
     if metadata.get("artifact_role") not in expected_roles:
-        raise ComsolExportError(f"invalid artifact role: {path.name}")
-    expected_hash = metadata.get("sha256")
-    actual_hash = _sha256_file(path)
-    if expected_hash != actual_hash:
-        raise ComsolExportError(f"artifact hash mismatch: {path.name}")
+        raise ComsolExportError(f"invalid artifact role: {name}")
 
 
 def _bundle_manifest(
@@ -97,6 +94,8 @@ def _bundle_manifest(
         "source_composition": source_manifest.get("source_composition"),
         "evidence": source_manifest.get("evidence"),
         "physical_context": source_manifest.get("physical_context"),
+        "input_evidence": source_manifest.get("input_evidence", {}),
+        "evidence_scope": "numerical_source_tables",
         "mc_campaign": source_manifest.get("mc_campaign"),
         "mc_qualification": source_manifest.get("mc_qualification"),
         "solver_qualification": source_manifest.get("solver_qualification"),
@@ -107,10 +106,17 @@ def _bundle_manifest(
         "quality_policy": _validated_quality_policy(source_manifest),
         "mixture": source_manifest.get("mixture"),
         "source_policy": source_manifest.get("source_policy", {}),
+        "implementation": source_manifest.get("implementation"),
         "valid_ranges": source_manifest.get("valid_ranges", {}),
         "units": dict(sorted(units.items())),
-        "table_argument": dict(source_manifest.get("table_argument", {})),
-        "monotonicity": source_manifest.get("monotonicity", {}),
+        "table_argument": {
+            **source_manifest.get("table_argument", {}),
+            "secondary": "mean_energy_eV" if "transport_vs_mean_energy.csv" in tables else None,
+        },
+        "monotonicity": {
+            "mean_energy_strictly_monotonic": "transport_vs_mean_energy.csv" in tables,
+            "reason": None,
+        },
         "quality_summary": source_manifest.get("quality_summary", {}),
         "missing_required_coefficients": missing_required_coefficients,
         "eedf_artifacts": {
@@ -160,9 +166,9 @@ def _table_metadata(
     )
     metadata = {
         "columns": list(columns),
-        "units": {column: UNITS[column] for column in columns if column in UNITS},
+        "units": dict(source_table.get("units", {})),
         "argument": source_table.get("argument", "E_over_N_Td"),
-        "artifact_role": COPIED_TABLE_ROLES[name],
+        "artifact_role": TABLE_ROLES[name],
     }
     if name == "quality.csv":
         for field in ("schema", "evidence_kind"):
@@ -196,7 +202,19 @@ def _read_manifest(directory: Path) -> dict[str, Any]:
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ComsolExportError(f"invalid table manifest: {path}")
+    if isinstance(data.get("format_version"), bool) or data.get("format_version") != SOURCE_FORMAT_VERSION:
+        raise ComsolExportError("source table format_version must be 3; rebuild obsolete tables")
     return data
+
+
+def _validate_source_units(name: str, metadata: dict[str, Any]) -> None:
+    """Native v3 tables declare units; export must never infer an SI label."""
+    units = metadata.get("units")
+    if not isinstance(units, dict):
+        raise ComsolExportError(f"source table lacks declared units: {name}")
+    for column in metadata["columns"]:
+        if column in UNITS and units.get(column) != UNITS[column]:
+            raise ComsolExportError(f"source table unit differs for {name}:{column}; rebuild in canonical units")
 
 
 def _validated_quality_thresholds(manifest: dict[str, Any]) -> dict[str, object]:

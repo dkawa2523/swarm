@@ -114,9 +114,7 @@ class PropagatorConvergenceDiagnostics:
             "normalization_error": self.normalization_error,
             "negative_population_mass": self.negative_population_mass,
             "tail_probability": self.tail_probability,
-            "outer_acceleration_flux_fraction": (
-                self.outer_acceleration_flux_fraction
-            ),
+            "outer_acceleration_flux_fraction": (self.outer_acceleration_flux_fraction),
             "number_balance_residual": self.number_balance_residual,
             "stop_reason": self.stop_reason,
             "timings_s": dict(self.timings_s),

@@ -29,7 +29,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
-from swarm_workflow.campaign.statistics import energy_edges_from_cells  # noqa: E402
+from electron_swarm.grids.energy import reported_cell_edges  # noqa: E402
 
 
 SCHEMA = "swarm.validation.mc_eedf_grid_projection.v1"
@@ -120,7 +120,7 @@ def _coarsen(cells: list[Cell]) -> tuple[list[Cell], dict[str, float | int]]:
             )
         )
 
-    check_edges = energy_edges_from_cells(
+    check_edges = reported_cell_edges(
         [cell.energy_eV for cell in projected],
         [cell.width_eV for cell in projected],
     )
@@ -177,7 +177,9 @@ def _project_database(source: Path, output: Path) -> list[dict[str, object]]:
                         width_eV=float(row["energy_width_eV"]),
                         eedf=float(row["eedf"]),
                         sample_count=(
-                            None if row["sample_count"] is None else int(row["sample_count"])
+                            None
+                            if row["sample_count"] is None
+                            else int(row["sample_count"])
                         ),
                         effective_count=(
                             None
@@ -188,7 +190,7 @@ def _project_database(source: Path, output: Path) -> list[dict[str, object]]:
                     for row in rows
                 ]
                 try:
-                    energy_edges_from_cells(
+                    reported_cell_edges(
                         [cell.energy_eV for cell in cells],
                         [cell.width_eV for cell in cells],
                     )
@@ -208,8 +210,8 @@ def _project_database(source: Path, output: Path) -> list[dict[str, object]]:
                     INSERT INTO eedf_bins(
                         mixture_id, solver, e_over_n_Td, replicate, bin_index,
                         energy_eV, energy_width_eV, eedf, eepf, sample_count,
-                        effective_sample_count, relative_standard_error
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        effective_sample_count
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     [
                         (
@@ -218,15 +220,9 @@ def _project_database(source: Path, output: Path) -> list[dict[str, object]]:
                             cell.energy_eV,
                             cell.width_eV,
                             cell.eedf,
-                            cell.eedf / math.sqrt(max(cell.energy_eV, 1.0e-300)),
+                            cell.eedf / math.sqrt(max(cell.energy_eV, 1e-300)),
                             cell.sample_count,
                             cell.effective_count,
-                            (
-                                1.0 / math.sqrt(cell.effective_count)
-                                if cell.effective_count is not None
-                                and cell.effective_count > 0.0
-                                else None
-                            ),
                         )
                         for index, cell in enumerate(projected)
                     ],
@@ -266,7 +262,9 @@ def main() -> None:
 
     source = args.source.resolve()
     output = args.output.resolve()
-    manifest = (args.manifest or output.with_suffix(output.suffix + ".projection.json")).resolve()
+    manifest = (
+        args.manifest or output.with_suffix(output.suffix + ".projection.json")
+    ).resolve()
     if not source.is_file():
         parser.error(f"source database does not exist: {source}")
     if source == output:
@@ -278,7 +276,9 @@ def main() -> None:
             parser.error(f"projection manifest does not exist: {manifest}")
         payload = json.loads(manifest.read_text(encoding="utf-8"))
         if payload.get("schema") != SCHEMA:
-            parser.error(f"unexpected projection manifest schema: {payload.get('schema')}")
+            parser.error(
+                f"unexpected projection manifest schema: {payload.get('schema')}"
+            )
         if Path(str(payload.get("source_database"))).resolve() != source:
             parser.error("projection manifest source database does not match")
         if Path(str(payload.get("output_database"))).resolve() != output:
@@ -292,7 +292,9 @@ def main() -> None:
             parser.error("projection manifest has no projection-stage output hash")
         payload["projection_output_sha256"] = projection_hash
         payload["analysis_output_sha256"] = _sha256(output)
-        payload["analysis_hash_scope"] = "after downstream aggregate table materialization"
+        payload["analysis_hash_scope"] = (
+            "after downstream aggregate table materialization"
+        )
         payload["analysis_finalized"] = True
         manifest.write_text(
             json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -323,7 +325,9 @@ def main() -> None:
         ),
         "events": events,
     }
-    manifest.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    manifest.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     print(json.dumps(payload, sort_keys=True))
 
 

@@ -10,25 +10,25 @@ from pathlib import Path
 import sqlite3
 from typing import Any, Mapping
 
-from .propagator_source import (
+from electron_swarm.core.source_identity import (
     PROPAGATOR_SOLVER_SOURCE_METADATA_KEY,
-    PROPAGATOR_SOURCE_FINGERPRINT_SCHEMA,
-    propagator_qualification_source_fingerprint,
+    SOLVER_SOURCE_FINGERPRINT_SCHEMA,
+    solver_source_fingerprint,
 )
 
 
 PROPAGATOR_CORE_QUALIFICATION_SCHEMA = (
-    "swarm.propagator_p1_deterministic_qualification.v1"
+    "swarm.propagator_p1_deterministic_qualification.v2"
 )
 PROPAGATOR_CORE_QUALIFICATION_FILE = "propagator_p1_core_qualification.json"
-PROPAGATOR_TARGET_QUALIFICATION_SCHEMA = "swarm.propagator_target_qualification.v1"
+PROPAGATOR_TARGET_QUALIFICATION_SCHEMA = "swarm.propagator_target_qualification.v2"
 PROPAGATOR_TARGET_QUALIFICATION_FILE = "propagator_target_qualification.json"
 PROPAGATOR_TARGET_QUALIFIER_FINGERPRINT_SCHEMA = (
-    "swarm.propagator_target_qualifier_source_tree_sha256.v1"
+    "swarm.propagator_target_qualifier_source_tree_sha256.v2"
 )
 PROPAGATOR_TARGET_QUALIFIER_FILES = (
     "swarm_workflow/quality/solver.py",
-    "tools/qualify_propagator_target.py",
+    "swarm_workflow/quality/propagator_refinement.py",
 )
 
 
@@ -205,7 +205,7 @@ def validate_propagator_core_qualification(
     expected_digest = fingerprint.get("sha256")
     fingerprint_schema = fingerprint.get("schema")
     if (
-        fingerprint_schema != PROPAGATOR_SOURCE_FINGERPRINT_SCHEMA
+        fingerprint_schema != SOLVER_SOURCE_FINGERPRINT_SCHEMA
         or not isinstance(expected_digest, str)
     ):
         raise SolverQualificationError(
@@ -216,7 +216,7 @@ def validate_propagator_core_qualification(
         if repository_root is not None
         else Path(__file__).resolve().parents[2]
     )
-    actual_fingerprint = propagator_qualification_source_fingerprint(root)
+    actual_fingerprint = solver_source_fingerprint("propagator", root)
     if fingerprint != actual_fingerprint:
         raise SolverQualificationError(
             "Propagator implementation changed after qualification: "
@@ -226,7 +226,7 @@ def validate_propagator_core_qualification(
     input_hashes = environment.get("input_sha256")
     if not isinstance(input_hashes, dict) or not input_hashes:
         raise SolverQualificationError("Propagator qualification lacks input hashes")
-    _validate_input_hashes(root, input_hashes)
+    _validate_input_snapshots(environment.get("input_artifacts"), input_hashes)
     return SolverQualification(
         source_path=artifact_path,
         sha256=file_sha256(artifact_path),
@@ -432,7 +432,7 @@ def validate_propagator_target_qualification(
                 "downstream Propagator provenance hashes are malformed"
             )
         for name in (
-            "base_config_sha256",
+            "calculation_sha256",
             "workflow_config_sha256",
             "cross_sections_sha256",
             PROPAGATOR_SOLVER_SOURCE_METADATA_KEY,
@@ -464,7 +464,7 @@ def validate_propagator_target_qualification(
                 "Propagator target medium-grid evidence changed after qualification"
             )
         hash_pairs = {
-            "base_config_sha256": "base_config_sha256",
+            "calculation_sha256": "calculation_sha256",
             "workflow_config_sha256": "workflow_config_sha256",
             "cross_sections_sha256": "cross_sections_sha256",
             PROPAGATOR_SOLVER_SOURCE_METADATA_KEY: (
@@ -745,7 +745,11 @@ def _validate_target_refinement(
         differences = row.get("relative_differences")
         gated = row.get("gated_scalars")
         try:
-            scalar_max = max(float(differences[name]) for name in gated)
+            expected_scalars = {"mean_energy", "drift_velocity", "growth_frequency"}
+            if not isinstance(gated, list) or set(gated) != expected_scalars:
+                raise ValueError("incomplete scalar gates")
+            scalars = [float(differences[name]) for name in expected_scalars]
+            scalar_max = max(scalars)
             eedf = float(row["eedf_weighted_L1"])
         except (KeyError, TypeError, ValueError) as exc:
             raise SolverQualificationError(
@@ -754,6 +758,7 @@ def _validate_target_refinement(
         if (
             row.get("status") != "available"
             or row.get("passed") is not True
+            or any(not math.isfinite(value) or value < 0 for value in [*scalars, eedf])
             or scalar_max > scalar_limit
             or eedf > eedf_limit
         ):
@@ -776,11 +781,14 @@ def _source_tree_digest(root: Path, files: list[str]) -> str:
                 f"Propagator fingerprint source is unavailable: {relative_text}"
             )
         canonical = relative.as_posix().encode("utf-8")
-        digest.update(canonical + b"\0" + source.read_bytes() + b"\0")
+        content = source.read_bytes().replace(b"\r\n", b"\n")
+        digest.update(canonical + b"\0" + content + b"\0")
     return digest.hexdigest()
 
 
-def _validate_input_hashes(root: Path, hashes: Mapping[str, Any]) -> None:
+def _validate_input_snapshots(snapshots: Any, hashes: Mapping[str, Any]) -> None:
+    if not isinstance(snapshots, dict) or set(snapshots) != set(hashes):
+        raise SolverQualificationError("Propagator qualification lacks input snapshots")
     for relative_text, expected in hashes.items():
         if not isinstance(relative_text, str) or not isinstance(expected, str):
             raise SolverQualificationError(
@@ -791,12 +799,11 @@ def _validate_input_hashes(root: Path, hashes: Mapping[str, Any]) -> None:
             raise SolverQualificationError(
                 "Propagator qualification contains an unsafe input path"
             )
-        source = (root / relative).resolve()
+        content = snapshots[relative_text]
         if (
-            not source.is_relative_to(root)
-            or not source.is_file()
-            or file_sha256(source) != expected
+            not isinstance(content, str)
+            or sha256(content.encode("utf-8")).hexdigest() != expected
         ):
             raise SolverQualificationError(
-                f"Propagator qualification input changed: {relative_text}"
+                f"Propagator qualification input snapshot changed: {relative_text}"
             )

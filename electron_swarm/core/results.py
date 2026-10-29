@@ -9,6 +9,9 @@ import numpy as np
 
 from electron_swarm.core.numerics import eepf_from_eedf
 from electron_swarm.core.transport import ElectronTransport
+from electron_swarm.core.physical_context import PhysicalContext
+from electron_swarm.core.provenance import ExecutionRecord
+from electron_swarm.core.observables import ObservableDefinition
 
 
 def _finite_scalar(value: object, name: str) -> float:
@@ -122,6 +125,8 @@ class SwarmCaseResult:
         repr=False,
     )
     schema_version: str = "2"
+    physical_context: PhysicalContext | None = None
+    transport_observables: dict[str, ObservableDefinition] = field(default_factory=dict)
 
     @property
     def drift_velocity_m_s(self) -> float:
@@ -194,12 +199,34 @@ class SwarmRunResult:
 
     cases: list[SwarmCaseResult]
     metadata: dict[str, Any] = field(default_factory=dict)
+    execution_record: ExecutionRecord | None = field(
+        default=None, init=False, repr=False, compare=False
+    )
 
     def by_solver(self) -> dict[str, list[SwarmCaseResult]]:
         grouped: dict[str, list[SwarmCaseResult]] = {}
         for case in self.cases:
             grouped.setdefault(case.solver, []).append(case)
         return grouped
+
+
+def case_numerical_status(case: SwarmCaseResult) -> str:
+    """Compact interpretation of current evidence, without creating evidence."""
+
+    if case.metadata.get("electron_electron_transport_stale") is True:
+        return "postprocessed_transport_stale"
+    if case.solver == "monte_carlo":
+        return "requires_independent_ensemble"
+    evidence = case.diagnostics.get(case.solver, {})
+    if evidence.get("tail_target_met") is False:
+        return "tail_limited"
+    tail = evidence.get("tail_probability")
+    target = evidence.get("tail_probability_target")
+    if tail is not None and target is not None and float(tail) > float(target):
+        return "tail_limited"
+    if evidence.get("converged") is True or evidence.get("pn_converged") is True:
+        return "numerically_converged"
+    return "unknown"
 
 
 def validate_case_result(case: SwarmCaseResult) -> None:
@@ -309,5 +336,36 @@ def validate_case_result(case: SwarmCaseResult) -> None:
         expected = (len(angular.energy_eV), len(angular.mu))
         if angular.density_eV_inv.shape != expected:
             raise ValueError("energy-angle density shape must match its coordinates")
-        if len(angular.energy_widths_eV) != expected[0] or len(angular.mu_widths) != expected[1]:
+        if (
+            len(angular.energy_widths_eV) != expected[0]
+            or len(angular.mu_widths) != expected[1]
+        ):
             raise ValueError("energy-angle widths must match their coordinates")
+
+
+def execution_outcome(result) -> dict:
+    plan = result.metadata.get("solver_plan", [])
+    requested = [item["solver"] for item in plan if item["requested"]]
+    completed = list(dict.fromkeys(case.solver for case in result.cases))
+    skipped = {
+        item["solver"]: item["skip_reason"]
+        for item in plan
+        if item["requested"] and item["skipped"]
+    }
+    comparison_status = result.metadata.get("comparison", {}).get("status", "disabled")
+    status = (
+        "skipped"
+        if not completed
+        else "partial"
+        if skipped
+        or comparison_status in {"partial", "unavailable", "incompatible", "unverified"}
+        else "complete"
+    )
+    return {
+        "status": status,
+        "requested_solvers": requested or completed,
+        "completed_solvers": completed,
+        "skipped_solvers": skipped,
+        "case_count": len(result.cases),
+        "comparison_status": comparison_status,
+    }

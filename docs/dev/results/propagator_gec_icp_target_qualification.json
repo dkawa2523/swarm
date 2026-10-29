@@ -1,0 +1,221 @@
+{
+  "decision": {
+    "blocking_gates": [],
+    "fine_case_quality_passed": true,
+    "medium_fine_refinement_passed": true,
+    "release_claim": "target_specific_P1_numerical_scope_only; downstream closure remains a separate decision",
+    "target_refinement_qualified": true
+  },
+  "environment": {
+    "configured_memory_bound_per_worker_mb": 1024,
+    "effective_workers": 3,
+    "generated_at_utc": "2026-10-26T15:28:26.888431+00:00",
+    "logical_cpu_count": 20,
+    "memory_budget_mb": 3072,
+    "requested_workers": 3,
+    "target_qualifier_fingerprint": {
+      "file_count": 2,
+      "files": [
+        "swarm_workflow/quality/solver.py",
+        "swarm_workflow/quality/propagator_refinement.py"
+      ],
+      "schema": "swarm.propagator_target_qualifier_source_tree_sha256.v2",
+      "sha256": "598b302282a0aea31ae2fd85dbcd7852ce5f912cae3655973f8a337f7dc9eca2"
+    }
+  },
+  "fine_runs": [
+    {
+      "E_over_N_Td": 1500.0,
+      "drift_velocity_m_s": 827874.3424960759,
+      "elapsed_s": 277.7049761998933,
+      "energy_cells": 681,
+      "energy_max_eV": 5000.0,
+      "estimated_peak_memory_bytes": 383234112,
+      "family": "argon_gec_icp_restricted_local_mean_energy",
+      "growth_frequency_s_inv": 17903883.230897974,
+      "growth_response_system_builds": 5,
+      "growth_root_iterations": 0,
+      "growth_secant_steps": 3,
+      "mean_energy_eV": 21.10559836857288,
+      "negative_population_mass": 0.0,
+      "number_balance_residual": 3.066320130961517e-13,
+      "operator_residual_L1": 3.185485842391209e-16,
+      "outer_acceleration_flux_fraction": 5.239730443325994e-17,
+      "perron_cone_compatible_pairs": 1,
+      "perron_ritz_pairs": 1,
+      "polar_cells": 72,
+      "profile": "fine",
+      "quality_gates_passed": true,
+      "response_applications": 670,
+      "response_build_blas_threads": 1,
+      "response_system_build_s": 50.13542039995082,
+      "status": "ok",
+      "tail_probability": 1.4378261435860432e-15
+    },
+    {
+      "E_over_N_Td": 2500.0,
+      "drift_velocity_m_s": 1241625.9199245172,
+      "elapsed_s": 310.9994587999536,
+      "energy_cells": 681,
+      "energy_max_eV": 5000.0,
+      "estimated_peak_memory_bytes": 383234112,
+      "family": "argon_gec_icp_restricted_local_mean_energy",
+      "growth_frequency_s_inv": 34935033.859130576,
+      "growth_response_system_builds": 6,
+      "growth_root_iterations": 0,
+      "growth_secant_steps": 4,
+      "mean_energy_eV": 35.56018313439172,
+      "negative_population_mass": 0.0,
+      "number_balance_residual": 1.444908284776773e-16,
+      "operator_residual_L1": 5.602198457608314e-16,
+      "outer_acceleration_flux_fraction": 1.717118490169828e-11,
+      "perron_cone_compatible_pairs": 1,
+      "perron_ritz_pairs": 1,
+      "polar_cells": 72,
+      "profile": "fine",
+      "quality_gates_passed": true,
+      "response_applications": 804,
+      "response_build_blas_threads": 1,
+      "response_system_build_s": 46.21735270007048,
+      "status": "ok",
+      "tail_probability": 1.8473083864553798e-10
+    },
+    {
+      "E_over_N_Td": 2744.2936035,
+      "drift_velocity_m_s": 1335075.288274147,
+      "elapsed_s": 306.75807139999233,
+      "energy_cells": 681,
+      "energy_max_eV": 5000.0,
+      "estimated_peak_memory_bytes": 383234112,
+      "family": "argon_gec_icp_restricted_local_mean_energy",
+      "growth_frequency_s_inv": 38744745.21051492,
+      "growth_response_system_builds": 6,
+      "growth_root_iterations": 0,
+      "growth_secant_steps": 4,
+      "mean_energy_eV": 39.52218328197061,
+      "negative_population_mass": 0.0,
+      "number_balance_residual": 8.425090856717004e-15,
+      "operator_residual_L1": 1.6458438142058353e-16,
+      "outer_acceleration_flux_fraction": 9.891110220872294e-11,
+      "perron_cone_compatible_pairs": 1,
+      "perron_ritz_pairs": 1,
+      "polar_cells": 72,
+      "profile": "fine",
+      "quality_gates_passed": true,
+      "response_applications": 804,
+      "response_build_blas_threads": 1,
+      "response_system_build_s": 45.42798659997061,
+      "status": "ok",
+      "tail_probability": 9.21995886829742e-10
+    }
+  ],
+  "inputs": {
+    "calculation": "C:\\Users\\user\\Desktop\\swarm_5\\configs\\benchmarks\\argon_gec_icp_propagator_refinement.yaml",
+    "calculation_sha256": "b926a766c1959997eb80d7b7b7a322b4bbcb82a81451c773096bc42d3b181dd8",
+    "configuration_file_sha256": "09d890bba39f166cb8d4074dae51e30cc22c57840aa156356bf7d36b62a38db6",
+    "core_qualification": {
+      "decision": "p1_deterministic_core_qualified",
+      "implementation_fingerprint": {
+        "schema": "swarm.numerical_model_sha256.v2",
+        "sha256": "8f5fa0995662a98a6a56f103b1d42a09e2e2febd7159b1ef6f049853728bb881"
+      },
+      "schema": "swarm.propagator_p1_deterministic_qualification.v2",
+      "sha256": "5f8bd67a6c940e052c9937395c4b5c2bea050911bf2d65bac7b10752c21aba24"
+    },
+    "cross_sections_sha256": "a70cd71afa33710fbb4189b82fb61612f75f492ba1dc7e626789e759f70ea921",
+    "database": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\qualification\\gec_icp_propagator_v10.sqlite",
+    "medium_evidence_sha256": "6b7fe7ae84dc54cbba0e4938e16d1ef6111a91e5af62ddbb03ded76a9bc7cad9",
+    "propagator_solver_source_sha256": "8f5fa0995662a98a6a56f103b1d42a09e2e2febd7159b1ef6f049853728bb881",
+    "workflow_config_sha256": "80768487ac9a0587f4d9f270f1403a79483bec41976c73675d54700e3e9a496a"
+  },
+  "medium_fine_refinement": [
+    {
+      "E_over_N_Td": 1500.0,
+      "eedf_limit": 0.02,
+      "eedf_weighted_L1": 0.005728342429008347,
+      "gated_scalars": [
+        "mean_energy",
+        "drift_velocity",
+        "growth_frequency"
+      ],
+      "passed": true,
+      "relative_differences": {
+        "drift_velocity": 0.004600804074653695,
+        "growth_frequency": 0.003622852059465043,
+        "mean_energy": 0.0022827584830960525
+      },
+      "scalar_limit": 0.01,
+      "status": "available"
+    },
+    {
+      "E_over_N_Td": 2500.0,
+      "eedf_limit": 0.02,
+      "eedf_weighted_L1": 0.006764887840985444,
+      "gated_scalars": [
+        "mean_energy",
+        "drift_velocity",
+        "growth_frequency"
+      ],
+      "passed": true,
+      "relative_differences": {
+        "drift_velocity": 0.005080550868157598,
+        "growth_frequency": 0.003211705279593741,
+        "mean_energy": 0.0030572107925374175
+      },
+      "scalar_limit": 0.01,
+      "status": "available"
+    },
+    {
+      "E_over_N_Td": 2744.2936035,
+      "eedf_limit": 0.02,
+      "eedf_weighted_L1": 0.007137389612490475,
+      "gated_scalars": [
+        "mean_energy",
+        "drift_velocity",
+        "growth_frequency"
+      ],
+      "passed": true,
+      "relative_differences": {
+        "drift_velocity": 0.0051556635983188125,
+        "growth_frequency": 0.0031051190202812714,
+        "mean_energy": 0.003188600944150235
+      },
+      "scalar_limit": 0.01,
+      "status": "available"
+    }
+  ],
+  "schema": "swarm.propagator_target_qualification.v2",
+  "scope": {
+    "eedf_weighted_L1_limit": 0.02,
+    "excluded": [
+      "two_term",
+      "multi_term",
+      "monte_carlo",
+      "COMSOL",
+      "P2_bulk_transport_and_diffusion"
+    ],
+    "field_model": "homogeneous_dc_B0",
+    "fields_Td": [
+      1500.0,
+      2500.0,
+      2744.2936035
+    ],
+    "fine_grid": [
+      600,
+      72
+    ],
+    "included_solver": "propagator",
+    "medium_grid": [
+      300,
+      48
+    ],
+    "mixture_id": 0,
+    "operating_range_bracket_Td": [
+      1500.0,
+      2500.0
+    ],
+    "scalar_refinement_limit": 0.01,
+    "table_support_cap_Td": 2744.2936035,
+    "target": "argon_gec_icp_restricted_local_mean_energy"
+  }
+}

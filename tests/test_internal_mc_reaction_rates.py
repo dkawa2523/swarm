@@ -575,8 +575,8 @@ def test_internal_mc_uses_direct_rates_and_emits_sampling_metadata(
     data = base_product_config(tmp_path, ["monte_carlo"])
     data["solvers"]["monte_carlo"] = {
         "particles": 4,
-        "warmup_collisions": 3,
-        "max_collisions": 20,
+        "warmup_trial_periods": 3,
+        "production_trial_periods": 20,
         "seed": 123,
     }
     config = load_config(write_config(tmp_path, data))

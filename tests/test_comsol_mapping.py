@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from support.positive_column import complete_bundle_fixture, complete_mapping_fixture
+
 from swarm_workflow.comsol.models.positive_column.config import (
     ComsolMappingError,
     load_comsol_mapping,
@@ -117,13 +119,13 @@ def _write_mapping_repo(root: Path) -> Path:
         """
 schema_version: 2
 model:
-  input_mph: model/base.mph
-  output_mph: model/work/external.mph
+  input_mph: ../base.mph
+  output_mph: ../work/external.mph
   study: std1
   component: comp1
   physics: plas
 bundle:
-  path: outputs/bundle
+  path: ../../outputs/bundle
 functions:
   mean_energy:
     tag: sw_meanE
@@ -167,4 +169,6 @@ run:
 """.lstrip(),
         encoding="utf-8",
     )
+    complete_bundle_fixture(bundle)
+    complete_mapping_fixture(mapping)
     return mapping

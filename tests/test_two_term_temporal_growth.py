@@ -7,7 +7,7 @@ import electron_swarm.solvers.two_term.transport as kinetic
 from electron_swarm import load_config, run
 from electron_swarm.core.cross_sections import ProcessType, load_cross_sections
 from electron_swarm.core.solver_configs import build_internal_solver_configs
-from electron_swarm.physics.kinetics import gas_number_density
+from electron_swarm.core.gas import gas_number_density
 from electron_swarm.solvers.boltzmann_common.collisions import (
     build_effective_collision_data,
 )
@@ -137,16 +137,11 @@ def test_dc_growth_uses_converged_pt_frequency_for_flux_transport(
     )
 
 
-def test_ignore_mode_does_not_apply_pt_momentum_correction(tmp_path) -> None:
+def test_removed_ignore_switch_cannot_override_requested_physics(tmp_path) -> None:
     data = base_product_config(tmp_path, ["two_term"])
     data["solvers"]["two_term"]["nonconservative_model"] = "ignore"
-    cfg = load_config(write_config(tmp_path, data, "ignore.yaml"))
-    [case] = run(cfg, write=False).cases
-
-    correction = case.diagnostics["two_term"][
-        "temporal_growth_momentum_correction"
-    ]
-    assert correction["applied"] is False
+    with pytest.raises(ValueError, match="silently overrode ionization"):
+        load_config(write_config(tmp_path, data))
 
 
 def test_pt_transport_keyword_rejects_non_dc_use(tmp_path) -> None:

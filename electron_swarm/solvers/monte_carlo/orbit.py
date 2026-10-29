@@ -33,9 +33,7 @@ def _magnetic_flight_energy_eV(
 
     before = np.asarray(before_velocity_m_s, dtype=float)
     after = np.asarray(after_velocity_m_s, dtype=float)
-    return 0.5 * (
-        energy_from_velocity_eV(before) + energy_from_velocity_eV(after)
-    )
+    return 0.5 * (energy_from_velocity_eV(before) + energy_from_velocity_eV(after))
 
 
 def _dc_flight_quadrature(
@@ -245,9 +243,7 @@ def _advance_to_trial_event(
             magnetic_field_T,
             dt,
         )
-        after_push_energy = energy_from_velocity_eV(
-            ensemble.velocities[particle_index]
-        )
+        after_push_energy = energy_from_velocity_eV(ensemble.velocities[particle_index])
         audit.record_field_push(before_push_energy, after_push_energy, weight)
         if magnetic_enabled:
             # Keep the established Boris-orbit position rule for magnetic

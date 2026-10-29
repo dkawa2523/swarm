@@ -19,22 +19,8 @@ from electron_swarm.core.solver_ids import (
 UnsupportedPolicy = Literal["fail", "skip_solver"]
 DegradedPolicy = Literal["fail", "record"]
 TwoTermBackend = Literal["native_sg"]
-
-
-@dataclass(slots=True)
-class GasComponent:
-    species: str
-    fraction: float
-    mass_amu: float
-
-
-@dataclass(slots=True)
-class ConditionsConfig:
-    gas_temperature_K: float = 300.0
-    pressure_Pa: float | None = None
-    gas_number_density_m3: float | None = None
-    length_scale_m: float | None = None
-    gas_mixture: list[GasComponent] = dc_field(default_factory=list)
+from electron_swarm.core.gas import ConditionsConfig, GasComponent as GasComponent
+from .output import ComparisonConfig as ComparisonConfig, OutputConfig as OutputConfig
 
 
 @dataclass(slots=True)
@@ -54,7 +40,6 @@ class CrossSectionsConfig:
 @dataclass(slots=True)
 class TwoTermProductConfig:
     backend: TwoTermBackend = "native_sg"
-    nonconservative_model: Literal["growth", "ignore"] = "growth"
     min_momentum_cross_section_m2: float = 1.0e-24
 
 
@@ -66,14 +51,11 @@ class MultiTermProductConfig:
 
 @dataclass(slots=True)
 class MonteCarloProductConfig:
-    population_model: Literal[
-        "fixed_particle_single_daughter", "weighted_branching"
-    ] = "fixed_particle_single_daughter"
     seed: int | None = None
     particles: int | None = None
-    warmup_collisions: int | None = None
-    max_collisions: int | None = None
-    tail_max_collisions: int | None = None
+    warmup_trial_periods: int | None = None
+    production_trial_periods: int | None = None
+    tail_trial_periods: int | None = None
     tail_rate_rse_trigger: float = 0.25
     transport_correlation_lag_barriers: int = 64
     transport_estimator: Literal["single_field", "paired_field_parity"] = "single_field"
@@ -182,6 +164,9 @@ class ElectronElectronConfig:
 
 @dataclass(slots=True)
 class IonizationConfig:
+    population_model: Literal[
+        "fixed_particle_single_daughter", "weighted_branching"
+    ] = "weighted_branching"
     energy_sharing: Literal["equal", "primary_secondary", "loss_only"] = "equal"
     secondary_electron_energy_eV: float = 0.0
 
@@ -220,25 +205,9 @@ class PhysicsConfig:
 
 
 @dataclass(slots=True)
-class ComparisonConfig:
-    enabled: bool = False
-    reference_solver: SolverId | None = None
-    candidate_solvers: list[SolverId] = dc_field(default_factory=list)
-    compare_eedf: bool = True
-    required: bool = False
-
-
-@dataclass(slots=True)
 class FeaturePolicyConfig:
     unsupported: UnsupportedPolicy = "fail"
     degraded: DegradedPolicy = "record"
-
-
-@dataclass(slots=True)
-class OutputConfig:
-    directory: Path = Path("outputs")
-    base_name: str = "swarm"
-    float_format: str = "%.10e"
 
 
 @dataclass(slots=True)

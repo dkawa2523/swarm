@@ -93,9 +93,9 @@ def _write_database(
             "particles": {1.0: 128, 10.0: 256, 100.0: 512}.get(
                 field, population
             ),
-            "warmup_collisions": 16,
-            "max_collisions": 32,
-            "tail_max_collisions": 65536 if field in (1.0, 10.0) else 16384,
+            "warmup_trial_periods": 16,
+            "production_trial_periods": 32,
+            "tail_trial_periods": 65536 if field in (1.0, 10.0) else 16384,
             "replicas": replica_counts[field],
             "transport_correlation_lag_barriers": 4,
             "transport_estimator": "single_field",
@@ -103,7 +103,7 @@ def _write_database(
         for field in (1.0, 10.0, 100.0, 1000.0)
     ]
     metadata = {
-        "base_config_sha256": "a" * 64,
+        "calculation_sha256": "a" * 64,
         "cross_section_files_json": json.dumps(
             {"fixture.txt": "b" * 64}, sort_keys=True, separators=(",", ":")
         ),
@@ -181,7 +181,7 @@ def _write_database(
             configured = 65536 if field in (1.0, 10.0) else 16384
             executed = configured if field == 10.0 or (field == 1.0 and replicate == 0) else 0
             tail = {
-                "configured_max_collisions": configured,
+                "configured_production_trial_periods": configured,
                 "executed_collisions": executed,
                 "model": (
                     "reaction_kernel_weighted_ensemble"
@@ -208,9 +208,9 @@ def _write_database(
                             replicate=replicate,
                             solver="monte_carlo",
                         ),
-                        "warmup_collisions": 16,
-                        "production_collisions": 32,
-                        "tail_max_collisions": configured,
+                        "warmup_trial_periods": 16,
+                        "production_trial_periods": 32,
+                        "tail_trial_periods": configured,
                         "tail_collisions_executed": executed,
                         "transport_estimator": "single_field",
                     },
@@ -293,7 +293,7 @@ def _write_qualification(
             key: metadata[key]
             for key in (
                 "workflow_config_sha256",
-                "base_config_sha256",
+                "calculation_sha256",
                 "cross_sections_sha256",
                 "mc_sampling_plan_json",
                 "mc_transport_estimator_schema_version",
@@ -547,7 +547,7 @@ def test_evaluator_rejects_nonmonotone_or_nonreplica_refinement(
         metadata = dict(connection.execute("SELECT key, value FROM metadata"))
         plan = json.loads(metadata["mc_sampling_plan_json"])
         next(row for row in plan if row["e_over_n_Td"] == 1.0)[
-            "warmup_collisions"
+            "warmup_trial_periods"
         ] = 17
         connection.execute(
             "UPDATE metadata SET value = ? WHERE key = 'mc_sampling_plan_json'",
@@ -559,7 +559,7 @@ def test_evaluator_rejects_nonmonotone_or_nonreplica_refinement(
         for replicate, raw in rows:
             diagnostics = json.loads(raw)
             diagnostics["internal_monte_carlo_transport"]["mc_run_provenance"][
-                "warmup_collisions"
+                "warmup_trial_periods"
             ] = 17
             connection.execute(
                 "UPDATE cases SET diagnostics_json = ? "

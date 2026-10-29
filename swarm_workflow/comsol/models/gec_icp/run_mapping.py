@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from electron_swarm.core.yaml_input import read_yaml_mapping
+
 import math
 from pathlib import Path
 from typing import Any
@@ -242,7 +244,7 @@ def _read_yaml(path: Path) -> dict[str, Any]:
     if not path.is_file():
         raise GecIcpWorkflowError(f"GEC ICP run mapping does not exist: {path}")
     try:
-        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        raw = read_yaml_mapping(path)
     except (OSError, UnicodeError, yaml.YAMLError) as exc:
         raise GecIcpWorkflowError(f"cannot read GEC ICP run mapping: {path}") from exc
     if not isinstance(raw, dict):

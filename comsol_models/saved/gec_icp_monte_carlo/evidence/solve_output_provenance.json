@@ -1,0 +1,14 @@
+{
+  "schema": "swarm.archived_solve_output.v1",
+  "source_provenance_sha256": "e32088e45ab22ebeedfe37c22f942ff952c707def6e7ec0697c1ca41d9dc92b3",
+  "recorded_at_utc": "2026-09-13T16:55:54.637438Z",
+  "status": "ok",
+  "output_mph": {
+    "exists": true,
+    "modified_at_utc": "2026-09-13T16:55:53.732233Z",
+    "path": "C:\\Users\\user\\Desktop\\swarm_5\\comsol_modes\\work\\argon_gec_icp_monte_carlo_function_eedf.mph",
+    "sha256": "1cbdffa9ee38891769223c4bbbbed517eb51203295f5c7a5bf9af9abc39e55f8",
+    "size_bytes": 31788500
+  },
+  "stage": "solve_after_closure_readback_and_native_eedf_audit"
+}

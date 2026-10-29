@@ -10,9 +10,7 @@ import math
 from pathlib import Path
 from typing import Any, Literal
 
-from electron_swarm.solvers.monte_carlo.source_identity import (
-    monte_carlo_source_sha256,
-)
+from electron_swarm.core.source_identity import solver_source_fingerprint
 
 from ...selection import (
     MC_QUALIFICATION_TABLE,
@@ -68,9 +66,9 @@ class MonteCarloConvergencePolicy:
 class SamplingPlanEntry:
     e_over_n_Td: float
     particles: int
-    warmup_collisions: int
-    max_collisions: int
-    tail_max_collisions: int
+    warmup_trial_periods: int
+    production_trial_periods: int
+    tail_trial_periods: int
     replicas: int
     transport_correlation_lag_barriers: int
     transport_estimator: Literal["single_field", "paired_field_parity"]
@@ -496,8 +494,8 @@ def sampling_budget_provenance(
         per_replica = int(
             entry.particles
             * (
-                transport_field_legs * (entry.warmup_collisions + entry.max_collisions)
-                + entry.tail_max_collisions
+                transport_field_legs * (entry.warmup_trial_periods + entry.production_trial_periods)
+                + entry.tail_trial_periods
             )
         )
         rows.append(
@@ -508,13 +506,13 @@ def sampling_budget_provenance(
                 "total_particle_barriers": per_replica * int(entry.replicas),
                 "transport_estimator": entry.transport_estimator,
                 "transport_field_legs": transport_field_legs,
-                "tail_phase_is_conditional": entry.tail_max_collisions > 0,
+                "tail_phase_is_conditional": entry.tail_trial_periods > 0,
             }
         )
     return {
         "unit": "nominal_particle_barriers",
         "includes_conditional_tail_upper_bound": any(
-            entry.tail_max_collisions > 0 for entry in plan
+            entry.tail_trial_periods > 0 for entry in plan
         ),
         "maximum_per_replica_particle_barriers": max(
             (int(row["per_replica_particle_barriers"]) for row in rows),
@@ -562,7 +560,7 @@ def _mc_run_identity(manifest: dict[str, Any]) -> dict[str, Any]:
     if any(
         not hashes.get(key)
         for key in (
-            "base_config_sha256",
+            "calculation_sha256",
             "cross_sections_sha256",
             "mc_transport_estimator_schema_version",
             "mc_eedf_estimator_schema_version",
@@ -573,7 +571,7 @@ def _mc_run_identity(manifest: dict[str, Any]) -> dict[str, Any]:
             "MC selection requires config, estimator, solver-source, and verified "
             "base-seed provenance"
         )
-    if hashes["mc_solver_source_sha256"] != monte_carlo_source_sha256():
+    if hashes["mc_solver_source_sha256"] != solver_source_fingerprint("monte_carlo")["sha256"]:
         raise MonteCarloPolicyError(
             "Monte Carlo implementation changed after table generation"
         )
@@ -581,7 +579,7 @@ def _mc_run_identity(manifest: dict[str, Any]) -> dict[str, Any]:
         **{
             key: hashes.get(key)
             for key in (
-                "base_config_sha256",
+                "calculation_sha256",
                 "cross_sections_sha256",
                 "mc_transport_estimator_schema_version",
                 "mc_eedf_estimator_schema_version",
@@ -628,9 +626,9 @@ def _sampling_plan(manifest: dict[str, Any]) -> tuple[SamplingPlanEntry, ...]:
             entry = SamplingPlanEntry(
                 e_over_n_Td=_positive_float(row["e_over_n_Td"]),
                 particles=_positive_int(row["particles"]),
-                warmup_collisions=_nonnegative_int(row["warmup_collisions"]),
-                max_collisions=_positive_int(row["max_collisions"]),
-                tail_max_collisions=_nonnegative_int(row["tail_max_collisions"]),
+                warmup_trial_periods=_nonnegative_int(row["warmup_trial_periods"]),
+                production_trial_periods=_positive_int(row["production_trial_periods"]),
+                tail_trial_periods=_nonnegative_int(row["tail_trial_periods"]),
                 replicas=_positive_int(row["replicas"]),
                 transport_correlation_lag_barriers=_positive_int(
                     row["transport_correlation_lag_barriers"]
@@ -858,7 +856,7 @@ def _remediation_plan(
     ):
         return None
     if action == "extend_tail" and any(
-        entry.tail_max_collisions == 0 for entry in affected
+        entry.tail_trial_periods == 0 for entry in affected
     ):
         return None
     updated: list[SamplingPlanEntry] = []
@@ -869,12 +867,12 @@ def _remediation_plan(
             updated.append(
                 replace(
                     entry,
-                    warmup_collisions=max(
+                    warmup_trial_periods=max(
                         policy.time_extension_factor,
-                        entry.warmup_collisions * policy.time_extension_factor,
+                        entry.warmup_trial_periods * policy.time_extension_factor,
                     ),
-                    max_collisions=(
-                        entry.max_collisions * policy.time_extension_factor
+                    production_trial_periods=(
+                        entry.production_trial_periods * policy.time_extension_factor
                     ),
                 )
             )
@@ -899,8 +897,8 @@ def _remediation_plan(
             updated.append(
                 replace(
                     entry,
-                    tail_max_collisions=(
-                        entry.tail_max_collisions * policy.tail_extension_factor
+                    tail_trial_periods=(
+                        entry.tail_trial_periods * policy.tail_extension_factor
                     ),
                 )
             )

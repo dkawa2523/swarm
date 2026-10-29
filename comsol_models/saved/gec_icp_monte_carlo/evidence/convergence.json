@@ -1,0 +1,104 @@
+{
+  "comparison_times_s": [
+    0.0017782794100389228,
+    0.003162277660168378,
+    0.005623413251903494,
+    0.01
+  ],
+  "final_values": {
+    "absorbed_power_W": 1393.035089786223,
+    "axisymmetric_volume_m3": 0.005492535578962569,
+    "coil_power_W": 1499.9999999999998,
+    "electron_inventory": 191435237181013.56,
+    "electron_weighted_mean_energy_eV": 7.487304820979502,
+    "ion_inventory": 191470896522062.2,
+    "maximum_mean_energy_eV": 8.785989457976912,
+    "metastable_inventory": 3131000815948197.5,
+    "minimum_mean_energy_eV": 3.7865359696030403
+  },
+  "gates": {
+    "absorbed_power_relative_change": {
+      "limit": 0.01,
+      "passed": true,
+      "value": 8.279247284413418e-09
+    },
+    "coil_power_relative_error": {
+      "limit": 0.005,
+      "passed": true,
+      "value": 1.5158245029548803e-16
+    },
+    "electron_inventory_relative_change": {
+      "limit": 0.02,
+      "passed": true,
+      "value": 1.29973524754451e-05
+    },
+    "final_time_reached": {
+      "expected_s": 0.01,
+      "passed": true,
+      "value_s": 0.01
+    },
+    "ion_inventory_relative_change": {
+      "limit": 0.02,
+      "passed": true,
+      "value": 1.300326731832545e-05
+    },
+    "mean_energy_relative_change": {
+      "limit": 0.01,
+      "passed": true,
+      "value": 5.416549299549046e-06
+    },
+    "mean_energy_support": {
+      "observed_eV": [
+        3.375330825604635,
+        35.44961885916699
+      ],
+      "passed": true,
+      "relative_guard": 0.1,
+      "required_upper_eV": 38.99458074508369,
+      "table_eV": [
+        2.466860884853499,
+        39.496904338902326
+      ]
+    },
+    "metastable_inventory_relative_change": {
+      "limit": 0.03,
+      "passed": true,
+      "value": 0.0006972832066684957
+    },
+    "passive_absorbed_power": {
+      "absorbed_power_W": 1393.035089786223,
+      "coil_power_W": 1499.9999999999998,
+      "passed": true,
+      "relative_allowance": 0.005
+    },
+    "physical_values": {
+      "passed": true
+    },
+    "planned_time_axis": {
+      "expected_points": 26,
+      "passed": true,
+      "points": 26
+    }
+  },
+  "metrics": {
+    "absorbed_power_relative_change": 8.279247284413418e-09,
+    "coil_power_relative_error": 1.5158245029548803e-16,
+    "electron_inventory_relative_change": 1.29973524754451e-05,
+    "ion_inventory_relative_change": 1.300326731832545e-05,
+    "mean_energy_relative_change": 5.416549299549046e-06,
+    "metastable_inventory_relative_change": 0.0006972832066684957
+  },
+  "passed": true,
+  "schema": "swarm.gec_icp_convergence.v1",
+  "source": "monte_carlo",
+  "stationarity_contract": "maximum adjacent relative change over the final four output times",
+  "status": "passed",
+  "thresholds": {
+    "absorbed_power_relative_change": 0.01,
+    "coil_power_relative_error": 0.005,
+    "electron_inventory_relative_change": 0.02,
+    "ion_inventory_relative_change": 0.02,
+    "mean_energy_relative_change": 0.01,
+    "metastable_inventory_relative_change": 0.03
+  }
+}

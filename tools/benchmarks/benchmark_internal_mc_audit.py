@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 from electron_swarm import load_config, run
-from electron_swarm.core.numerics import widths_from_centers
+from electron_swarm.grids.energy import reported_cell_edges
 from tools.benchmarks.common import case_audit_metadata, metadata_value
 
 
@@ -25,8 +25,8 @@ AUDIT_METADATA = [
     "mc_seed",
     "mc_particles",
     "mc_population_model",
-    "mc_warmup_collisions",
-    "mc_production_collisions",
+    "mc_warmup_trial_periods",
+    "mc_production_trial_periods",
     "mc_max_sampled_energy_eV",
     "mc_max_cross_section_energy_eV",
     "mc_energy_samples_above_xs_max",
@@ -94,67 +94,31 @@ def _tail_rows(result) -> list[dict[str, object]]:
     for case in result.cases:
         if case.solver != "monte_carlo" or case.eedf_counts is None:
             continue
-        effective = case.eedf_effective_counts
-        widths = case.energy_widths_eV
-        if widths is None or len(widths) != len(case.energy_eV):
-            widths = widths_from_centers(case.energy_eV)
-        widths = np.asarray(widths, dtype=float)
-        energy_values = np.asarray(case.energy_eV, dtype=float)
-        eedf_values = np.asarray(case.eedf, dtype=float)
-        probabilities = np.clip(eedf_values, 0.0, None) * widths
-        total_probability = float(np.sum(probabilities))
-        cumulative = 0.0
+        edges = reported_cell_edges(case.energy_eV, case.energy_widths_eV)
+        widths = np.diff(edges)
+        probabilities = np.asarray(case.eedf) * widths
+        cumulative = np.cumsum(probabilities)
+        survival = np.cumsum(probabilities[::-1])[::-1]
         for index, (energy, eedf, count) in enumerate(
-            zip(case.energy_eV, case.eedf, case.eedf_counts, strict=False)
+            zip(case.energy_eV, case.eedf, case.eedf_counts, strict=True)
         ):
-            count_int = int(count)
-            effective_count = (
-                float(effective[index])
-                if effective is not None and index < len(effective)
-                else float(count_int)
-            )
-            width = (
-                float(widths[index])
-                if index < len(widths)
-                and np.isfinite(widths[index])
-                and widths[index] > 0.0
-                else float("nan")
-            )
-            probability = (
-                float(probabilities[index])
-                if index < len(probabilities) and np.isfinite(probabilities[index])
-                else float("nan")
-            )
-            survival = (
-                max(total_probability - cumulative, 0.0)
-                if np.isfinite(probability)
-                else float("nan")
-            )
-            if np.isfinite(probability):
-                cumulative += probability
-            rows.append(
-                {
-                    "case_id": case.case_id,
-                    "E_over_N_Td": case.e_over_n_Td,
-                    "energy_eV": float(energy),
-                    "energy_left_eV": float(energy_values[index] - 0.5 * width),
-                    "energy_right_eV": float(energy_values[index] + 0.5 * width),
-                    "energy_width_eV": width,
-                    "eedf": float(eedf),
-                    "probability_mass": probability,
-                    "cumulative_probability": (
-                        float(cumulative) if np.isfinite(probability) else ""
-                    ),
-                    "survival_probability": survival,
-                    "sample_count": count_int,
-                    "effective_sample_count": effective_count,
-                    "relative_standard_error": (
-                        float(1.0 / effective_count**0.5)
-                        if effective_count > 0.0
-                        else ""
-                    ),
-                }
-            )
+            rows.append({
+                "case_id": case.case_id,
+                "E_over_N_Td": case.e_over_n_Td,
+                "energy_eV": float(energy),
+                "energy_left_eV": float(edges[index]),
+                "energy_right_eV": float(edges[index + 1]),
+                "energy_width_eV": float(widths[index]),
+                "eedf": float(eedf),
+                "probability_mass": float(probabilities[index]),
+                "cumulative_probability": float(cumulative[index]),
+                "survival_probability": float(survival[index]),
+                "sample_count": int(count),
+                "weight_effective_count": (
+                    float(case.eedf_effective_counts[index])
+                    if case.eedf_effective_counts is not None else ""
+                ),
+            })
     return rows
 
 
@@ -173,7 +137,7 @@ def main() -> None:
     audit = pd.DataFrame(_audit_rows(result))
     tail = pd.DataFrame(_tail_rows(result))
     audit_path = args.output_dir / "internal_mc_audit_summary.csv"
-    tail_path = args.output_dir / "internal_mc_tail_uncertainty.csv"
+    tail_path = args.output_dir / "internal_mc_histogram_support.csv"
     report_path = args.output_dir / "internal_mc_audit_report.md"
     audit.to_csv(audit_path, index=False)
     tail.to_csv(tail_path, index=False)
@@ -185,16 +149,17 @@ def main() -> None:
     report_path.write_text(
         "# Internal MC Audit\n\n"
         "This benchmark audits the product internal MC model; it does not tune "
-        "or fit MCIG.\n\n"
+        "or fit MCIG. Histogram counts describe weight support, not independent "
+        "sample uncertainty.\n\n"
         f"- Audit CSV: `{audit_path.resolve()}`\n"
-        f"- Tail uncertainty CSV: `{tail_path.resolve()}`\n\n"
+        f"- Histogram support CSV: `{tail_path.resolve()}`\n\n"
         "```csv\n"
         f"{body}"
         "```\n",
         encoding="utf-8",
     )
     print(f"audit_csv: {audit_path}")
-    print(f"tail_uncertainty_csv: {tail_path}")
+    print(f"histogram_support_csv: {tail_path}")
     print(f"report: {report_path}")
 
 

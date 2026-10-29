@@ -111,7 +111,8 @@ def test_inactive_species_is_absent_from_numeric_inputs(tmp_path) -> None:
     )
 
     assert full_inputs.active_species == ("Ar",)
-    assert full_inputs.processes == [active]
+    assert [p.process for p in full_inputs.processes] == [active.process]
+    assert full_inputs.processes[0].mass_amu == 39.948
     grid_options = {
         "min_eV": 0.0,
         "max_eV": 10.0,
@@ -154,7 +155,16 @@ def test_inactive_species_is_absent_from_numeric_inputs(tmp_path) -> None:
         internal.two_term,
     )
     np.testing.assert_array_equal(full_collisions.nu_m, active_collisions.nu_m)
-    assert {process.species for process in full_collisions.processes} == {"Ar"}
+    np.testing.assert_array_equal(
+        full_collisions.inelastic_loss_frequency_s_inv,
+        active_collisions.inelastic_loss_frequency_s_inv,
+    )
+    np.testing.assert_array_equal(
+        full_collisions.elastic_A_eV_s, active_collisions.elastic_A_eV_s,
+    )
+    np.testing.assert_array_equal(
+        full_collisions.elastic_D_eV2_s, active_collisions.elastic_D_eV2_s,
+    )
 
     eedf = np.ones_like(full_grid.centers_eV) / np.sum(full_grid.widths_eV)
     rates = compute_rates_from_eedf(
@@ -207,7 +217,7 @@ def test_table_collision_kernel_cannot_materialize_an_inactive_rate(
         for item in config.cross_sections.files
     }
     metadata = {
-        "base_config_path": str(config_path),
+        "calculation_path": str(config_path),
         "cross_sections_sha256": _combined_hash(hashes),
     }
     active_rate = {
@@ -273,4 +283,6 @@ def test_revalidated_active_inventory_does_not_share_its_process_list() -> None:
     solver_owned = prepare_active_mixture_inputs(caller_owned, conditions)
     caller_owned.processes.clear()
 
-    assert solver_owned.processes == [process]
+    assert len(solver_owned.processes) == 1
+    assert solver_owned.processes[0].process == process.process
+    assert solver_owned.processes[0].mass_amu == 39.948

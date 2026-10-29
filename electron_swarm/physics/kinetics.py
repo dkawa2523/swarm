@@ -6,8 +6,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from electron_swarm.core.config import SwarmConfig
-from electron_swarm.core.constants import BOLTZMANN_J_K, ELECTRON_MASS_KG, EV_TO_J
+from electron_swarm.core.gas import gas_number_density
+from electron_swarm.core.constants import ELECTRON_MASS_KG, EV_TO_J
 from electron_swarm.core.cross_sections import CrossSectionProcess, ProcessType
 from electron_swarm.core.results import RateResult
 
@@ -28,17 +28,6 @@ class RateConvolution:
     ionization_rate_m3_s: float
     attachment_rate_m3_s: float
     net_ionization_frequency_s: float
-
-
-def gas_number_density(config: SwarmConfig) -> float:
-    conditions = config.conditions
-    if conditions.gas_number_density_m3 is not None:
-        return float(conditions.gas_number_density_m3)
-    assert conditions.pressure_Pa is not None
-    return float(
-        conditions.pressure_Pa
-        / (BOLTZMANN_J_K * conditions.gas_temperature_K)
-    )
 
 
 def cell_integrated_rate_coefficient(
@@ -107,9 +96,7 @@ def cell_integrated_rate_coefficient(
         )
         segment_left_parts.append(bounds[:-1])
         segment_right_parts.append(bounds[1:])
-        segment_cell_parts.append(
-            np.full(bounds.size - 1, cell_index, dtype=np.intp)
-        )
+        segment_cell_parts.append(np.full(bounds.size - 1, cell_index, dtype=np.intp))
 
     segment_left = np.concatenate(segment_left_parts)
     segment_right = np.concatenate(segment_right_parts)

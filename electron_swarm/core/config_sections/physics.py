@@ -31,6 +31,7 @@ from electron_swarm.core.config_sections.common import (
 
 
 def _parse_finite_k(raw: dict[str, Any]) -> FiniteKConfig:
+    reject_unknown_fields(raw, {"enabled", "k_m_inv"}, "physics.finite_k")
     enabled = bool_field(raw, "enabled", False, "physics.finite_k.enabled")
     if raw.get("k_m_inv") is None:
         return FiniteKConfig(enabled=enabled, k_m_inv=None)
@@ -99,9 +100,7 @@ def _parse_angular_scattering(
                 Literal["normalized_legendre_moments"],
                 validate_literal(
                     string_value(
-                        moment_table_raw.get(
-                            "format", "normalized_legendre_moments"
-                        ),
+                        moment_table_raw.get("format", "normalized_legendre_moments"),
                         "physics.angular_scattering.moment_table.format",
                     ),
                     {"normalized_legendre_moments"},
@@ -201,7 +200,7 @@ def _parse_electron_electron(raw: dict[str, Any]) -> ElectronElectronConfig:
 def _parse_ionization(raw: dict[str, Any]) -> IonizationConfig:
     reject_unknown_fields(
         raw,
-        {"energy_sharing", "secondary_electron_energy_eV"},
+        {"population_model", "energy_sharing", "secondary_electron_energy_eV"},
         "physics.ionization",
     )
     energy_sharing = cast(
@@ -220,6 +219,17 @@ def _parse_ionization(raw: dict[str, Any]) -> IonizationConfig:
         "physics.ionization.secondary_electron_energy_eV",
     )
     return IonizationConfig(
+        population_model=cast(
+            Literal["fixed_particle_single_daughter", "weighted_branching"],
+            validate_literal(
+                string_value(
+                    raw.get("population_model", "weighted_branching"),
+                    "physics.ionization.population_model",
+                ),
+                {"fixed_particle_single_daughter", "weighted_branching"},
+                "physics.ionization.population_model",
+            ),
+        ),
         energy_sharing=energy_sharing,
         secondary_electron_energy_eV=secondary_electron_energy_eV,
     )

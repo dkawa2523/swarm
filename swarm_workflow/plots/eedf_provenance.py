@@ -12,7 +12,7 @@ from swarm_workflow.plots.eedf_contracts import EedfComparisonError
 
 _MC_DATABASE_IDENTITY_KEYS = (
     "workflow_config_sha256",
-    "base_config_sha256",
+    "calculation_sha256",
     "mc_sampling_plan_json",
     "mc_transport_estimator_schema_version",
     "mc_eedf_estimator_schema_version",

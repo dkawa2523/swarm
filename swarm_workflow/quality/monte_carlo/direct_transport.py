@@ -97,9 +97,9 @@ def _collect_direct_run_provenance(
         and not isinstance(provenance.get(name), bool)
         for name in (
             "particles",
-            "warmup_collisions",
-            "production_collisions",
-            "tail_max_collisions",
+            "warmup_trial_periods",
+            "production_trial_periods",
+            "tail_trial_periods",
             "tail_collisions_executed",
         )
     )
@@ -131,11 +131,11 @@ def _collect_direct_run_provenance(
         and not isinstance(seed, bool)
         and integers_valid
         and int(provenance["particles"]) >= 2
-        and int(provenance["warmup_collisions"]) >= 0
-        and int(provenance["production_collisions"]) > 0
-        and int(provenance["tail_max_collisions"]) >= 0
+        and int(provenance["warmup_trial_periods"]) >= 0
+        and int(provenance["production_trial_periods"]) > 0
+        and int(provenance["tail_trial_periods"]) >= 0
         and int(provenance["tail_collisions_executed"])
-        in {0, int(provenance["tail_max_collisions"])}
+        in {0, int(provenance["tail_trial_periods"])}
         and (
             provenance["population_model"] == "weighted_branching"
             or int(provenance["tail_collisions_executed"]) == 0

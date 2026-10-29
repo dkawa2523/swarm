@@ -9,7 +9,7 @@ Apply this skill only in this repository. Read the root `AGENTS.md`, the target 
 
 ## Keep the bundle model-independent
 
-`swarm_workflow/comsol/input/` owns canonical table and bundle construction. It must not import a COMSOL model adapter or execution runtime. Model tags, studies, geometry, boundary conditions, and result probes belong to the adapter map, not the bundle.
+`swarm_workflow/tables/` builds qualified native coefficient points on E/N. `swarm_workflow/comsol/input/` owns their conversion to COMSOL mean-energy/function tables and bundles. It must not import a COMSOL model adapter or execution runtime. Model tags, studies, geometry, boundary conditions, and result probes belong to the adapter map, not the bundle.
 
 The current table-export sources are exactly `two_term`, `monte_carlo`, and `propagator`. `multi_term` is a canonical solver mode but is not yet a COMSOL table source; fail explicitly rather than relabeling it or substituting another solver.
 
@@ -52,3 +52,5 @@ py -3 -m swarm_workflow.cli export-comsol <table-root-or-mixture> [--selection <
 Verify the exported `manifest.json`, every listed SHA-256, units, independent variables, ranges, mixture and physical context, source-manifest copies, and any selection record. Never blend solver sources, fill unavailable transport, add rate floors, or hand-edit exported tables; rebuild from the database.
 
 Finish with the source database, source solver, qualification profile/artifacts, mixture, table and bundle paths, valid ranges, and manifest/hash status. Stop before mapping or COMSOL execution.
+
+Native tables use format_version: 3; COMSOL bundles independently use format_version: 2. Both retain calculation_sha256. Rebuild obsolete source tables from the current recorded database; do not rename provenance fields or edit qualification hashes. Native rows retain their own mean energy and canonical units. COMSOL conversion checks single-valued mean-energy support per quantity without joining a narrower transport grid, repairing points, or changing values. A native E/N point set is not by itself a qualified COMSOL interpolation input.

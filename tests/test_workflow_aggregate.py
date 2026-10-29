@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from product_helpers import campaign_config
+
 import csv
 import json
 import math
@@ -14,7 +16,7 @@ from swarm_workflow.campaign.aggregate import (
     aggregate_workflow_results,
     stable_mc_seed,
 )
-from swarm_workflow.campaign.statistics import (
+from electron_swarm.core.statistics import (
     conservative_rebin_probability_mass,
     summarize_replicates,
 )
@@ -62,7 +64,9 @@ def _build_synthetic_db(
             reduced_diffusion_t=diff_t,
         )
         _insert_rate(conn, replicate=replicate, value=rate, e_over_n=e_over_n)
-        _insert_eedf(conn, replicate=replicate, probability_masses=masses, e_over_n=e_over_n)
+        _insert_eedf(
+            conn, replicate=replicate, probability_masses=masses, e_over_n=e_over_n
+        )
     conn.commit()
     return conn
 
@@ -98,13 +102,16 @@ def test_sha256_seed_is_stable_and_order_independent() -> None:
         replicate=0,
         solver="two_term",
     )
-    assert stable_mc_seed(
-        base_seed=None,
-        mixture_id=0,
-        e_over_n_Td=10.0,
-        replicate=0,
-        solver="monte_carlo",
-    ) is None
+    assert (
+        stable_mc_seed(
+            base_seed=None,
+            mixture_id=0,
+            e_over_n_Td=10.0,
+            replicate=0,
+            solver="monte_carlo",
+        )
+        is None
+    )
 
 
 def test_scalar_replicate_statistics_fix_mean_se_and_ci() -> None:
@@ -113,9 +120,7 @@ def test_scalar_replicate_statistics_fix_mean_se_and_ci() -> None:
     assert stats.mean == pytest.approx(2.0)
     assert stats.sample_stddev == pytest.approx(1.0)
     assert stats.standard_error == pytest.approx(1.0 / (3.0**0.5))
-    assert stats.relative_standard_error == pytest.approx(
-        (1.0 / (3.0**0.5)) / 2.0
-    )
+    assert stats.relative_standard_error == pytest.approx((1.0 / (3.0**0.5)) / 2.0)
     assert stats.ci95_critical_value == pytest.approx(4.3026527299)
     assert stats.ci95_low == pytest.approx(2.0 - 4.3026527299 / (3.0**0.5))
     assert stats.ci95_high == pytest.approx(2.0 + 4.3026527299 / (3.0**0.5))
@@ -472,49 +477,44 @@ def test_conservative_rebin_preserves_probability_mass() -> None:
     assert float(sum(rebinned)) == pytest.approx(1.0)
 
 
-def test_nonuniform_eedf_cells_keep_exact_widths_during_aggregation(
+@pytest.mark.parametrize(
+    "solver", ["two_term", "multi_term", "monte_carlo", "propagator"]
+)
+def test_reported_eedf_cells_keep_exact_widths_during_aggregation(
     tmp_path: Path,
+    solver: str,
 ) -> None:
     database = tmp_path / "nonuniform.sqlite"
     with WorkflowStore(database) as store:
         for replicate in range(3):
-            _insert_case(store.connection, replicate=replicate)
+            _insert_case(store.connection, replicate=replicate, solver=solver)
             _insert_rate(
                 store.connection,
                 replicate=replicate,
                 value=1.0e-15,
+                solver=solver,
             )
             store.connection.executemany(
                 """
                 INSERT INTO eedf_bins(
                     mixture_id, solver, e_over_n_Td, replicate, bin_index,
                     energy_eV, energy_width_eV, eedf, eepf, sample_count,
-                    effective_sample_count, relative_standard_error
-                ) VALUES (0, 'monte_carlo', 10.0, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    effective_sample_count
+                ) VALUES (0, ?, 10.0, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
-                    (replicate, 0, 0.5, 1.0, 0.5, 0.5, 100, 100.0, 0.1),
+                    (solver, replicate, 0, 0.0, 1.0, 0.5, 0.5, 100, 100.0),
+                    (solver, replicate, 1, 1.5, 1.0, 0.3, 0.3 / 1.5**0.5, 80, 80.0),
                     (
-                        replicate,
-                        1,
-                        1.5,
-                        1.0,
-                        0.3,
-                        0.3 / 1.5**0.5,
-                        80,
-                        80.0,
-                        1.0 / 80.0**0.5,
-                    ),
-                    (
+                        solver,
                         replicate,
                         2,
-                        7.0,
+                        12.0,
                         10.0,
                         0.02,
-                        0.02 / 7.0**0.5,
+                        0.02 / 12.0**0.5,
                         40,
                         40.0,
-                        1.0 / 40.0**0.5,
                     ),
                 ],
             )
@@ -543,7 +543,7 @@ def test_nonuniform_eedf_cells_keep_exact_widths_during_aggregation(
     assert [row[6] for row in rows] == pytest.approx([300.0, 240.0, 120.0])
 
 
-def test_narrow_high_energy_cell_roundtrip_uses_scale_aware_tolerance(
+def test_narrow_high_energy_reported_cells_preserve_mass_during_aggregation(
     tmp_path: Path,
 ) -> None:
     database = tmp_path / "narrow_high_energy.sqlite"
@@ -560,8 +560,8 @@ def test_narrow_high_energy_cell_roundtrip_uses_scale_aware_tolerance(
                 INSERT INTO eedf_bins(
                     mixture_id, solver, e_over_n_Td, replicate, bin_index,
                     energy_eV, energy_width_eV, eedf, eepf, sample_count,
-                    effective_sample_count, relative_standard_error
-                ) VALUES (0, 'monte_carlo', 10.0, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    effective_sample_count
+                ) VALUES (0, 'monte_carlo', 10.0, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -573,7 +573,6 @@ def test_narrow_high_energy_cell_roundtrip_uses_scale_aware_tolerance(
                         density / center**0.5,
                         100,
                         100.0,
-                        0.1,
                     )
                     for index, (center, width, density) in enumerate(cells)
                 ],
@@ -601,12 +600,8 @@ def test_aggregate_tables_are_independent_of_replicate_insert_order(
         diffusion_rse=0.2,
         major_rate_rse=0.2,
     )
-    conn_a = _build_synthetic_db(
-        tmp_path / "a.sqlite", order=(0, 1, 2), quality=loose
-    )
-    conn_b = _build_synthetic_db(
-        tmp_path / "b.sqlite", order=(2, 0, 1), quality=loose
-    )
+    conn_a = _build_synthetic_db(tmp_path / "a.sqlite", order=(0, 1, 2), quality=loose)
+    conn_b = _build_synthetic_db(tmp_path / "b.sqlite", order=(2, 0, 1), quality=loose)
     aggregate_workflow_results(conn_a, loose)
     aggregate_workflow_results(conn_b, loose)
 
@@ -669,24 +664,21 @@ def test_workflow_quality_thresholds_are_loaded_from_yaml(tmp_path: Path) -> Non
     workflow_path = tmp_path / "workflow.yaml"
     workflow_path.write_text(
         yaml.safe_dump(
-            {
-                "base_config": base_path.name,
-                "database": "outputs/swarm.sqlite",
-                "e_over_n_Td": [10.0],
-                "mixtures": [{"Ar": 1.0}],
-                "quality": {
+            campaign_config(
+                base_path,
+                database="outputs/swarm.sqlite",
+                e_over_n_Td=[10.0],
+                mixtures=[{"Ar": 1.0}],
+                quality={
                     "mobility_rse": 0.1,
                     "major_rate_fraction": 0.2,
-                    "required_rate_min_process_peak_fraction": 1.0e-5,
+                    "required_rate_min_process_peak_fraction": 1e-05,
                     "required_rate_rse": {
-                        "process_type": {
-                            "ionization": 0.15,
-                            "excitation": None,
-                        },
+                        "process_type": {"ionization": 0.15, "excitation": None},
                         "process": {"Ar resonance": 0.25},
                     },
                 },
-            },
+            ),
             sort_keys=False,
         ),
         encoding="utf-8",
@@ -695,9 +687,8 @@ def test_workflow_quality_thresholds_are_loaded_from_yaml(tmp_path: Path) -> Non
     workflow = load_workflow(workflow_path)
     assert workflow.quality.mobility_rse == pytest.approx(0.1)
     assert workflow.quality.major_rate_fraction == pytest.approx(0.2)
-    assert (
-        workflow.quality.required_rate_min_process_peak_fraction
-        == pytest.approx(1.0e-5)
+    assert workflow.quality.required_rate_min_process_peak_fraction == pytest.approx(
+        1.0e-5
     )
     assert workflow.quality.required_rate_rse.process_type == {
         "ionization": pytest.approx(0.15),
@@ -710,13 +701,13 @@ def test_workflow_quality_thresholds_are_loaded_from_yaml(tmp_path: Path) -> Non
     bad_path = tmp_path / "bad_workflow.yaml"
     bad_path.write_text(
         yaml.safe_dump(
-            {
-                "base_config": base_path.name,
-                "database": "outputs/swarm.sqlite",
-                "e_over_n_Td": [10.0],
-                "mixtures": [{"Ar": 1.0}],
-                "quality": {"major_rate_fraction": 2.0},
-            },
+            campaign_config(
+                base_path,
+                database="outputs/swarm.sqlite",
+                e_over_n_Td=[10.0],
+                mixtures=[{"Ar": 1.0}],
+                quality={"major_rate_fraction": 2.0},
+            ),
             sort_keys=False,
         ),
         encoding="utf-8",
@@ -727,15 +718,13 @@ def test_workflow_quality_thresholds_are_loaded_from_yaml(tmp_path: Path) -> Non
     invalid_relevance_path = tmp_path / "bad_required_rate_relevance.yaml"
     invalid_relevance_path.write_text(
         yaml.safe_dump(
-            {
-                "base_config": base_path.name,
-                "database": "outputs/swarm.sqlite",
-                "e_over_n_Td": [10.0],
-                "mixtures": [{"Ar": 1.0}],
-                "quality": {
-                    "required_rate_min_process_peak_fraction": 1.01,
-                },
-            },
+            campaign_config(
+                base_path,
+                database="outputs/swarm.sqlite",
+                e_over_n_Td=[10.0],
+                mixtures=[{"Ar": 1.0}],
+                quality={"required_rate_min_process_peak_fraction": 1.01},
+            ),
             sort_keys=False,
         ),
         encoding="utf-8",
@@ -749,17 +738,13 @@ def test_workflow_quality_thresholds_are_loaded_from_yaml(tmp_path: Path) -> Non
     invalid_gate_path = tmp_path / "bad_required_gate.yaml"
     invalid_gate_path.write_text(
         yaml.safe_dump(
-            {
-                "base_config": base_path.name,
-                "database": "outputs/swarm.sqlite",
-                "e_over_n_Td": [10.0],
-                "mixtures": [{"Ar": 1.0}],
-                "quality": {
-                    "required_rate_rse": {
-                        "process_type": {"ionization": -0.1}
-                    }
-                },
-            },
+            campaign_config(
+                base_path,
+                database="outputs/swarm.sqlite",
+                e_over_n_Td=[10.0],
+                mixtures=[{"Ar": 1.0}],
+                quality={"required_rate_rse": {"process_type": {"ionization": -0.1}}},
+            ),
             sort_keys=False,
         ),
         encoding="utf-8",
@@ -805,9 +790,7 @@ def test_standalone_aggregate_rejects_missing_or_changed_quality_provenance(
 ) -> None:
     missing_path = tmp_path / "missing.sqlite"
     missing = _build_synthetic_db(missing_path)
-    missing.execute(
-        "DELETE FROM metadata WHERE key = 'quality_thresholds_json'"
-    )
+    missing.execute("DELETE FROM metadata WHERE key = 'quality_thresholds_json'")
     missing.commit()
     missing.close()
 

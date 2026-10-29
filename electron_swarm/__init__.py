@@ -19,7 +19,6 @@ from .core.results import (
     RateResult,
     SwarmCaseResult,
 )
-from .runner import run_from_config, run
 
 __all__ = [
     "GasComponent",
@@ -39,4 +38,14 @@ __all__ = [
     "widths_from_centers",
 ]
 
-__version__ = "0.2.0"
+__version__ = "0.12.0"
+
+
+def __getattr__(name: str):
+    if name in {"run", "run_from_config"}:
+        from importlib import import_module
+
+        value = getattr(import_module(".runner", __name__), name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

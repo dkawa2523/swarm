@@ -13,9 +13,7 @@ import numpy as np
 import pytest
 
 import electron_swarm.solvers.monte_carlo.evidence as mc_evidence
-from electron_swarm.solvers.monte_carlo.source_identity import (
-    monte_carlo_source_sha256,
-)
+from electron_swarm.core.source_identity import solver_source_fingerprint
 import swarm_workflow.comsol.models.gec_ccp.closure as closure_contract
 import swarm_workflow.comsol.models.gec_ccp.audits.conservation as conservation_audit
 import swarm_workflow.comsol.models.gec_ccp.contracts as contracts
@@ -364,9 +362,9 @@ def test_weighted_growth_v6_quality_audit_accepts_positive_and_sparse_rows() -> 
         {
             "e_over_n_Td": 1000.0,
             "particles": 512,
-            "warmup_collisions": 8192,
-            "max_collisions": 32768,
-            "tail_max_collisions": 16384,
+            "warmup_trial_periods": 8192,
+            "production_trial_periods": 32768,
+            "tail_trial_periods": 16384,
             "replicas": 4,
             "transport_correlation_lag_barriers": 64,
             "transport_estimator": "single_field",
@@ -531,9 +529,9 @@ def test_weighted_growth_v6_quality_audit_accepts_positive_and_sparse_rows() -> 
         {
             "e_over_n_Td": field,
             "particles": 512,
-            "warmup_collisions": 8192,
-            "max_collisions": 32768,
-            "tail_max_collisions": 16384,
+            "warmup_trial_periods": 8192,
+            "production_trial_periods": 32768,
+            "tail_trial_periods": 16384,
             "replicas": 4,
             "transport_correlation_lag_barriers": 64,
         }
@@ -2005,7 +2003,7 @@ def test_gec_ccp_contract_and_java_preserve_solved_mean_energy(
     assert plan_inputs["bundle_artifact_sha256"] == frozen_artifacts
     assert set(plan_data["bundle"]["hashes"]) == {
         "workflow_config_sha256",
-        "base_config_sha256",
+        "calculation_sha256",
         "cross_sections_sha256",
     }
     assert plan_data["bundle"]["quality_thresholds"] == (
@@ -2452,7 +2450,6 @@ def test_gec_ccp_function_eedf_requires_native_saved_function_audit(
         mapping_path.read_text(encoding="utf-8").replace(
             "reaction_model: external_rates",
             "reaction_model: function_eedf\n"
-            "  interpolation: differentiable_log_piecewise_cubic\n"
             "  function_eedf:\n"
             "    table: eedf_f0_comsol_2d.csv\n"
             "    function_tag: sw_eedf_test\n"
@@ -2544,7 +2541,6 @@ def test_gec_ccp_keeps_native_eedf_audit_when_external_compile_fails(
         mapping_path.read_text(encoding="utf-8").replace(
             "reaction_model: external_rates",
             "reaction_model: function_eedf\n"
-            "  interpolation: differentiable_log_piecewise_cubic\n"
             "  function_eedf:\n"
             "    table: eedf_f0_comsol_2d.csv\n"
             "    function_tag: sw_eedf_test\n"
@@ -3680,7 +3676,6 @@ def test_gec_ccp_two_term_function_eedf_uses_structured_spreadsheet(
     ).replace(
         "reaction_model: external_rates",
         "reaction_model: function_eedf\n"
-        "  interpolation: differentiable_log_piecewise_cubic\n"
         "  function_eedf:\n"
         "    table: eedf_f0_comsol_2d.csv\n"
         "    function_tag: sw_eedf_test\n"
@@ -3850,7 +3845,6 @@ def test_gec_ccp_hybrid_function_eedf_binds_only_inelastic_rates(
         mapping_path.read_text(encoding="utf-8").replace(
             "reaction_model: external_rates",
             "reaction_model: function_eedf_preintegrated_inelastic\n"
-            "  interpolation: differentiable_log_piecewise_cubic\n"
             "  function_eedf:\n"
             "    table: eedf_f0_comsol_2d.csv\n"
             "    function_tag: sw_eedf_test\n"
@@ -4004,7 +3998,6 @@ def test_two_term_joint_consistency_fails_closed_on_transport_drift(
         mapping_path.read_text(encoding="utf-8").replace(
             "reaction_model: external_rates",
             "reaction_model: function_eedf\n"
-            "  interpolation: differentiable_log_piecewise_cubic\n"
             "  function_eedf:\n"
             "    table: eedf_f0_comsol_2d.csv\n"
             "    function_tag: sw_eedf_test\n"
@@ -4112,7 +4105,6 @@ def test_two_term_joint_consistency_formula_rejects_monte_carlo(
         .replace(
             "reaction_model: external_rates",
             "reaction_model: function_eedf\n"
-            "  interpolation: differentiable_log_piecewise_cubic\n"
             "  function_eedf:\n"
             "    table: eedf_f0_comsol_2d.csv\n"
             "    function_tag: sw_eedf_test\n"
@@ -4155,14 +4147,6 @@ def test_gec_ccp_shape_preserving_log_piecewise_cubic_is_positive_and_exact_jaco
     tmp_path: Path,
 ) -> None:
     mapping_path, bundle = _write_fixture(tmp_path)
-    mapping_path.write_text(
-        mapping_path.read_text(encoding="utf-8").replace(
-            "lookup_jacobian: exact",
-            "lookup_jacobian: exact\n"
-            "  interpolation: differentiable_log_piecewise_cubic",
-        ),
-        encoding="utf-8",
-    )
 
     plan = prepare_gec_ccp_run(mapping_path, bundle_path=bundle)
     source = generate_apply_java(plan.mapping)
@@ -4208,8 +4192,7 @@ def test_gec_ccp_rejects_lagged_jacobian_for_log_spline(
     mapping_path.write_text(
         mapping_path.read_text(encoding="utf-8").replace(
             "lookup_jacobian: exact",
-            "lookup_jacobian: lagged\n"
-            "  interpolation: differentiable_log_piecewise_cubic",
+            "lookup_jacobian: lagged",
         ),
         encoding="utf-8",
     )
@@ -5099,11 +5082,13 @@ def _write_fixture(root: Path) -> tuple[Path, Path]:
     (bundle / "manifest.json").write_text(
         json.dumps(
             {
+                "format_version": 2,
+                "stage": "export-comsol",
                 "status": "ok",
                 "source": "two_term",
                 "hashes": {
                     "workflow_config_sha256": "c" * 64,
-                    "base_config_sha256": "a" * 64,
+                    "calculation_sha256": "a" * 64,
                     "cross_sections_sha256": "b" * 64,
                 },
                 "quality_thresholds": quality_thresholds_payload(QualityThresholds()),
@@ -5382,9 +5367,9 @@ def _enable_monte_carlo_fixture(mapping_path: Path, bundle: Path) -> None:
         {
             "e_over_n_Td": field,
             "particles": 64,
-            "warmup_collisions": 100,
-            "max_collisions": 200,
-            "tail_max_collisions": 200,
+            "warmup_trial_periods": 100,
+            "production_trial_periods": 200,
+            "tail_trial_periods": 200,
             "replicas": 3,
             "transport_correlation_lag_barriers": 64,
             "transport_estimator": "single_field",
@@ -5427,7 +5412,7 @@ def _enable_monte_carlo_fixture(mapping_path: Path, bundle: Path) -> None:
             "mc_eedf_estimator_schema_version": (
                 mc_evidence.MC_EEDF_ESTIMATOR_SCHEMA_VERSION
             ),
-            "mc_solver_source_sha256": monte_carlo_source_sha256(),
+            "mc_solver_source_sha256": solver_source_fingerprint("monte_carlo")["sha256"],
         }
     )
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
@@ -5681,9 +5666,9 @@ def _enable_external_elastic_loss(
             {
                 "e_over_n_Td": field,
                 "particles": 64,
-                "warmup_collisions": 100,
-                "max_collisions": 200,
-                "tail_max_collisions": 200,
+                "warmup_trial_periods": 100,
+                "production_trial_periods": 200,
+                "tail_trial_periods": 200,
                 "replicas": 3,
                 "transport_correlation_lag_barriers": 64,
                 "transport_estimator": "single_field",
@@ -5707,7 +5692,7 @@ def _enable_external_elastic_loss(
                 "mc_eedf_estimator_schema_version": (
                     mc_evidence.MC_EEDF_ESTIMATOR_SCHEMA_VERSION
                 ),
-                "mc_solver_source_sha256": monte_carlo_source_sha256(),
+                "mc_solver_source_sha256": solver_source_fingerprint("monte_carlo")["sha256"],
             }
         )
     manifest["tables"][table.name] = {

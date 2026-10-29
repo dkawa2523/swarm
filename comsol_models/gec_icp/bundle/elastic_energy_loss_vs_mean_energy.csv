@@ -1,0 +1,11 @@
+mean_energy_eV,E_over_N_Td,E_over_N_V_m2,elastic_energy_loss_rate_coefficient_eV_m3_s,elastic_energy_loss_standard_error_eV_m3_s,elastic_energy_loss_relative_standard_error,elastic_energy_loss_ci95_low_eV_m3_s,elastic_energy_loss_ci95_high_eV_m3_s,ci95_critical_value,estimate_status,valid_replicates,uncertainty_available
+2.4579916793125083,1,9.9999999999999991e-22,2.9882829055311313e-18,,,,,,deterministic_operator_moment,1,0
+3.4617256467492368,2,1.9999999999999998e-21,7.0982661530148551e-18,,,,,,deterministic_operator_moment,1,0
+4.1933942252472445,3,2.9999999999999995e-21,1.1647229614849798e-17,,,,,,deterministic_operator_moment,1,0
+5.0082654081223472,5,4.9999999999999997e-21,1.8667703135489127e-17,,,,,,deterministic_operator_moment,1,0
+5.358550935523672,10,9.9999999999999995e-21,2.2781820307751651e-17,,,,,,deterministic_operator_moment,1,0
+5.632435038933628,20,1.9999999999999999e-20,2.5794489418477679e-17,,,,,,deterministic_operator_moment,1,0
+5.8639514001848596,30,2.9999999999999997e-20,2.8186538418575131e-17,,,,,,deterministic_operator_moment,1,0
+6.2465955561980637,50,4.9999999999999993e-20,3.21165657746373e-17,,,,,,deterministic_operator_moment,1,0
+6.9314028039699398,100,9.9999999999999985e-20,3.9039011017322728e-17,,,,,,deterministic_operator_moment,1,0
+8.7299134934597546,300,2.9999999999999999e-19,5.455842210258247e-17,,,,,,deterministic_operator_moment,1,0

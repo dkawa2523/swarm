@@ -11,7 +11,7 @@ from electron_swarm.core.constants import E_CHARGE_C, ELECTRON_MASS_KG, TOWNSEND
 from electron_swarm.core.cross_sections import ActiveMixtureInputs
 from electron_swarm.core.results import SwarmCaseResult
 from electron_swarm.core.solver_configs import PropagatorInternalConfig
-from electron_swarm.physics.kinetics import gas_number_density
+from electron_swarm.core.gas import gas_number_density
 from electron_swarm.solvers.base import IndependentCaseSolver
 from electron_swarm.solvers.propagator.collisions import (
     build_collision_operator,
@@ -133,9 +133,7 @@ class PropagatorSolver(IndependentCaseSolver):
 
         operator, build_timing = self._operator(max_eV)
         timing["grid_build"] += build_timing["grid_build"]
-        timing["collision_kernel_build"] += build_timing[
-            "collision_kernel_build"
-        ]
+        timing["collision_kernel_build"] += build_timing["collision_kernel_build"]
         initial = (
             warm_population
             if warm_operator is not None
@@ -152,9 +150,7 @@ class PropagatorSolver(IndependentCaseSolver):
             SteadyControls(
                 max_iterations=int(self.solver_config.max_iterations),
                 tolerance=self.solver_config.convergence_tolerance,
-                tail_probability_target=(
-                    self.solver_config.tail_probability_target
-                ),
+                tail_probability_target=(self.solver_config.tail_probability_target),
                 tail_energy_start_eV=0.8 * float(max_eV),
             ),
             initial_population=initial,

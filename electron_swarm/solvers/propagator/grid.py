@@ -54,9 +54,7 @@ def build_propagator_grid(
 
     core_upper = min(float(config.base_max_eV), float(config.max_eV_limit))
     requested_upper = (
-        core_upper
-        if max_eV is None
-        else min(float(max_eV), float(config.max_eV_limit))
+        core_upper if max_eV is None else min(float(max_eV), float(config.max_eV_limit))
     )
     if requested_upper <= 0.0:
         raise ValueError("propagator energy upper bound must be positive")
@@ -95,12 +93,7 @@ def build_propagator_grid(
     mu_widths = cos_edges[:-1] - cos_edges[1:]
     mu_centers = 0.5 * (cos_edges[:-1] + cos_edges[1:])
     solid_angles = 2.0 * np.pi * mu_widths
-    shell_volume = (
-        2.0
-        * np.pi
-        / 3.0
-        * (speed_edges[1:] ** 3 - speed_edges[:-1] ** 3)
-    )
+    shell_volume = 2.0 * np.pi / 3.0 * (speed_edges[1:] ** 3 - speed_edges[:-1] ** 3)
     cell_volumes = shell_volume[:, None] * mu_widths[None, :]
     if (
         np.any(mu_widths <= 0.0)

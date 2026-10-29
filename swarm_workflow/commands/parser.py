@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from electron_swarm.core.solver_ids import CANONICAL_SOLVER_IDS
+from electron_swarm.core.output import FIGURE_KINDS
 
 from swarm_workflow.commands import handlers
 from swarm_workflow.tables.contracts import (
@@ -23,11 +25,19 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _add_campaign_commands(subparsers: argparse._SubParsersAction) -> None:
     sweep = subparsers.add_parser(
-        "sweep",
-        help="Run an external E/N and mixture sweep into SQLite",
+        "run",
+        help="Run one Swarm YAML, with optional replicas and SQLite resume",
     )
-    sweep.add_argument("workflow", type=Path, help="workflow YAML file")
-    sweep.set_defaults(handler=handlers.run_sweep_command)
+    sweep.add_argument("config", type=Path, help="schema-v2 Swarm YAML")
+    sweep.add_argument(
+        "--plan",
+        action="store_true",
+        help="Validate and show the plan without computing or creating files",
+    )
+    sweep.add_argument(
+        "--json", action="store_true", help="Print the plan as JSON (requires --plan)"
+    )
+    sweep.set_defaults(handler=handlers.run_command)
 
     aggregate = subparsers.add_parser(
         "aggregate",
@@ -89,9 +99,30 @@ def _add_campaign_commands(subparsers: argparse._SubParsersAction) -> None:
 
 
 def _add_input_commands(subparsers: argparse._SubParsersAction) -> None:
+    plot = subparsers.add_parser(
+        "plot", help="Plot saved Swarm data without running a solver"
+    )
+    plot.add_argument(
+        "source", type=Path, help="saved _manifest.json or workflow SQLite database"
+    )
+    plot.add_argument("--figures", required=True, nargs="+", choices=FIGURE_KINDS)
+    plot.add_argument("--output", required=True, type=Path)
+    plot.add_argument("--base-name", default="swarm")
+    plot.set_defaults(handler=handlers.plot_command)
+    rates = subparsers.add_parser(
+        "export-reaction-rates",
+        help="Export neutral k(E/N) points from a product manifest or workflow database",
+    )
+    rates.add_argument(
+        "source", type=Path, help="product _manifest.json or workflow SQLite database"
+    )
+    rates.add_argument("--solver", required=True, choices=CANONICAL_SOLVER_IDS)
+    rates.add_argument("--output", required=True, type=Path)
+    rates.add_argument("--base-name", default="swarm")
+    rates.set_defaults(handler=handlers.export_reaction_rates_command)
     tables = subparsers.add_parser(
         "build-tables",
-        help="Build per-mixture COMSOL-ready workflow table directories",
+        help="Build per-mixture qualified native coefficient points on E/N",
     )
     tables.add_argument("database", type=Path, help="workflow SQLite database")
     tables.add_argument(
@@ -191,7 +222,6 @@ def _add_comsol_model_commands(subparsers: argparse._SubParsersAction) -> None:
     )
     positive_column.add_argument(
         "--bundle",
-        required=True,
         type=Path,
         help="export-comsol bundle directory to import",
     )
@@ -230,7 +260,6 @@ def _add_comsol_model_commands(subparsers: argparse._SubParsersAction) -> None:
     )
     gec.add_argument(
         "--bundle",
-        required=True,
         type=Path,
         help="export-comsol bundle directory to import",
     )
@@ -253,7 +282,6 @@ def _add_comsol_model_commands(subparsers: argparse._SubParsersAction) -> None:
     )
     icp.add_argument(
         "--bundle",
-        required=True,
         type=Path,
         help="one-mixture export-comsol bundle directory to import",
     )
@@ -294,23 +322,29 @@ def _add_comsol_model_commands(subparsers: argparse._SubParsersAction) -> None:
         "--output",
         required=True,
         type=Path,
-        help="comparison output directory",
+        help="new comparison output directory",
     )
     compare_gec.set_defaults(handler=handlers.compare_gec_ccp_command)
 
     compare_positive = subparsers.add_parser(
         "compare-positive-column",
-        help="Compare external-table and built-in-Boltzmann result CSV files",
+        help="Compare selected saved solutions from unit-bearing positive-column summaries",
     )
     compare_positive.add_argument(
-        "external_csv",
+        "external_results",
         type=Path,
-        help="external Swarm-table result CSV",
+        help="external positive_column_run_summary.json",
     )
     compare_positive.add_argument(
-        "reference_csv",
+        "reference_results",
         type=Path,
-        help="built-in Boltzmann reference result CSV",
+        help="reference positive_column_run_summary.json",
+    )
+    compare_positive.add_argument(
+        "--external-solution", type=int, help="explicit saved solution index"
+    )
+    compare_positive.add_argument(
+        "--reference-solution", type=int, help="explicit saved solution index"
     )
     compare_positive.add_argument(
         "--output",
@@ -321,16 +355,16 @@ def _add_comsol_model_commands(subparsers: argparse._SubParsersAction) -> None:
     compare_positive.add_argument(
         "--external-runtime",
         type=float,
-        help="optional external solve time in seconds",
+        help="external solve time in seconds; supply both runtimes or neither",
     )
     compare_positive.add_argument(
         "--reference-runtime",
         type=float,
-        help="optional built-in reference solve time in seconds",
+        help="reference solve time in seconds; supply both runtimes or neither",
     )
     compare_positive.add_argument(
         "--plot",
         action="store_true",
-        help="write a PNG comparison of the spatial profiles",
+        help="write PNG/SVG comparisons and their source curve CSV",
     )
     compare_positive.set_defaults(handler=handlers.compare_positive_column_command)

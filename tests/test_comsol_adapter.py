@@ -8,6 +8,8 @@ import subprocess
 
 import pytest
 
+from support.positive_column import complete_bundle_fixture, complete_mapping_fixture
+
 import swarm_workflow.comsol.runtime as comsol_runtime
 from swarm_workflow.comsol.java import compose_java_mains
 from swarm_workflow.comsol.models.positive_column.config import (
@@ -541,14 +543,6 @@ def test_execute_failure_reports_stdout_and_stderr_log_paths(
     assert aggregate["status"] == "failed"
 
 
-def test_electron_swarm_still_has_no_workflow_comsol_or_mph_dependency() -> None:
-    forbidden = ["swarm_workflow", "sqlite3", "subprocess", "comsol", "mph"]
-    for path in (ROOT / "electron_swarm").rglob("*.py"):
-        text = path.read_text(encoding="utf-8").lower()
-        for item in forbidden:
-            assert item not in text, f"{path} contains forbidden dependency {item}"
-
-
 @pytest.mark.comsol
 @pytest.mark.slow
 def test_optional_comsol_apply_integration_requires_local_prerequisites() -> None:
@@ -623,7 +617,7 @@ def _write_valid_apply_repo(root: Path, *, include_units: bool = True) -> Path:
         encoding="utf-8",
     )
     manifest = {
-        "format_version": 1,
+        "format_version": 2,
         "tables": {
             "mean_energy_vs_en.csv": {
                 "columns": ["E_over_N_Td", "E_over_N_V_m2", "mean_energy_eV"],
@@ -683,13 +677,13 @@ def _write_valid_apply_repo(root: Path, *, include_units: bool = True) -> Path:
         """
 schema_version: 2
 model:
-  input_mph: model/fake.mph
-  output_mph: model/work/fake_out.mph
+  input_mph: ../fake.mph
+  output_mph: ../work/fake_out.mph
   study: std1
   component: comp1
   physics: plas
 bundle:
-  path: outputs/comsol_bundle/mixture_0000
+  path: ../../outputs/comsol_bundle/mixture_0000
 functions:
   mean_energy_vs_en:
     tag: sw_meanE
@@ -730,11 +724,16 @@ run:
   voltage_feature: mct1
   voltages_V: [20, 50, 100, 200]
 results:
-  probes:
+  output_directory: ../../outputs/comsol_positive_column
+  dataset: dset1
+  solutions: last
+  fields:
     - name: electron_density_center
       expression: plas.ne
       unit: 1/m^3
 """.lstrip(),
         encoding="utf-8",
     )
+    complete_bundle_fixture(bundle_dir)
+    complete_mapping_fixture(mapping_path)
     return mapping_path

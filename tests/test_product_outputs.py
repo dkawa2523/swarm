@@ -7,8 +7,10 @@ import pytest
 
 from electron_swarm import load_config, run
 from electron_swarm.core.result_metadata import PRODUCT_CASE_METADATA_KEYS
-from electron_swarm.io.writers import (
+from electron_swarm.io.writers import read_product_run
+from electron_swarm.io.tables import (
     SOLVER_PLAN_COLUMNS,
+    COMPARISON_SUMMARY_COLUMNS,
     SUMMARY_COLUMNS,
     SUMMARY_METADATA_COLUMNS,
 )
@@ -45,6 +47,7 @@ def test_canonical_outputs_and_comparison_summary(tmp_path: Path) -> None:
         "eedf_csv",
         "rates_csv",
         "solver_plan_csv",
+        "manifest_json",
         "comparison_summary_csv",
     }
 
@@ -53,17 +56,23 @@ def test_canonical_outputs_and_comparison_summary(tmp_path: Path) -> None:
         "prod_rates.csv",
         "prod_eedf.csv",
         "prod_solver_plan.csv",
+        "prod_manifest.json",
         "prod_comparison_summary.csv",
     }
 
     summary = pd.read_csv(tmp_path / "prod_summary.csv")
     expected_meta_columns = {
-            "meta_angular_model",
-            "meta_angular_moment_source",
-            "meta_angular_scattering_treatment",
-            "meta_angular_scattering_fidelity",
-            "meta_angular_scattering_assumption",
-            "meta_moment_table_provenance",
+        "meta_growth_model",
+        "meta_ionization_daughter_count",
+        "meta_particle_diffusion_model",
+        "meta_numerical_status",
+        "meta_collision_processes_treatment",
+        "meta_angular_model",
+        "meta_angular_moment_source",
+        "meta_angular_scattering_treatment",
+        "meta_angular_scattering_fidelity",
+        "meta_angular_scattering_assumption",
+        "meta_moment_table_provenance",
         "meta_exact_dcs_based",
         "meta_ordinary_integral_xs_closure",
         "meta_lmax",
@@ -88,7 +97,9 @@ def test_canonical_outputs_and_comparison_summary(tmp_path: Path) -> None:
     for column in expected_meta_columns:
         assert column in summary.columns
     assert list(summary.columns) == _expected_summary_columns()
-    assert {c for c in summary.columns if c.startswith("meta_")} == expected_meta_columns
+    assert {
+        c for c in summary.columns if c.startswith("meta_")
+    } == expected_meta_columns
     two_term = summary[summary["solver"] == "two_term"].iloc[0]
     for column in [
         "reduced_mobility_m2_V_s_m3",
@@ -100,8 +111,8 @@ def test_canonical_outputs_and_comparison_summary(tmp_path: Path) -> None:
     eedf = pd.read_csv(tmp_path / "prod_eedf.csv")
     assert "energy_width_eV" in eedf.columns
     assert "sample_count" in eedf.columns
-    assert "effective_sample_count" in eedf.columns
-    assert "relative_standard_error" in eedf.columns
+    assert "weight_effective_count" in eedf.columns
+    assert "relative_standard_error" not in eedf.columns
     for _, group in eedf.groupby(["solver", "case_id"], sort=False):
         assert (group["energy_width_eV"] > 0.0).all()
         assert float((group["eedf"] * group["energy_width_eV"]).sum()) == pytest.approx(
@@ -111,9 +122,7 @@ def test_canonical_outputs_and_comparison_summary(tmp_path: Path) -> None:
     assert mt["meta_angular_moment_source"] == "isotropic_closure"
     assert bool(mt["meta_exact_dcs_based"]) is False
     assert bool(mt["meta_ordinary_integral_xs_closure"]) is True
-    assert mt["meta_transport_definition"] == (
-        "pn_f1_flux_drift_f0_gradient_diffusion"
-    )
+    assert mt["meta_transport_definition"] == ("pn_f1_flux_drift_f0_gradient_diffusion")
 
     comparison = pd.read_csv(tmp_path / "prod_comparison_summary.csv")
     assert list(comparison["candidate_solver"]) == ["multi_term"]
@@ -167,6 +176,7 @@ def test_time_periodic_two_term_writes_phase_outputs(tmp_path: Path) -> None:
         "eedf_csv",
         "rates_csv",
         "solver_plan_csv",
+        "manifest_json",
         "rf_phase_csv",
         "rf_phase_eedf_csv",
     }
@@ -185,7 +195,7 @@ def test_time_periodic_two_term_writes_phase_outputs(tmp_path: Path) -> None:
     ]
 
 
-def test_all_solvers_skipped_writes_canonical_empty_summary(tmp_path: Path) -> None:
+def test_all_solvers_skipped_writes_plan_and_explicit_outcome(tmp_path: Path) -> None:
     data = base_product_config(tmp_path, ["two_term", "multi_term"])
     data["physics"]["field"]["magnetic_field"] = {
         "enabled": True,
@@ -197,14 +207,12 @@ def test_all_solvers_skipped_writes_canonical_empty_summary(tmp_path: Path) -> N
     result = run(cfg, write=True)
 
     assert result.cases == []
-    summary = pd.read_csv(tmp_path / "prod_summary.csv")
-    assert summary.empty
-    assert list(summary.columns) == _expected_summary_columns()
-
-    eedf = pd.read_csv(tmp_path / "prod_eedf.csv")
-    rates = pd.read_csv(tmp_path / "prod_rates.csv")
-    assert eedf.empty
-    assert rates.empty
+    artifact = read_product_run(tmp_path / "prod_manifest.json")
+    assert artifact.metadata["outcome"]["status"] == "skipped"
+    assert set(artifact.tables) == {"solver_plan_csv"}
+    assert not (tmp_path / "prod_summary.csv").exists()
+    assert not (tmp_path / "prod_eedf.csv").exists()
+    assert not (tmp_path / "prod_rates.csv").exists()
 
     plan = pd.read_csv(tmp_path / "prod_solver_plan.csv")
     assert list(plan.columns) == SOLVER_PLAN_COLUMNS
@@ -224,8 +232,10 @@ def test_all_solvers_disabled_writes_canonical_solver_plan(tmp_path: Path) -> No
     assert len(plan) == 1
     [row] = plan.to_dict("records")
     assert row["solver"] == "two_term"
-    assert bool(row["skipped"]) is True
-    assert row["skip_reason"] == "solver disabled"
+    assert bool(row["requested"]) is False
+    assert bool(row["skipped"]) is False
+    assert row["state"] == "disabled"
+    assert pd.isna(row["skip_reason"])
     for column in SOLVER_PLAN_COLUMNS:
         if column.startswith("effective_"):
             assert pd.isna(row[column])
@@ -246,8 +256,44 @@ def test_output_publication_removes_stale_optional_files(tmp_path: Path) -> None
     run(load_config(write_config(tmp_path, data)), write=True)
 
     assert not any((tmp_path / name).exists() for name in stale_names)
-    assert (tmp_path / "prod_summary.csv").exists()
+    assert (tmp_path / "prod_solver_plan.csv").exists()
+    assert not (tmp_path / "prod_summary.csv").exists()
     assert not list(tmp_path.glob(".prod.staging-*"))
+
+
+def test_output_publication_rolls_back_a_locked_file_and_binds_one_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import electron_swarm.io.writers as writers
+
+    data = base_product_config(tmp_path, ["two_term"])
+    data["run"]["solvers"][0]["enabled"] = False
+    config = load_config(write_config(tmp_path, data))
+    result = run(config, write=True)
+    before = {path: path.read_bytes() for path in tmp_path.glob("prod_*")}
+    import electron_swarm.io.publication as publication
+
+    original_replace = publication.os.replace
+    calls = 0
+
+    def fail_second_replace(source, target):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise PermissionError("simulated open output file")
+        return original_replace(source, target)
+
+    monkeypatch.setattr(publication.os, "replace", fail_second_replace)
+    with pytest.raises(PermissionError, match="open output"):
+        writers.write_outputs(result, config.output)
+    assert all(path.read_bytes() == content for path, content in before.items())
+    manifest = tmp_path / "prod_manifest.json"
+    artifact = read_product_run(manifest)
+    frames = artifact.tables
+    assert set(frames) == {"solver_plan_csv"}
+    (tmp_path / "prod_solver_plan.csv").write_text("altered", encoding="utf-8")
+    with pytest.raises(ValueError, match="altered"):
+        read_product_run(manifest)
 
 
 def test_pn_dcs_moment_table_summary_records_table_moment_path(
@@ -301,9 +347,10 @@ def test_fp_energy_summary_output_records_product_treatment(tmp_path: Path) -> N
 @pytest.mark.mc
 def test_internal_mc_magnetic_summary_output(tmp_path: Path) -> None:
     data = base_product_config(tmp_path, ["monte_carlo"])
+    data["physics"]["ionization"]["population_model"] = "fixed_particle_single_daughter"
     data["solvers"]["monte_carlo"] = {
         "particles": 12,
-        "max_collisions": 6,
+        "production_trial_periods": 6,
         "seed": 23,
     }
     data["physics"]["field"]["magnetic_field"] = {
@@ -320,22 +367,35 @@ def test_internal_mc_magnetic_summary_output(tmp_path: Path) -> None:
     assert row["meta_magnetic_field_treatment"] == "boris_lorentz_push"
     assert row["meta_tail_refinement_treatment"] == "disabled"
     assert row["meta_monte_carlo_base_seed"] == 23
-    assert row["meta_monte_carlo_case_seed"] == case.metadata[
-        "monte_carlo_case_seed"
-    ]
-    assert row["meta_transport_definition"] == "mc_flux_particle_tracking_fixed_population"
+    assert row["meta_monte_carlo_case_seed"] == case.metadata["monte_carlo_case_seed"]
+    assert (
+        row["meta_transport_definition"] == "mc_flux_particle_tracking_fixed_population"
+    )
     assert set(case.metadata) <= PRODUCT_CASE_METADATA_KEYS
 
     eedf = pd.read_csv(tmp_path / "prod_eedf.csv")
     assert "energy_width_eV" in eedf.columns
     assert (eedf["energy_width_eV"] > 0.0).all()
-    assert float((eedf["eedf"] * eedf["energy_width_eV"]).sum()) == pytest.approx(
-        1.0
-    )
+    assert float((eedf["eedf"] * eedf["energy_width_eV"]).sum()) == pytest.approx(1.0)
     assert eedf["sample_count"].notna().any()
-    assert eedf["effective_sample_count"].notna().any()
-    positive = eedf["sample_count"] > 0
-    assert (eedf.loc[positive, "relative_standard_error"] > 0.0).all()
+    assert eedf["weight_effective_count"].notna().any()
+    assert "relative_standard_error" not in eedf.columns
+
+    from tools.benchmarks.benchmark_internal_mc_audit import _tail_rows
+    from tools.benchmarks.benchmark_internal_mc_physics_triage import (
+        _band_rows,
+        _distributions_from_internal_tail,
+    )
+
+    support = _tail_rows(result)
+    assert support[0]["energy_left_eV"] == 0.0
+    assert "relative_standard_error" not in support[0]
+    assert support[0]["weight_effective_count"] == case.eedf_effective_counts[0]
+    [distribution] = _distributions_from_internal_tail(tmp_path / "prod_eedf.csv")
+    assert distribution.weight_effective_count == pytest.approx(
+        case.eedf_effective_counts
+    )
+    assert "relative_standard_error" not in _band_rows([distribution])[0]
 
 
 @pytest.mark.mc
@@ -344,13 +404,13 @@ def test_internal_mc_weighted_branching_summary_metadata(tmp_path: Path) -> None
     data["run"]["e_over_n_Td"] = [30.0]
     data["cross_sections"]["high_energy_extrapolation"] = "hold"
     data["solvers"]["monte_carlo"] = {
-        "population_model": "weighted_branching",
         "particles": 8,
-        "max_collisions": 30,
-        "tail_max_collisions": 2,
+        "production_trial_periods": 30,
+        "tail_trial_periods": 2,
         "seed": 41,
         "numeric_kernel": "python",
     }
+    data["physics"]["ionization"]["population_model"] = "weighted_branching"
     cfg = load_config(write_config(tmp_path, data))
     result = run(cfg, write=True)
     [case] = result.cases
@@ -369,7 +429,7 @@ def test_matching_angular_pn_mc_comparison_summary(tmp_path: Path) -> None:
     data = base_product_config(tmp_path, ["multi_term", "monte_carlo"])
     data["solvers"]["monte_carlo"] = {
         "particles": 8,
-        "max_collisions": 4,
+        "production_trial_periods": 4,
         "seed": 13,
     }
     data["comparison"] = {
@@ -384,24 +444,7 @@ def test_matching_angular_pn_mc_comparison_summary(tmp_path: Path) -> None:
 
     comparison = pd.read_csv(tmp_path / "prod_comparison_summary.csv")
     [row] = comparison.to_dict("records")
-    assert set(comparison.columns) == {
-        "case_id",
-        "E_over_N_Td",
-        "reference_solver",
-        "candidate_solver",
-        "angular_model_status",
-        "mean_energy_eV_status",
-        "mean_energy_eV_relative_difference",
-        "drift_velocity_m_s_status",
-        "drift_velocity_relative_difference",
-        "mobility_m2_V_s_status",
-        "mobility_relative_difference",
-        "diffusion_L_m2_s_status",
-        "diffusion_L_relative_difference",
-        "net_ionization_frequency_s_status",
-        "net_ionization_frequency_relative_difference",
-        "eedf_l1_error",
-    }
+    assert list(comparison.columns) == COMPARISON_SUMMARY_COLUMNS
     assert row["angular_model_status"] == "match"
 
 

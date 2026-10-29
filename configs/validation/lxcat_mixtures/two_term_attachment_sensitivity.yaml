@@ -50,7 +50,6 @@ physics:
 solvers:
   two_term:
     backend: native_sg
-    nonconservative_model: growth
 
 comparison: {enabled: false}
 feature_policy: {unsupported: fail, degraded: record}

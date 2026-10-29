@@ -1,2 +1,12 @@
 *.pdf binary
 *.png binary
+
+# Portable COMSOL models and their exact source/result bytes.
+*.mph filter=lfs diff=lfs merge=lfs -text
+comsol_models/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+# Original COMSOL CSV export headers are retained verbatim as archived evidence.
+comsol_models/saved/**/evidence/*.csv -whitespace
+comsol_models/**/*.sqlite filter=lfs diff=lfs merge=lfs -text
+comsol_models/**/bundle/eedf*.csv filter=lfs diff=lfs merge=lfs -text
+examples/cross_sections/argon_application_library.csv -text whitespace=cr-at-eol
+Model/Ar_xsecs.txt -text whitespace=cr-at-eol

@@ -8,6 +8,8 @@ from electron_swarm.core.results import SwarmCaseResult
 
 
 SUMMARY_METADATA_KEYS = (
+    "numerical_status",
+    "collision_processes_treatment",
     "angular_model",
     "angular_moment_source",
     "angular_scattering_treatment",
@@ -18,6 +20,9 @@ SUMMARY_METADATA_KEYS = (
     "ordinary_integral_xs_closure",
     "lmax",
     "ionization_source_treatment",
+    "growth_model",
+    "ionization_daughter_count",
+    "particle_diffusion_model",
     "electron_electron_treatment",
     "electron_electron_transport_stale",
     "magnetic_field_treatment",
@@ -39,6 +44,8 @@ SUMMARY_METADATA_KEYS = (
 PRODUCT_CASE_METADATA_KEYS = frozenset(
     {
         "schema_version",
+        "numerical_status",
+        "collision_processes_treatment",
         "solver_method",
         "angular_model",
         "angular_moment_source",
@@ -52,6 +59,9 @@ PRODUCT_CASE_METADATA_KEYS = frozenset(
         "direct_pn_operator",
         "ionization_source_model",
         "ionization_source_treatment",
+        "growth_model",
+        "ionization_daughter_count",
+        "particle_diffusion_model",
         "ionization_secondary_electron_energy_eV",
         "electron_electron_treatment",
         "electron_electron_transport_stale",

@@ -1,9 +1,4 @@
-"""Shared energy-grid construction utilities.
-
-The existing solvers keep their validated grid builders.  This module provides a
-small common helper for new code paths and benchmark tools, including optional
-threshold-aware refinement without changing solver contracts.
-"""
+"""Energy-grid construction, bounded support, and reported-cell geometry."""
 
 from __future__ import annotations
 
@@ -21,6 +16,81 @@ class EnergyGrid:
     edges_eV: np.ndarray
     widths_eV: np.ndarray
     metadata: dict[str, float | int | bool | str] = field(default_factory=dict)
+
+
+def bound_energy_grid(grid: EnergyGrid, upper_eV: float) -> EnergyGrid:
+    """Keep the finite-volume support inside the declared physical domain."""
+
+    upper = float(upper_eV)
+    centers = grid.centers_eV
+    if not np.isfinite(upper) or upper <= 0.0:
+        raise ValueError("energy-grid upper limit must be finite and positive")
+    if np.any(centers > upper) or centers[0] >= upper:
+        raise ValueError(
+            "energy-grid centers exceed physics.energy_grid_policy.max_eV_limit"
+        )
+    edges = grid.edges_eV.copy()
+    edges[0] = 0.0
+    edges[-1] = min(float(edges[-1]), upper)
+    widths = np.diff(edges)
+    if np.any(widths <= 0.0):
+        raise ValueError("energy-grid limit leaves an empty cell")
+    return EnergyGrid(centers, edges, widths, dict(grid.metadata))
+
+
+def reported_cell_edges(centers_eV: np.ndarray, widths_eV: np.ndarray) -> np.ndarray:
+    """Recover contiguous energy cells from their authoritative reported widths."""
+
+    centers = np.asarray(centers_eV, dtype=float)
+    widths = np.asarray(widths_eV, dtype=float)
+    if (
+        centers.ndim != 1
+        or centers.size == 0
+        or widths.shape != centers.shape
+        or np.any(~np.isfinite(centers))
+        or np.any(~np.isfinite(widths))
+        or np.any(widths <= 0.0)
+        or np.any(np.diff(centers) <= 0.0)
+    ):
+        raise ValueError(
+            "reported energy cells must be finite with positive matching widths"
+        )
+    edges = np.concatenate(([0.0], np.cumsum(widths)))
+    tolerance = 1.0e-12 * max(1.0, float(edges[-1]))
+    if np.any(centers < edges[:-1] - tolerance) or np.any(
+        centers > edges[1:] + tolerance
+    ):
+        raise ValueError("EEDF centers do not lie in their reported cells")
+    return edges
+
+
+def cell_density_l1(
+    left_edges: np.ndarray,
+    left_density: np.ndarray,
+    right_edges: np.ndarray,
+    right_density: np.ndarray,
+) -> float:
+    """Exact L1 distance of two piecewise-constant finite-volume densities."""
+
+    edges = np.unique(np.concatenate((left_edges, right_edges)))
+    midpoints = 0.5 * (edges[:-1] + edges[1:])
+
+    def on_intervals(source_edges: np.ndarray, density: np.ndarray) -> np.ndarray:
+        indices = np.searchsorted(source_edges, midpoints, side="right") - 1
+        valid = (indices >= 0) & (indices < len(density))
+        values = np.zeros_like(midpoints)
+        values[valid] = np.asarray(density)[indices[valid]]
+        return values
+
+    return float(
+        np.sum(
+            np.abs(
+                on_intervals(left_edges, left_density)
+                - on_intervals(right_edges, right_density)
+            )
+            * np.diff(edges)
+        )
+    )
 
 
 def cell_edges_from_centers(centers_eV: np.ndarray) -> tuple[np.ndarray, np.ndarray]:

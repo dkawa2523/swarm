@@ -8,7 +8,7 @@ import math
 from pathlib import Path
 from typing import Any
 
-from electron_swarm.core.config_parser import load_config
+from ..campaign.document import load_case_template
 from electron_swarm.core.config import GasComponent
 from electron_swarm.core.cross_sections import (
     CrossSectionProcess,
@@ -26,14 +26,14 @@ def active_collision_kernel_rows(
 ) -> tuple[tuple[str, ...], list[dict[str, Any]]] | None:
     """Return the exact configured cross sections used by active rate rows."""
 
-    raw_path = metadata.get("base_config_path")
+    raw_path = metadata.get("calculation_path")
     expected_hash = metadata.get("cross_sections_sha256")
     if not raw_path or not expected_hash:
         return None
     config_path = Path(raw_path)
     if not config_path.is_file():
         return None
-    config = load_config(config_path)
+    config = load_case_template(config_path)
     file_hashes = {
         str(file_config.path): _file_sha256(Path(file_config.path))
         for file_config in config.cross_sections.files

@@ -33,7 +33,7 @@ py -3 -c "from electron_swarm.runner import run_from_config; r=run_from_config(r
 For an E/N or mixture sweep:
 
 ~~~powershell
-py -3 -m swarm_workflow.cli sweep <workflow.yaml>
+py -3 -m swarm_workflow.cli run <workflow.yaml>
 ~~~
 
 A matching workflow database is resumable. Re-run the same immutable workflow to fill missing cases; do not delete the database or change its provenance to force a resume. Use a new database for changed physics, cross sections, solver configuration, mixtures, or anchor plans.

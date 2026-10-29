@@ -25,7 +25,7 @@ from electron_swarm.core.cross_sections import (
     load_cross_sections,
 )
 from electron_swarm.core.solver_configs import build_internal_solver_configs
-from electron_swarm.physics.kinetics import gas_number_density
+from electron_swarm.core.gas import gas_number_density
 from electron_swarm.physics.electron_neutral import speed_from_energy_m_s
 from electron_swarm.solvers.propagator.angular_kernel import (
     isotropic_destination_weights,

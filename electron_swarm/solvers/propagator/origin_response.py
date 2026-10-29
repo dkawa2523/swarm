@@ -39,13 +39,8 @@ def _radial_band_average_rates(
     edges = np.linspace(0.0, 1.0, int(radial_bands) + 1)
     collision = np.zeros(radial_bands, dtype=float)
     momentum = np.zeros(radial_bands, dtype=float)
-    for index, (lower, upper) in enumerate(
-        zip(edges[:-1], edges[1:], strict=True)
-    ):
-        radius = (
-            0.5 * (upper - lower) * _GAUSS_NODES
-            + 0.5 * (upper + lower)
-        )
+    for index, (lower, upper) in enumerate(zip(edges[:-1], edges[1:], strict=True)):
+        radius = 0.5 * (upper - lower) * _GAUSS_NODES + 0.5 * (upper + lower)
         energy = float(outer_energy_eV) * radius * radius
         speed = speed_from_energy_m_s(energy)
         total_sigma = np.zeros_like(radius)
@@ -107,8 +102,10 @@ def _positive_part_integral(
                 1.0 - nodes * nodes,
             )
         )
-        integral += 0.5 * (right - left) * float(
-            np.dot(_GAUSS_WEIGHTS, np.maximum(upper - lower, 0.0))
+        integral += (
+            0.5
+            * (right - left)
+            * float(np.dot(_GAUSS_WEIGHTS, np.maximum(upper - lower, 0.0)))
         )
     return integral
 
@@ -281,12 +278,9 @@ def _collision_partition(
             if u_right <= u_left:
                 continue
             nodes_parts.append(
-                0.5 * (u_right - u_left) * quadrature_nodes
-                + 0.5 * (u_right + u_left)
+                0.5 * (u_right - u_left) * quadrature_nodes + 0.5 * (u_right + u_left)
             )
-            weights_parts.append(
-                0.5 * (u_right - u_left) * quadrature_weights
-            )
+            weights_parts.append(0.5 * (u_right - u_left) * quadrature_weights)
         nodes = np.concatenate(nodes_parts)
         weights = np.concatenate(weights_parts)
         local: dict[int, float] = {}
@@ -352,9 +346,7 @@ def _collision_partition(
         dtype=float,
     ).tocsr()
     overlap.sum_duplicates()
-    angular_weights = 0.5 * (
-        np.cos(theta_edges[:-1]) - np.cos(theta_edges[1:])
-    )
+    angular_weights = 0.5 * (np.cos(theta_edges[:-1]) - np.cos(theta_edges[1:]))
     radial_volumes = (4.0 * np.pi / 3.0) * np.diff(radial_edges**3)
     desired_rows = np.kron(radial_volumes, angular_weights)
     desired_rows *= float(np.sum(volumes)) / float(np.sum(desired_rows))
@@ -368,34 +360,28 @@ def _collision_partition(
     row_scale = np.ones(base_overlap.shape[0], dtype=float)
     column_scale = np.ones(base_overlap.shape[1], dtype=float)
     for _ in range(20000):
-        row_denominator = np.asarray(
-            base_overlap @ column_scale
-        ).reshape(-1)
+        row_denominator = np.asarray(base_overlap @ column_scale).reshape(-1)
         if np.any(row_denominator <= 0.0):
             raise FloatingPointError(
                 "origin common-refinement contains an empty row support"
             )
         row_scale = desired_rows / row_denominator
-        column_denominator = np.asarray(
-            base_overlap.T @ row_scale
-        ).reshape(-1)
+        column_denominator = np.asarray(base_overlap.T @ row_scale).reshape(-1)
         if np.any(column_denominator <= 0.0):
             raise FloatingPointError(
                 "origin common-refinement contains an empty column support"
             )
         column_scale = volumes / column_denominator
-        balanced_rows = row_scale * np.asarray(
-            base_overlap @ column_scale
-        ).reshape(-1)
+        balanced_rows = row_scale * np.asarray(base_overlap @ column_scale).reshape(-1)
         balanced_columns = column_scale * np.asarray(
             base_overlap.T @ row_scale
         ).reshape(-1)
-        row_error = float(
-            np.max(np.abs(balanced_rows - desired_rows))
-        ) / max(float(np.max(desired_rows)), 1.0e-300)
-        column_error = float(
-            np.max(np.abs(balanced_columns - volumes))
-        ) / max(float(np.max(volumes)), 1.0e-300)
+        row_error = float(np.max(np.abs(balanced_rows - desired_rows))) / max(
+            float(np.max(desired_rows)), 1.0e-300
+        )
+        column_error = float(np.max(np.abs(balanced_columns - volumes))) / max(
+            float(np.max(volumes)), 1.0e-300
+        )
         if max(row_error, column_error) <= 2.0e-10:
             break
     else:
@@ -404,9 +390,7 @@ def _collision_partition(
             f"row_error={row_error:.3e}, column_error={column_error:.3e}"
         )
     overlap = (
-        sparse.diags(row_scale)
-        @ base_overlap
-        @ sparse.diags(column_scale)
+        sparse.diags(row_scale) @ base_overlap @ sparse.diags(column_scale)
     ).tocsr()
     collision_volumes = np.asarray(overlap.sum(axis=1)).reshape(-1)
     return overlap, collision_volumes, maximum_partition_error
@@ -538,17 +522,13 @@ def build_origin_geometry(
     )
     angular_overlap = sparse.vstack(
         [
-            sparse.csr_matrix(
-                overlap[index::polar_cells].sum(axis=0)
-            )
+            sparse.csr_matrix(overlap[index::polar_cells].sum(axis=0))
             for index in range(polar_cells)
         ],
         format="csr",
     )
     angular_volumes = np.asarray(angular_overlap.sum(axis=1)).reshape(-1)
-    source_basis = (
-        angular_overlap.T @ sparse.diags(1.0 / angular_volumes)
-    ).tocsr()
+    source_basis = (angular_overlap.T @ sparse.diags(1.0 / angular_volumes)).tocsr()
     population_aggregation = (
         angular_overlap @ sparse.diags(1.0 / volume_array)
     ).tocsr()
@@ -615,17 +595,12 @@ def build_origin_operator(
             active = collision_frequency > 0.0
             mean_cosine = np.where(
                 active,
-                1.0
-                - momentum_frequency
-                / np.maximum(collision_frequency, 1.0e-300),
+                1.0 - momentum_frequency / np.maximum(collision_frequency, 1.0e-300),
                 0.0,
             )
             if np.any(
                 active
-                & (
-                    (mean_cosine < -1.0 - 1.0e-10)
-                    | (mean_cosine > 1.0 + 1.0e-10)
-                )
+                & ((mean_cosine < -1.0 - 1.0e-10) | (mean_cosine > 1.0 + 1.0e-10))
             ):
                 raise ValueError(
                     f"{transfer.species}: origin total and momentum rates "
@@ -645,15 +620,11 @@ def build_origin_operator(
             local_weights = collision_volumes[section]
             local_weights = local_weights / float(np.sum(local_weights))
             if transfer.isotropic:
-                transition = np.repeat(
-                    local_weights[:, None], polar_cells, axis=1
-                )
+                transition = np.repeat(local_weights[:, None], polar_cells, axis=1)
             else:
                 assert band_kernels is not None
                 base = band_kernels[radial]
-                base_joint = (
-                    base * collisions.isotropic_weights[None, :]
-                )
+                base_joint = base * collisions.isotropic_weights[None, :]
                 scaling = np.ones(polar_cells, dtype=float)
                 for _ in range(100):
                     margin = scaling * (base_joint @ scaling)
@@ -661,21 +632,15 @@ def build_origin_operator(
                     scaling *= np.sqrt(ratio)
                     if float(np.max(np.abs(ratio - 1.0))) <= 2.0e-13:
                         break
-                joint = (
-                    scaling[:, None] * base_joint * scaling[None, :]
-                )
+                joint = scaling[:, None] * base_joint * scaling[None, :]
                 transition = joint / local_weights[None, :]
-            transition_blocks.append(
-                frequency * sparse.csr_matrix(transition)
-            )
+            transition_blocks.append(frequency * sparse.csr_matrix(transition))
         block += sparse.block_diag(transition_blocks, format="csr")
         loss_rate += np.repeat(collision_frequency, polar_cells)
     gain = (prolongation @ block @ restriction).tocsr()
     state_loss = np.asarray(restriction.T @ loss_rate).reshape(-1)
     generator = (gain - sparse.diags(state_loss)).tocsr()
-    column_error = float(
-        np.max(np.abs(np.asarray(generator.sum(axis=0)).reshape(-1)))
-    )
+    column_error = float(np.max(np.abs(np.asarray(generator.sum(axis=0)).reshape(-1))))
     weighted = generator @ sparse.diags(volumes)
     defect = weighted - weighted.T
     detailed_error = float(np.max(np.abs(defect.data))) if defect.nnz else 0.0
@@ -729,9 +694,7 @@ def build_origin_response(
     incoming_to_population = np.asarray(
         geometry.population_aggregation @ boundary_state
     )
-    source_to_population = np.asarray(
-        geometry.population_aggregation @ source_state
-    )
+    source_to_population = np.asarray(geometry.population_aggregation @ source_state)
     minimum = float(
         min(
             np.min(incoming_to_outflow),

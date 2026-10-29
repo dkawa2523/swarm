@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
 from hashlib import sha256
 import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from electron_swarm import SwarmConfig
-from electron_swarm.physics.kinetics import gas_number_density
+from electron_swarm.core.physical_context import (
+    PHYSICAL_CONTEXT_SCHEMA,
+)
 
 
 PHYSICAL_CONTEXT_KEY = "physical_context_json"
@@ -28,39 +28,11 @@ def file_sha256(path: str | Path) -> str:
     return digest.hexdigest()
 
 
-def physical_context(config: SwarmConfig) -> dict[str, Any]:
-    """Exclude numerical controls and solver ids from the shared physics."""
-    field = asdict(config.physics.field)
-    if field["type"] == "dc":
-        field.pop("time_dependent")
-    else:
-        for key in ("phase_steps", "max_periods", "periodic_tolerance"):
-            field["time_dependent"].pop(key)
-    angular = asdict(config.physics.angular_scattering)
-    if angular["moment_table"] is not None:
-        table = angular["moment_table"]
-        table["sha256"] = file_sha256(table.pop("path"))
-    return {
-        "schema": "swarm_physical_context.v1",
-        "gas_temperature_K": config.conditions.gas_temperature_K,
-        "gas_number_density_m3": gas_number_density(config),
-        "field": field,
-        "angular_scattering": angular,
-        "electron_electron": asdict(config.physics.electron_electron),
-        "ionization": asdict(config.physics.ionization),
-        "finite_k": asdict(config.physics.finite_k),
-        "high_energy_extrapolation": config.cross_sections.high_energy_extrapolation,
-    }
-
-
 def context_from_metadata(metadata: Mapping[str, str]) -> dict[str, Any] | None:
     if PHYSICAL_CONTEXT_KEY not in metadata:
         return None
     result = json.loads(metadata[PHYSICAL_CONTEXT_KEY])
-    if (
-        not isinstance(result, dict)
-        or result.get("schema") != "swarm_physical_context.v1"
-    ):
+    if not isinstance(result, dict) or result.get("schema") != PHYSICAL_CONTEXT_SCHEMA:
         raise ClosureSelectionError("invalid physical-context provenance")
     return result
 
@@ -113,7 +85,7 @@ def compatible_physics(mc: dict[str, Any], fallback: dict[str, Any]) -> None:
         context = manifest.get("physical_context")
         if (
             not isinstance(context, dict)
-            or context.get("schema") != "swarm_physical_context.v1"
+            or context.get("schema") != PHYSICAL_CONTEXT_SCHEMA
         ):
             raise ClosureSelectionError(
                 f"{label} lacks verified physical context; rebuild from recorded inputs"

@@ -9,12 +9,15 @@ import numpy as np
 
 from electron_swarm.core.config import MagneticFieldConfig, SwarmConfig
 from electron_swarm.core.cross_sections import ActiveMixtureInputs, ProcessType
-from electron_swarm.core.solver_configs import MonteCarloAdapterConfig
+from electron_swarm.core.solver_configs import (
+    MonteCarloAdapterConfig,
+    resolve_monte_carlo_sampling,
+)
 from electron_swarm.physics.angular_scattering import (
     AngularMomentProvider,
     build_angular_model,
 )
-from electron_swarm.physics.kinetics import gas_number_density
+from electron_swarm.core.gas import gas_number_density
 import electron_swarm.solvers.monte_carlo.result_evidence as _result_evidence
 import electron_swarm.solvers.monte_carlo.weighted_runtime as _weighted_runtime
 from electron_swarm.solvers.monte_carlo.collisions import (
@@ -27,9 +30,7 @@ from electron_swarm.solvers.monte_carlo.collisions import (
 )
 from electron_swarm.solvers.monte_carlo.histogram import _tail_threshold_eV
 from electron_swarm.solvers.monte_carlo.kinematics import magnetic_field_vector
-from electron_swarm.solvers.monte_carlo.source_identity import (
-    monte_carlo_source_sha256,
-)
+from electron_swarm.core.source_identity import solver_source_fingerprint
 from electron_swarm.solvers.monte_carlo.weighted_transport import (
     WeightedGrowthTransportLagPlan,
     weighted_growth_transport_lag_plan,
@@ -52,7 +53,7 @@ class _MonteCarloRunSetup:
     transport_lag_plan: WeightedGrowthTransportLagPlan
     collisions: int
     tail_collisions: int
-    warmup_collisions: int
+    warmup_trial_periods: int
     density: float
     projected: list[_ProjectedProcess]
     angular_model: AngularMomentProvider
@@ -98,7 +99,8 @@ def _prepare_monte_carlo_run(
     collect_audit: bool,
 ) -> _MonteCarloRunSetup:
     cfg = solver_config
-    particles = int(cfg.particles or 256)
+    sampling = resolve_monte_carlo_sampling(cfg)
+    particles = sampling.particles
     population_model = cfg.population_model
     branching_active = _result_evidence._weighted_branching_active(
         config,
@@ -112,16 +114,12 @@ def _prepare_monte_carlo_run(
             "transport_correlation_lag_barriers is only used by an active "
             "weighted-branching Monte Carlo estimator"
         )
-    collisions = int(cfg.max_collisions or 100)
+    collisions = sampling.production_trial_periods
     # The rare-tail phase is an explicit MC opt-in.  Keeping the disabled
     # state as a zero executable budget prevents the production length from
     # being misreported (and potentially spent) as tail work.
-    tail_collisions = (
-        int(cfg.tail_max_collisions)
-        if cfg.tail_max_collisions is not None
-        else 0
-    )
-    warmup_collisions = int(cfg.warmup_collisions or 0)
+    tail_collisions = sampling.tail_trial_periods
+    warmup_trial_periods = sampling.warmup_trial_periods
     density = gas_number_density(config)
     projected = _project_processes(config, cross_sections)
     _validate_trajectory_processes(projected)
@@ -219,7 +217,7 @@ def _prepare_monte_carlo_run(
         transport_lag_plan=transport_lag_plan,
         collisions=collisions,
         tail_collisions=tail_collisions,
-        warmup_collisions=warmup_collisions,
+        warmup_trial_periods=warmup_trial_periods,
         density=density,
         projected=projected,
         angular_model=angular_model,
@@ -241,7 +239,7 @@ def _prepare_monte_carlo_run(
         magnetic_enabled=magnetic_enabled,
         effective_B_T=effective_B_T,
         B=B,
-        solver_source_sha256=monte_carlo_source_sha256(),
+        solver_source_sha256=solver_source_fingerprint("monte_carlo")["sha256"],
         compiled_plan=compiled_plan,
         compiled_fallback_reason=compiled_fallback_reason,
     )

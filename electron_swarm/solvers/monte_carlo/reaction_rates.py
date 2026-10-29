@@ -317,9 +317,7 @@ class TrajectoryReactionRateAccumulator:
         )
         self._flight_integration_breakpoints_eV = np.ascontiguousarray(
             np.unique(
-                np.concatenate(
-                    (self._prepared_cross_sections.grid_eV, thresholds)
-                )
+                np.concatenate((self._prepared_cross_sections.grid_eV, thresholds))
             )
         )
         (

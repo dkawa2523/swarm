@@ -70,7 +70,7 @@ def _write_comsol_function_tables(output_dir: Path) -> dict[str, dict[str, Any]]
             "derived_for_comsol_interpolation": True,
             "units": {
                 "E_over_N_V_m2": "V m^2",
-                output_column: UNITS.get(output_column, _function_unit(output_column)),
+                output_column: UNITS[output_column],
             },
             "sha256": _sha256_file(target),
         }
@@ -92,27 +92,11 @@ def _function_rows(
     ]
 
 
-def _function_unit(column: str) -> str:
-    if column.endswith("_townsend_m2"):
-        return "m^2"
-    if column.endswith("_rate_coefficient_m3_s"):
-        return "m^3/s"
-    if column.endswith("_energy_loss_rate_coefficient_eV_m3_s"):
-        return "eV m^3/s"
-    return ""
-
-
 def _read_csv(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         raise ComsolExportError(f"missing required table: {path.name}")
     with path.open("r", encoding="utf-8", newline="") as fp:
         return list(csv.DictReader(fp))
-
-
-def _csv_header(path: Path) -> tuple[str, ...]:
-    with path.open("r", encoding="utf-8", newline="") as fp:
-        reader = csv.reader(fp)
-        return tuple(next(reader))
 
 
 def _clear_known_outputs(directory: Path) -> None:

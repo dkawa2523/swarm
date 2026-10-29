@@ -7,7 +7,7 @@ from typing import Iterable, Sequence
 
 import numpy as np
 
-from swarm_workflow.campaign.statistics import conservative_rebin_probability_mass
+from electron_swarm.core.statistics import conservative_rebin_probability_mass
 from swarm_workflow.plots.eedf_contracts import (
     DEFAULT_TAIL_THRESHOLDS_EV,
     EedfCase,

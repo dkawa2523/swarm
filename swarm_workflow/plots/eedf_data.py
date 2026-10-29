@@ -12,7 +12,7 @@ from typing import Any, Sequence
 import numpy as np
 from scipy.stats import t as student_t
 
-from swarm_workflow.campaign.statistics import energy_edges_from_cells
+from electron_swarm.grids.energy import reported_cell_edges
 from swarm_workflow.plots.eedf_contracts import (
     EedfCase,
     EedfComparisonError,
@@ -100,7 +100,7 @@ def validated_case(
             f"{solver} {e_over_n_td:g} Td EEDF must be finite and nonnegative"
         )
     try:
-        edges = energy_edges_from_cells(energy, widths)
+        edges = reported_cell_edges(energy, widths)
     except ValueError as exc:
         raise EedfComparisonError(
             f"{solver} {e_over_n_td:g} Td has an invalid cell grid: {exc}"

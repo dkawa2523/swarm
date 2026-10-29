@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from electron_swarm.core.yaml_input import read_yaml_mapping
+
 from pathlib import Path
 
-import yaml
 
 from .config_values import (
     boolean_value,
@@ -42,7 +43,7 @@ def load_gec_ccp_mapping(
     bundle_path: str | Path | None = None,
 ) -> GecCcpMapping:
     path = Path(mapping_path).resolve()
-    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    raw = read_yaml_mapping(path)
     if not isinstance(raw, dict):
         raise GecCcpWorkflowError("GEC CCP mapping root must be a mapping")
     reject_unknown_keys(raw, ROOT_KEYS, "mapping")

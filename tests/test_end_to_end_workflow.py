@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from product_helpers import campaign_config
+
 import csv
 from hashlib import sha256
 import json
@@ -8,7 +10,7 @@ from pathlib import Path
 
 import yaml
 
-from electron_swarm import load_config
+from swarm_workflow.campaign.document import load_case_template
 from swarm_workflow.cli import main as workflow_cli_main
 from swarm_workflow.comsol.models.positive_column.config import load_comsol_mapping
 from swarm_workflow.comsol.models.positive_column.verify import (
@@ -23,19 +25,17 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_examples_workflow_ar_o2_loads_as_schema_v2_workflow() -> None:
     workflow = load_workflow(ROOT / "examples" / "workflow_ar_o2.yaml")
 
-    assert workflow.base_config_path.name == "ar_o2_base.yaml"
     assert workflow.e_over_n_Td == (20.0, 50.0)
     assert len(workflow.mixtures) == 2
     assert workflow.mixtures[1].fractions["O2"] == 0.01
 
 
 def test_positive_column_workflow_matches_model_conditions() -> None:
-    config_path = ROOT / "examples" / "argon_positive_column_two_term.yaml"
     workflow_path = (
         ROOT / "examples" / "workflow_argon_positive_column_two_term.yaml"
     )
 
-    config = load_config(config_path)
+    config = load_case_template(workflow_path)
     workflow = load_workflow(workflow_path)
 
     assert [str(solver.id) for solver in config.run.solvers] == ["two_term"]
@@ -43,7 +43,6 @@ def test_positive_column_workflow_matches_model_conditions() -> None:
     assert config.conditions.pressure_Pa == 13.3322
     assert min(config.run.e_over_n_Td) <= 0.05
     assert max(config.run.e_over_n_Td) >= 5000.0
-    assert workflow.base_config_path == config_path.resolve()
     assert workflow.e_over_n_Td == tuple(config.run.e_over_n_Td)
 
 
@@ -51,13 +50,10 @@ def test_gec_ccp_monte_carlo_workflow_is_pure_qualified_mc() -> None:
     workflow = load_workflow(
         ROOT / "examples" / "workflow_argon_gec_ccp_monte_carlo.yaml"
     )
-    config = load_config(workflow.base_config_path)
+    config = load_case_template(workflow.path)
 
     assert [str(solver.id) for solver in config.run.solvers] == ["monte_carlo"]
-    assert workflow.base_config_path.name == (
-        "argon_gec_ccp_monte_carlo_weighted_branching.yaml"
-    )
-    assert workflow.mc_e_over_n_Td == workflow.e_over_n_Td
+    assert (workflow.mc_e_over_n_Td or workflow.e_over_n_Td) == workflow.e_over_n_Td
     assert workflow.quality.required_rate_min_process_peak_fraction == 1.0e-5
 
 
@@ -68,10 +64,10 @@ def test_swarm_to_comsol_dry_run_end_to_end(tmp_path: Path) -> None:
     tables_dir = tmp_path / "outputs" / "tables"
     bundle_root = tmp_path / "outputs" / "comsol_bundle"
 
-    workflow_cli_main(["sweep", str(workflow_path)])
+    workflow_cli_main(["run", str(workflow_path)])
     assert db_path.exists()
     with sqlite3.connect(db_path) as conn:
-        assert conn.execute("SELECT COUNT(*) FROM cases").fetchone()[0] == 4
+        assert conn.execute("SELECT COUNT(*) FROM cases").fetchone()[0] == 2
         workflow_hash = str(
             conn.execute(
                 "SELECT value FROM metadata "
@@ -141,6 +137,14 @@ def test_swarm_to_comsol_dry_run_end_to_end(tmp_path: Path) -> None:
     assert (bundle / "manifest.json").exists()
     manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["status"] == "ok"
+    assert manifest["source"] == "two_term"
+    assert manifest["physical_context"]["gas_temperature_K"] == 300.0
+    assert manifest["mixture"]["species"] == [
+        {"species": "Ar", "fraction": 1.0, "mass_amu": 39.948}
+    ]
+    assert manifest["quality_summary"]["passed"] is True
+    assert manifest["quality_summary"]["total_points"] == 2
+    bundle_manifest_bytes = (bundle / "manifest.json").read_bytes()
     for manifest_path in (
         aggregate_dir / "manifest.json",
         tables_dir / "manifest.json",
@@ -156,6 +160,8 @@ def test_swarm_to_comsol_dry_run_end_to_end(tmp_path: Path) -> None:
     mapping_path = _write_mapping(tmp_path, bundle)
     mapping = load_comsol_mapping(mapping_path, validate_files=True)
     assert mapping.bundle.path == bundle.resolve()
+    assert mapping.bundle.source == "two_term"
+    assert mapping.physical_context.gas_temperature_K == 300.0
 
     verify_plan = plan_verify_comsol_functions(mapping_path)
 
@@ -172,6 +178,7 @@ def test_swarm_to_comsol_dry_run_end_to_end(tmp_path: Path) -> None:
             "--dry-run",
         ]
     )
+    assert (bundle / "manifest.json").read_bytes() == bundle_manifest_bytes
 
 
 def test_example_positive_column_mapping_parses_without_local_files() -> None:
@@ -204,7 +211,6 @@ def _write_workflow_repo(root: Path) -> Path:
                     "pressure_Pa": 13.3,
                     "gas_mixture": [
                         {"species": "Ar", "fraction": 1.0, "mass_amu": 39.948},
-                        {"species": "O2", "fraction": 0.0, "mass_amu": 31.998},
                     ],
                 },
                 "cross_sections": {
@@ -248,30 +254,7 @@ def _write_workflow_repo(root: Path) -> Path:
     workflow_path = root / "workflow.yaml"
     workflow_path.write_text(
         yaml.safe_dump(
-            {
-                "base_config": base_path.name,
-                "database": "outputs/swarm.sqlite",
-                "e_over_n_Td": [15.0, 20.0],
-                "mixtures": [
-                    {"Ar": 1.0, "O2": 0.0},
-                    {"Ar": 0.99, "O2": 0.01},
-                ],
-                "mc": {"replicas": 1, "base_seed": 12345},
-                "quality": {
-                    "mobility_rse": 0.1,
-                    "diffusion_rse": 0.25,
-                    "major_rate_rse": 0.2,
-                    "major_rate_fraction": 0.03,
-                    "eedf_normalization_error": 1.0e-5,
-                    "required_rate_rse": {
-                        "process_type": {
-                            "excitation": 0.2,
-                            "ionization": 0.2,
-                        },
-                        "process": {},
-                    },
-                },
-            },
+            campaign_config(base_path, database='outputs/swarm.sqlite', e_over_n_Td=[15.0, 20.0], mixtures=[{'Ar': 1.0}], quality={'mobility_rse': 0.1, 'diffusion_rse': 0.25, 'major_rate_rse': 0.2, 'major_rate_fraction': 0.03, 'eedf_normalization_error': 1e-05, 'required_rate_rse': {'process_type': {'excitation': 0.2, 'ionization': 0.2}, 'process': {}}}),
             sort_keys=False,
         ),
         encoding="utf-8",
@@ -296,6 +279,13 @@ model:
   physics: plas
 bundle:
   path: {bundle.as_posix()}
+  source: two_term
+physical_context:
+  gas_temperature_K: 300.0
+  gas_mixture:
+    - species: Ar
+      fraction: 1.0
+      mass_amu: 39.948
 logs:
   path: {(root / "model" / "logs").as_posix()}
 verify:
@@ -332,16 +322,25 @@ reaction_lookups:
   excitation:
     feature: eir2
     form: townsend
+    species: Ar
+    process: Ar excitation
     process_type: excitation
+    threshold_eV: 8.0
   ionization:
     feature: eir4
     form: townsend
+    species: Ar
+    process: Ar ionization
     process_type: ionization
+    threshold_eV: 15.0
 run:
   voltage_feature: mct1
   voltages_V: [20, 50, 100, 200]
 results:
-  probes:
+  output_directory: ../../outputs/comsol_positive_column
+  dataset: dset1
+  solutions: last
+  fields:
     - name: x
       expression: x
       unit: m

@@ -11,6 +11,11 @@ from swarm_workflow.comsol.input.bundle_selection import (
     SOURCE_MANIFEST_FILE,
     validate_bundle_selection,
 )
+from swarm_workflow.comsol.input.validation import (
+    ComsolInputArtifactError,
+    contained_artifact_path,
+    validate_manifest_tables,
+)
 from swarm_workflow.selection import (
     ANCHOR_FALLBACK_SOURCE,
     ClosureSelectionError,
@@ -24,23 +29,24 @@ from swarm_workflow.quality.solver import (
     validate_propagator_core_qualification,
     validate_propagator_target_qualification,
 )
-from swarm_workflow.quality.propagator_source import (
+from electron_swarm.core.source_identity import (
     PROPAGATOR_SOLVER_SOURCE_METADATA_KEY,
 )
 from swarm_workflow.tables.contracts import (
     COLLISION_RATE_KERNEL_TABLE,
-    ELASTIC_ENERGY_LOSS_TABLE,
+    ELASTIC_ENERGY_LOSS_TABLE as SOURCE_ELASTIC_ENERGY_LOSS_TABLE,
     RATE_EVIDENCE_TABLE,
 )
 
 from .contracts import (
     BASE_TABLES,
     FORMAT_VERSION,
-    OPTIONAL_TABLES,
+    SOURCE_OPTIONAL_TABLES,
     ComsolExportError,
     ComsolExportSummary,
 )
 from .function_tables import _write_eedf_mean_energy_function_table
+from .coefficient_tables import write_mean_energy_tables
 from .manifest import (
     _bundle_manifest,
     _canonical_eedf_source,
@@ -48,13 +54,13 @@ from .manifest import (
     _read_manifest,
     _sha256_file,
     _table_metadata,
-    _validate_source_artifact,
+    _validate_source_role,
+    _validate_source_units,
     _validated_quality_policy,
     _validated_quality_thresholds,
 )
 from .writers import (
     _clear_known_outputs,
-    _csv_header,
     _missing_required_coefficients,
     _write_comsol_function_tables,
 )
@@ -85,29 +91,58 @@ def export_comsol_bundle(
         root_quality = _validated_quality_thresholds(manifest)
         root_quality_policy = _validated_quality_policy(manifest)
         entries = manifest["mixtures"]
-        output_dir.mkdir(parents=True, exist_ok=True)
-        bundle_entries = []
+        if not entries:
+            raise ComsolExportError("root manifest has no mixture tables")
+        source_entries: list[tuple[int, Path]] = []
+        mixture_ids: set[int] = set()
         for entry in entries:
-            source_manifest = table_dir / str(entry["path"])
-            source_dir = source_manifest.parent
-            child_quality = _validated_quality_thresholds(_read_manifest(source_dir))
+            if (
+                not isinstance(entry, dict)
+                or isinstance(entry.get("mixture_id"), bool)
+                or not isinstance(entry.get("mixture_id"), int)
+                or entry["mixture_id"] < 0
+                or entry["mixture_id"] in mixture_ids
+            ):
+                raise ComsolExportError("root manifest has invalid mixture inventory")
+            try:
+                source_manifest = contained_artifact_path(table_dir, entry.get("path"))
+            except ComsolInputArtifactError as exc:
+                raise ComsolExportError(str(exc)) from exc
+            if source_manifest.name != "manifest.json":
+                raise ComsolExportError("mixture inventory must refer to manifest.json")
+            mixture_ids.add(entry["mixture_id"])
+            source_entries.append((entry["mixture_id"], source_manifest.parent))
+        output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir / "manifest.json").unlink(missing_ok=True)
+        bundle_entries = []
+        for mixture_id, source_dir in source_entries:
+            child_manifest = _read_manifest(source_dir)
+            child_mixture = child_manifest.get("mixture")
+            if (
+                child_manifest.get("source") != manifest.get("source")
+                or child_manifest.get("hashes") != manifest.get("hashes")
+                or not isinstance(child_mixture, dict)
+                or child_mixture.get("mixture_id") != mixture_id
+            ):
+                raise ComsolExportError("mixture table provenance differs from root manifest")
+            child_quality = _validated_quality_thresholds(child_manifest)
             if child_quality != root_quality:
                 raise ComsolExportError(
                     "mixture table quality thresholds differ from root manifest"
                 )
             if (
-                _validated_quality_policy(_read_manifest(source_dir))
+                _validated_quality_policy(child_manifest)
                 != root_quality_policy
             ):
                 raise ComsolExportError(
                     "mixture table quality policy differs from root manifest"
                 )
-            target_dir = output_dir / f"mixture_{int(entry['mixture_id']):04d}"
+            target_dir = output_dir / f"mixture_{mixture_id:04d}"
             _export_single(source_dir, target_dir)
             bundle_entries.append(
                 {
-                    "mixture_id": int(entry["mixture_id"]),
-                    "path": f"mixture_{int(entry['mixture_id']):04d}/manifest.json",
+                    "mixture_id": mixture_id,
+                    "path": f"mixture_{mixture_id:04d}/manifest.json",
                 }
             )
         _write_json(
@@ -148,8 +183,6 @@ def _export_single(
             raise ComsolExportError(str(exc)) from exc
     _validated_quality_thresholds(source_manifest)
     _validated_quality_policy(source_manifest)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    _clear_known_outputs(output_dir)
     listed_tables = source_manifest.get("tables")
     if not isinstance(listed_tables, dict):
         raise ComsolExportError("source table manifest.tables must be a mapping")
@@ -164,6 +197,19 @@ def _export_single(
             "source table manifest omits required tables: "
             + ", ".join(missing_manifest_tables)
         )
+    try:
+        artifacts = validate_manifest_tables(
+            table_dir,
+            source_manifest,
+            required_names=required_tables,
+            allowed_names=(*BASE_TABLES, *SOURCE_OPTIONAL_TABLES),
+        )
+    except ComsolInputArtifactError as exc:
+        raise ComsolExportError(str(exc)) from exc
+    for name in artifacts:
+        _validate_source_units(name, listed_tables[name])
+    output_dir.mkdir(parents=True, exist_ok=True)
+    _clear_known_outputs(output_dir)
     qualification_entry = source_manifest.get("solver_qualification")
     propagator_core_qualification = None
     if source_manifest.get("source") == "propagator":
@@ -260,37 +306,34 @@ def _export_single(
         )
 
     tables: dict[str, dict[str, Any]] = {}
-    for name in (*BASE_TABLES, *OPTIONAL_TABLES):
+    for name in (*BASE_TABLES, *SOURCE_OPTIONAL_TABLES):
         if name not in listed_tables:
             continue
-        source = table_dir / name
-        if not source.is_file():
-            raise ComsolExportError(
-                f"manifest-listed source table does not exist: {name}"
-            )
+        artifact = artifacts[name]
+        source = artifact.path
         if name == "eedf.csv":
-            _validate_source_artifact(
-                source,
+            _validate_source_role(
+                name,
                 listed_tables[name],
                 expected_roles={
                     "raw_swarm_eedf_audit_and_canonicalization_source",
                 },
             )
         elif name == RATE_EVIDENCE_TABLE:
-            _validate_source_artifact(
-                source,
+            _validate_source_role(
+                name,
                 listed_tables[name],
                 expected_roles={"raw_swarm_rate_evidence"},
             )
-        elif name == ELASTIC_ENERGY_LOSS_TABLE:
-            _validate_source_artifact(
-                source,
+        elif name == SOURCE_ELASTIC_ENERGY_LOSS_TABLE:
+            _validate_source_role(
+                name,
                 listed_tables[name],
-                expected_roles={"canonical_comsol_elastic_energy_loss_input"},
+                expected_roles={"swarm_elastic_energy_loss"},
             )
         elif name == COLLISION_RATE_KERNEL_TABLE:
-            _validate_source_artifact(
-                source,
+            _validate_source_role(
+                name,
                 listed_tables[name],
                 expected_roles={"canonical_eedf_projection_rate_kernels"},
             )
@@ -304,12 +347,13 @@ def _export_single(
                 raise ComsolExportError(
                     "collision-rate kernels are not bound to source cross sections"
                 )
-        columns = _csv_header(source)
         target = output_dir / name
         target.write_bytes(source.read_bytes())
-        metadata = _table_metadata(columns, source_manifest, name)
-        metadata["sha256"] = _sha256_file(target)
-        if name == ELASTIC_ENERGY_LOSS_TABLE:
+        if _sha256_file(target) != artifact.sha256:
+            raise ComsolExportError(f"source table changed during export: {name}")
+        metadata = _table_metadata(artifact.columns, source_manifest, name)
+        metadata["sha256"] = artifact.sha256
+        if name == SOURCE_ELASTIC_ENERGY_LOSS_TABLE:
             physics_contract = listed_tables[name].get("physics_contract")
             if not isinstance(physics_contract, dict):
                 raise ComsolExportError(
@@ -326,10 +370,10 @@ def _export_single(
                     "artifact_role": (
                         "raw_swarm_eedf_audit_and_canonicalization_source"
                     ),
-                    "sha256": _sha256_file(target),
                 }
             )
         tables[name] = metadata
+    tables.update(write_mean_energy_tables(output_dir, artifacts, source_manifest))
     tables.update(_write_comsol_function_tables(output_dir))
     function_eedf_source = _canonical_eedf_source(
         table_dir,

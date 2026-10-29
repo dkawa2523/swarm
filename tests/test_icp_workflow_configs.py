@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from electron_swarm import load_config
+from swarm_workflow.campaign.document import load_case_template
 from electron_swarm.orchestration.plan import build_solve_plan
 from swarm_workflow.campaign.config import load_workflow
-from swarm_workflow.selection import physical_context
+from electron_swarm.core.physical_context import workflow_physical_context
 from swarm_workflow.quality.monte_carlo.policy import sampling_budget_provenance
 
 
@@ -34,11 +34,6 @@ SOLVER_SUPPORT_EXTENSIONS = {
     "monte_carlo": (2726.6505889,),
     "propagator": (2744.2936035,),
 }
-BASE_CONFIGS = {
-    "two_term": "argon_gec_icp_two_term.yaml",
-    "monte_carlo": "argon_gec_icp_monte_carlo_weighted_branching.yaml",
-    "propagator": "argon_gec_icp_propagator.yaml",
-}
 WORKFLOWS = {
     "two_term": "workflow_argon_gec_icp_two_term.yaml",
     "monte_carlo": "workflow_argon_gec_icp_monte_carlo.yaml",
@@ -46,9 +41,9 @@ WORKFLOWS = {
 }
 
 
-@pytest.mark.parametrize("solver_id", tuple(BASE_CONFIGS))
-def test_icp_base_configs_share_one_physical_context(solver_id: str) -> None:
-    config = load_config(EXAMPLES / BASE_CONFIGS[solver_id])
+@pytest.mark.parametrize("solver_id", tuple(WORKFLOWS))
+def test_icp_base_configs_share_one_workflow_physical_context(solver_id: str) -> None:
+    config = load_case_template(EXAMPLES / WORKFLOWS[solver_id])
 
     assert config.schema_version == 2
     assert [item.id for item in config.run.solvers] == [solver_id]
@@ -79,14 +74,14 @@ def test_icp_workflows_share_comparison_anchors_and_bound_support_extensions(
     )
     assert workflow.mixtures[0].fractions == {"Ar": 1.0}
     assert workflow.database_path.parent.name == "argon_gec_icp"
-    config = load_config(workflow.base_config_path)
+    config = load_case_template(workflow.path)
     assert [item.id for item in config.run.solvers] == [solver_id]
 
 
 def test_icp_solver_sources_have_compatible_physical_contexts() -> None:
     contexts = {
-        solver_id: physical_context(load_config(EXAMPLES / filename))
-        for solver_id, filename in BASE_CONFIGS.items()
+        solver_id: workflow_physical_context(load_case_template(EXAMPLES / filename))
+        for solver_id, filename in WORKFLOWS.items()
     }
 
     assert contexts["two_term"] == contexts["monte_carlo"]
@@ -96,12 +91,12 @@ def test_icp_solver_sources_have_compatible_physical_contexts() -> None:
 def test_icp_monte_carlo_plan_has_explicit_finite_budget() -> None:
     workflow = load_workflow(EXAMPLES / WORKFLOWS["monte_carlo"])
     gec_workflow = load_workflow(EXAMPLES / "workflow_argon_gec_ccp_monte_carlo.yaml")
-    config = load_config(workflow.base_config_path)
-    assert workflow.mc_e_over_n_Td == (
+    config = load_case_template(workflow.path)
+    assert (workflow.mc_e_over_n_Td or workflow.e_over_n_Td) == (
         COMMON_ANCHORS + SOLVER_SUPPORT_EXTENSIONS["monte_carlo"]
     )
     assert workflow.mc_replicas == 4
-    assert len(workflow.mc_sampling_plan) == len(workflow.mc_e_over_n_Td)
+    assert len(workflow.mc_sampling_plan) == len(workflow.mc_e_over_n_Td or workflow.e_over_n_Td)
     gec_rows = {row.e_over_n_Td: row for row in gec_workflow.mc_sampling_plan}
     for row in workflow.mc_sampling_plan:
         if row.e_over_n_Td not in gec_rows or row.e_over_n_Td == 5.0:
@@ -111,10 +106,10 @@ def test_icp_monte_carlo_plan_has_explicit_finite_budget() -> None:
             replace(row, transport_estimator=expected.transport_estimator) == expected
         )
     rows = {row.e_over_n_Td: row for row in workflow.mc_sampling_plan}
-    assert rows[5.0].warmup_collisions == 524_288
-    assert rows[5.0].max_collisions == 1_048_576
+    assert rows[5.0].warmup_trial_periods == 524_288
+    assert rows[5.0].production_trial_periods == 1_048_576
     assert rows[2726.6505889].particles == 1024
-    assert rows[2726.6505889].max_collisions == 32_768
+    assert rows[2726.6505889].production_trial_periods == 32_768
     assert [
         row.e_over_n_Td
         for row in workflow.mc_sampling_plan
@@ -127,7 +122,7 @@ def test_icp_monte_carlo_plan_has_explicit_finite_budget() -> None:
     assert workflow.database_path.name == "monte_carlo_function_eedf.sqlite"
     assert workflow.mc_reuse_database is None
     assert workflow.mc_previous_decision is None
-    assert config.solvers.monte_carlo.population_model == "weighted_branching"
+    assert config.physics.ionization.population_model == "weighted_branching"
     assert config.solvers.monte_carlo.numeric_kernel == "auto"
 
     budget = sampling_budget_provenance(workflow.mc_sampling_plan)
@@ -140,7 +135,7 @@ def test_icp_monte_carlo_plan_has_explicit_finite_budget() -> None:
 
 def test_icp_propagator_uses_bounded_high_field_profile() -> None:
     workflow = load_workflow(EXAMPLES / WORKFLOWS["propagator"])
-    config = load_config(workflow.base_config_path)
+    config = load_case_template(workflow.path)
     propagator = config.solvers.propagator
 
     assert propagator.energy_cells == 300

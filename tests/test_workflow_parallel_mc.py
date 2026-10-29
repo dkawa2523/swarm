@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from product_helpers import campaign_config
+
 from dataclasses import asdict
 import json
 from pathlib import Path
@@ -18,9 +20,7 @@ from electron_swarm.solvers.monte_carlo.evidence import (
     WEIGHTED_MC_TAIL_ESTIMATOR_SCHEMA_VERSION,
     WEIGHTED_MC_TRANSPORT_ESTIMATOR_SCHEMA_VERSION,
 )
-from electron_swarm.solvers.monte_carlo.source_identity import (
-    monte_carlo_source_sha256,
-)
+from electron_swarm.core.source_identity import solver_source_fingerprint, input_file_hashes
 import swarm_workflow.campaign.sweep as sweep_module
 from swarm_workflow.campaign.sweep import (
     MC_SAMPLING_PLAN_METADATA_KEY,
@@ -31,7 +31,7 @@ from swarm_workflow.campaign.store import (
     canonical_mc_sampling_plan_json,
     provenance_hash_manifest,
 )
-from swarm_workflow.quality.propagator_source import (
+from electron_swarm.core.source_identity import (
     PROPAGATOR_SOLVER_SOURCE_METADATA_KEY,
 )
 from swarm_workflow.campaign.config import load_workflow
@@ -40,7 +40,7 @@ from swarm_workflow.campaign.config import load_workflow
 def test_provenance_manifest_scopes_solver_specific_hashes() -> None:
     metadata = {
         "workflow_config_sha256": "a" * 64,
-        "base_config_sha256": "b" * 64,
+        "calculation_sha256": "b" * 64,
         "cross_sections_sha256": "c" * 64,
         "mc_solver_source_sha256": "d" * 64,
         PROPAGATOR_SOLVER_SOURCE_METADATA_KEY: "e" * 64,
@@ -65,15 +65,14 @@ def _parallel_mc_workflow(
     data = base_product_config(tmp_path, ["monte_carlo"])
     data["run"]["e_over_n_Td"] = [20.0]
     data["solvers"]["monte_carlo"] = {
-        "population_model": population_model,
         "particles": 2,
-        "max_collisions": 10,
+        "production_trial_periods": 10,
         "seed": 7,
     }
+    data["physics"]["ionization"]["population_model"] = population_model
     base = write_config(tmp_path, data, "mc_base.yaml")
     mc = {
         "replicas": 2,
-        "base_seed": 321,
         "e_over_n_Td": [20.0, 40.0],
     }
     if workers is not None:
@@ -81,13 +80,7 @@ def _parallel_mc_workflow(
     workflow = tmp_path / "workflow.yaml"
     workflow.write_text(
         yaml.safe_dump(
-            {
-                "base_config": base.name,
-                "database": "outputs/swarm.sqlite",
-                "e_over_n_Td": [20.0],
-                "mixtures": [{"Ar": 1.0}],
-                "mc": mc,
-            },
+            campaign_config(base, database='outputs/swarm.sqlite', e_over_n_Td=[20.0], mixtures=[{'Ar': 1.0}], mc=mc, seed=321),
             sort_keys=False,
         ),
         encoding="utf-8",
@@ -107,7 +100,7 @@ def test_workflow_mc_workers_defaults_to_one_and_validates(tmp_path: Path) -> No
 def test_workflow_resolves_optional_mc_reuse_database(tmp_path: Path) -> None:
     workflow_path = _parallel_mc_workflow(tmp_path, workers=1)
     raw = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
-    raw["mc"]["reuse_database"] = "cache/source.sqlite"
+    raw["campaign"]["mc"]["reuse_database"] = "cache/source.sqlite"
     workflow_path.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
 
     workflow = load_workflow(workflow_path)
@@ -120,15 +113,15 @@ def test_workflow_resolves_optional_mc_reuse_database(tmp_path: Path) -> None:
 def test_mc_workflow_requires_explicit_integer_base_seed(tmp_path: Path) -> None:
     workflow_path = _parallel_mc_workflow(tmp_path, workers=1)
     raw = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
-    del raw["mc"]["base_seed"]
+    del raw["solvers"]["monte_carlo"]["seed"]
     workflow_path.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
-    with pytest.raises(ValueError, match=r"mc\.base_seed.*required.*integer"):
+    with pytest.raises(ValueError, match=r"solvers\.monte_carlo\.seed.*required.*integer"):
         load_workflow(workflow_path)
 
     for invalid in (None, True, 1.5, "321"):
-        raw["mc"]["base_seed"] = invalid
+        raw["solvers"]["monte_carlo"]["seed"] = invalid
         workflow_path.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
-        with pytest.raises(ValueError, match=r"mc\.base_seed.*integer"):
+        with pytest.raises(ValueError, match=r"solvers\.monte_carlo\.seed"):
             load_workflow(workflow_path)
 
 
@@ -171,7 +164,7 @@ def test_parallel_mc_results_are_yielded_in_completion_order(
 
 def _write_sampling_plan(workflow_path: Path, rows: list[dict[str, object]]) -> None:
     raw = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
-    raw["mc"]["sampling_plan"] = rows
+    raw["campaign"]["mc"]["sampling_plan"] = rows
     workflow_path.write_text(
         yaml.safe_dump(raw, sort_keys=False),
         encoding="utf-8",
@@ -182,8 +175,8 @@ def _sampling_row(e_over_n_Td: float, **updates: object) -> dict[str, object]:
     row: dict[str, object] = {
         "e_over_n_Td": e_over_n_Td,
         "particles": 3,
-        "warmup_collisions": 4,
-        "max_collisions": 20,
+        "warmup_trial_periods": 4,
+        "production_trial_periods": 20,
         "replicas": 3,
     }
     row.update(updates)
@@ -202,9 +195,9 @@ def test_mc_sampling_plan_resolves_sparse_overrides_against_base_defaults(
         {
             "e_over_n_Td": 20.0,
             "particles": 2,
-            "warmup_collisions": 0,
-            "max_collisions": 10,
-            "tail_max_collisions": 0,
+            "warmup_trial_periods": 0,
+            "production_trial_periods": 10,
+            "tail_trial_periods": 0,
             "replicas": 2,
             "transport_correlation_lag_barriers": 64,
             "transport_estimator": "single_field",
@@ -212,9 +205,9 @@ def test_mc_sampling_plan_resolves_sparse_overrides_against_base_defaults(
         {
             "e_over_n_Td": 40.0,
             "particles": 3,
-            "warmup_collisions": 4,
-            "max_collisions": 20,
-            "tail_max_collisions": 0,
+            "warmup_trial_periods": 4,
+            "production_trial_periods": 20,
+            "tail_trial_periods": 0,
             "replicas": 3,
             "transport_correlation_lag_barriers": 64,
             "transport_estimator": "single_field",
@@ -226,7 +219,7 @@ def test_mc_sampling_plan_row_inherits_omitted_controls(tmp_path: Path) -> None:
     workflow_path = _parallel_mc_workflow(tmp_path, workers=1)
     _write_sampling_plan(
         workflow_path,
-        [{"e_over_n_Td": 40.0, "warmup_collisions": 8}],
+        [{"e_over_n_Td": 40.0, "warmup_trial_periods": 8}],
     )
 
     workflow = load_workflow(workflow_path)
@@ -234,9 +227,9 @@ def test_mc_sampling_plan_row_inherits_omitted_controls(tmp_path: Path) -> None:
     assert asdict(workflow.mc_sampling_plan[1]) == {
         "e_over_n_Td": 40.0,
         "particles": 2,
-        "warmup_collisions": 8,
-        "max_collisions": 10,
-        "tail_max_collisions": 0,
+        "warmup_trial_periods": 8,
+        "production_trial_periods": 10,
+        "tail_trial_periods": 0,
         "replicas": 2,
         "transport_correlation_lag_barriers": 64,
         "transport_estimator": "single_field",
@@ -251,21 +244,21 @@ def test_mc_sampling_plan_explicit_tail_opt_in_and_null_disable(
         workers=1,
         population_model="weighted_branching",
     )
-    base_path = tmp_path / "mc_base.yaml"
+    base_path = workflow_path
     base = yaml.safe_load(base_path.read_text(encoding="utf-8"))
-    base["solvers"]["monte_carlo"]["tail_max_collisions"] = 12
+    base["solvers"]["monte_carlo"]["tail_trial_periods"] = 12
     base_path.write_text(yaml.safe_dump(base, sort_keys=False), encoding="utf-8")
     _write_sampling_plan(
         workflow_path,
         [
-            {"e_over_n_Td": 20.0, "tail_max_collisions": None},
-            {"e_over_n_Td": 40.0, "tail_max_collisions": 7},
+            {"e_over_n_Td": 20.0, "tail_trial_periods": None},
+            {"e_over_n_Td": 40.0, "tail_trial_periods": 7},
         ],
     )
 
     workflow = load_workflow(workflow_path)
 
-    assert [entry.tail_max_collisions for entry in workflow.mc_sampling_plan] == [
+    assert [entry.tail_trial_periods for entry in workflow.mc_sampling_plan] == [
         0,
         7,
     ]
@@ -279,13 +272,16 @@ def test_mc_sampling_plan_explicit_tail_opt_in_and_null_disable(
         ([_sampling_row(30.0)], "not an MC anchor"),
         ([_sampling_row(20.0, particles=0)], "particles must be a positive"),
         (
-            [_sampling_row(20.0, warmup_collisions=-1)],
-            "warmup_collisions must be a nonnegative",
+            [_sampling_row(20.0, warmup_trial_periods=-1)],
+            "warmup_trial_periods must be a nonnegative",
         ),
-        ([_sampling_row(20.0, max_collisions=-1)], "max_collisions must be a positive"),
         (
-            [_sampling_row(20.0, tail_max_collisions=0)],
-            "tail_max_collisions must be a positive",
+            [_sampling_row(20.0, production_trial_periods=-1)],
+            "production_trial_periods must be a positive",
+        ),
+        (
+            [_sampling_row(20.0, tail_trial_periods=0)],
+            "tail_trial_periods must be a positive",
         ),
         ([_sampling_row(20.0, replicas=0)], "replicas must be a positive"),
         (
@@ -317,13 +313,13 @@ def test_mc_sampling_plan_rejects_invalid_rows(
 def test_mc_sampling_plan_rejects_duplicate_anchor_grid(tmp_path: Path) -> None:
     workflow_path = _parallel_mc_workflow(tmp_path, workers=1)
     raw = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
-    raw["mc"]["e_over_n_Td"] = [20.0, 20.0]
+    raw["campaign"]["mc"]["e_over_n_Td"] = [20.0, 20.0]
     workflow_path.write_text(
         yaml.safe_dump(raw, sort_keys=False),
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="MC E/N anchors must be unique"):
+    with pytest.raises(ValueError, match=r"mc\.e_over_n_Td values must be unique"):
         load_workflow(workflow_path)
 
 
@@ -332,7 +328,7 @@ def test_mc_compute_budget_rejects_oversized_plan_before_execution(
 ) -> None:
     workflow_path = _parallel_mc_workflow(tmp_path, workers=1)
     raw = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
-    raw["mc"]["convergence"] = {
+    raw["campaign"]["mc"]["convergence"] = {
         "initial_replicas": 2,
         "replica_increment": 1,
         "maximum_replicas": 3,
@@ -381,9 +377,9 @@ def test_mc_sampling_plan_drives_jobs_and_is_immutable_database_provenance(
                 "e_over_n_Td": config.run.e_over_n_Td[0],
                 "case_prefix": config.run.case_prefix,
                 "particles": mc.particles,
-                "warmup_collisions": mc.warmup_collisions,
-                "max_collisions": mc.max_collisions,
-                "tail_max_collisions": mc.tail_max_collisions,
+                "warmup_trial_periods": mc.warmup_trial_periods,
+                "production_trial_periods": mc.production_trial_periods,
+                "tail_trial_periods": mc.tail_trial_periods,
                 "seed": mc.seed,
                 "transport_correlation_lag_barriers": (
                     mc.transport_correlation_lag_barriers
@@ -391,7 +387,7 @@ def test_mc_sampling_plan_drives_jobs_and_is_immutable_database_provenance(
                 "transport_estimator": mc.transport_estimator,
             }
         )
-        return SimpleNamespace(cases=())
+        return SimpleNamespace(cases=(), metadata={"input_files": input_file_hashes(config)})
 
     monkeypatch.setattr(sweep_module, "run", record_config)
     monkeypatch.setattr(
@@ -416,17 +412,25 @@ def test_mc_sampling_plan_drives_jobs_and_is_immutable_database_provenance(
     }
     assert len(by_anchor[20.0]) == 2
     assert {
-        (call["particles"], call["warmup_collisions"], call["max_collisions"])
+        (
+            call["particles"],
+            call["warmup_trial_periods"],
+            call["production_trial_periods"],
+        )
         for call in by_anchor[20.0]
     } == {(2, 0, 10)}
     assert {call["transport_correlation_lag_barriers"] for call in by_anchor[20.0]} == {
         64
     }
     assert {call["transport_estimator"] for call in by_anchor[20.0]} == {"single_field"}
-    assert {call["tail_max_collisions"] for call in by_anchor[20.0]} == {None}
+    assert {call["tail_trial_periods"] for call in by_anchor[20.0]} == {None}
     assert len(by_anchor[40.0]) == 3
     assert {
-        (call["particles"], call["warmup_collisions"], call["max_collisions"])
+        (
+            call["particles"],
+            call["warmup_trial_periods"],
+            call["production_trial_periods"],
+        )
         for call in by_anchor[40.0]
     } == {(3, 4, 20)}
     assert {call["transport_correlation_lag_barriers"] for call in by_anchor[40.0]} == {
@@ -435,7 +439,7 @@ def test_mc_sampling_plan_drives_jobs_and_is_immutable_database_provenance(
     assert {call["transport_estimator"] for call in by_anchor[40.0]} == {
         "paired_field_parity"
     }
-    assert {call["tail_max_collisions"] for call in by_anchor[40.0]} == {None}
+    assert {call["tail_trial_periods"] for call in by_anchor[40.0]} == {None}
     assert len({call["seed"] for call in calls}) == 5
 
     database = tmp_path / "outputs" / "swarm.sqlite"
@@ -445,9 +449,9 @@ def test_mc_sampling_plan_drives_jobs_and_is_immutable_database_provenance(
         {
             "e_over_n_Td": 20.0,
             "particles": 2,
-            "warmup_collisions": 0,
-            "max_collisions": 10,
-            "tail_max_collisions": 0,
+            "warmup_trial_periods": 0,
+            "production_trial_periods": 10,
+            "tail_trial_periods": 0,
             "replicas": 2,
             "transport_correlation_lag_barriers": 64,
             "transport_estimator": "single_field",
@@ -455,9 +459,9 @@ def test_mc_sampling_plan_drives_jobs_and_is_immutable_database_provenance(
         {
             "e_over_n_Td": 40.0,
             "particles": 3,
-            "warmup_collisions": 4,
-            "max_collisions": 20,
-            "tail_max_collisions": 0,
+            "warmup_trial_periods": 4,
+            "production_trial_periods": 20,
+            "tail_trial_periods": 0,
             "replicas": 3,
             "transport_correlation_lag_barriers": 256,
             "transport_estimator": "paired_field_parity",
@@ -505,22 +509,25 @@ def test_parallel_mc_sweep_writes_results_in_parent_database(tmp_path: Path) -> 
     assert metadata[sweep_module.MC_SEED_DERIVATION_METADATA_KEY] == (
         MC_SEED_DERIVATION_SCHEMA_VERSION
     )
-    assert metadata[sweep_module.MC_SOLVER_SOURCE_METADATA_KEY] == (
-        monte_carlo_source_sha256()
+    assert (
+        metadata[sweep_module.MC_SOLVER_SOURCE_METADATA_KEY]
+        == (solver_source_fingerprint("monte_carlo")["sha256"])
     )
-    assert provenance_hash_manifest(metadata)[
-        sweep_module.MC_SOLVER_SOURCE_METADATA_KEY
-    ] == monte_carlo_source_sha256()
-    assert provenance_hash_manifest(metadata)[
-        sweep_module.MC_SEED_DERIVATION_METADATA_KEY
-    ] == MC_SEED_DERIVATION_SCHEMA_VERSION
+    assert (
+        provenance_hash_manifest(metadata)[sweep_module.MC_SOLVER_SOURCE_METADATA_KEY]
+        == solver_source_fingerprint("monte_carlo")["sha256"]
+    )
+    assert (
+        provenance_hash_manifest(metadata)[sweep_module.MC_SEED_DERIVATION_METADATA_KEY]
+        == MC_SEED_DERIVATION_SCHEMA_VERSION
+    )
     assert json.loads(metadata[MC_SAMPLING_PLAN_METADATA_KEY]) == [
         {
             "e_over_n_Td": 20.0,
             "particles": 2,
-            "warmup_collisions": 0,
-            "max_collisions": 10,
-            "tail_max_collisions": 0,
+            "warmup_trial_periods": 0,
+            "production_trial_periods": 10,
+            "tail_trial_periods": 0,
             "replicas": 2,
             "transport_correlation_lag_barriers": 64,
             "transport_estimator": "single_field",
@@ -528,9 +535,9 @@ def test_parallel_mc_sweep_writes_results_in_parent_database(tmp_path: Path) -> 
         {
             "e_over_n_Td": 40.0,
             "particles": 2,
-            "warmup_collisions": 0,
-            "max_collisions": 10,
-            "tail_max_collisions": 0,
+            "warmup_trial_periods": 0,
+            "production_trial_periods": 10,
+            "tail_trial_periods": 0,
             "replicas": 2,
             "transport_correlation_lag_barriers": 64,
             "transport_estimator": "single_field",
@@ -556,18 +563,20 @@ def test_parallel_mc_sweep_writes_results_in_parent_database(tmp_path: Path) -> 
         assert set(transport["mc_run_provenance"]) >= {
             "seed",
             "particles",
-            "warmup_collisions",
-            "production_collisions",
+            "warmup_trial_periods",
+            "production_trial_periods",
             "eedf_estimator_schema_version",
         }
-        assert transport["mc_run_provenance"][
-            "eedf_estimator_schema_version"
-        ] == MC_EEDF_ESTIMATOR_SCHEMA_VERSION
+        assert (
+            transport["mc_run_provenance"]["eedf_estimator_schema_version"]
+            == MC_EEDF_ESTIMATOR_SCHEMA_VERSION
+        )
         assert transport["mc_run_provenance"]["case_seed_derivation"] == (
             MC_CASE_SEED_DERIVATION
         )
-        assert transport["mc_run_provenance"]["solver_source_sha256"] == (
-            metadata[sweep_module.MC_SOLVER_SOURCE_METADATA_KEY]
+        assert (
+            transport["mc_run_provenance"]["solver_source_sha256"]
+            == (metadata[sweep_module.MC_SOLVER_SOURCE_METADATA_KEY])
         )
         rate_diagnostics = diagnostics["internal_monte_carlo_reaction_rates"]
         assert rate_diagnostics["estimator"] == "trajectory_time_average_sigma_v"
@@ -700,8 +709,8 @@ def test_mc_reuse_database_imports_exact_raw_jobs_without_recalculation(
 
     target_workflow = _parallel_mc_workflow(tmp_path / "target", workers=2)
     raw = yaml.safe_load(target_workflow.read_text(encoding="utf-8"))
-    raw["base_config"] = source_workflow.with_name("mc_base.yaml").as_posix()
-    raw["mc"]["reuse_database"] = source_summary.database_path.as_posix()
+    raw.update({k: v for k, v in yaml.safe_load(source_workflow.read_text()).items() if k != "campaign"})
+    raw["campaign"]["mc"]["reuse_database"] = source_summary.database_path.as_posix()
     target_workflow.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
 
     def fail_if_recalculated(_job: object) -> object:
@@ -758,13 +767,11 @@ def test_mc_reuse_database_requires_matching_seed_derivation(
 
     target_workflow = _parallel_mc_workflow(tmp_path / "target_seed", workers=1)
     raw = yaml.safe_load(target_workflow.read_text(encoding="utf-8"))
-    raw["base_config"] = source_workflow.with_name("mc_base.yaml").as_posix()
-    raw["mc"]["reuse_database"] = source_summary.database_path.as_posix()
+    raw.update({k: v for k, v in yaml.safe_load(source_workflow.read_text()).items() if k != "campaign"})
+    raw["campaign"]["mc"]["reuse_database"] = source_summary.database_path.as_posix()
     target_workflow.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
 
-    with pytest.raises(
-        ValueError, match="different mc_seed_derivation_schema_version"
-    ):
+    with pytest.raises(ValueError, match="different mc_seed_derivation_schema_version"):
         run_sweep(target_workflow)
 
 
@@ -778,10 +785,10 @@ def test_tail_metadata_upgrade_preserves_complete_current_case_evidence(
         workers=1,
         population_model="weighted_branching",
     )
-    source_base = source_workflow.with_name("mc_base.yaml")
+    source_base = source_workflow
     base_raw = yaml.safe_load(source_base.read_text(encoding="utf-8"))
     base_raw["physics"]["energy_grid_policy"]["threshold_refinement"] = False
-    base_raw["solvers"]["monte_carlo"]["tail_max_collisions"] = 10
+    base_raw["solvers"]["monte_carlo"]["tail_trial_periods"] = 10
     base_raw["solvers"]["monte_carlo"]["tail_rate_rse_trigger"] = 0.2
     source_base.write_text(
         yaml.safe_dump(base_raw, sort_keys=False),
@@ -805,8 +812,8 @@ def test_tail_metadata_upgrade_preserves_complete_current_case_evidence(
         population_model="weighted_branching",
     )
     target_raw = yaml.safe_load(target_workflow.read_text(encoding="utf-8"))
-    target_raw["base_config"] = source_base.as_posix()
-    target_raw["mc"]["reuse_database"] = source_summary.database_path.as_posix()
+    target_raw.update({k: v for k, v in yaml.safe_load(source_base.read_text()).items() if k != "campaign"})
+    target_raw["campaign"]["mc"]["reuse_database"] = source_summary.database_path.as_posix()
     target_workflow.write_text(
         yaml.safe_dump(target_raw, sort_keys=False),
         encoding="utf-8",
@@ -848,10 +855,10 @@ def test_tail_metadata_upgrade_recomputes_incomplete_case_evidence(
         workers=1,
         population_model="weighted_branching",
     )
-    source_base = source_workflow.with_name("mc_base.yaml")
+    source_base = source_workflow
     base_raw = yaml.safe_load(source_base.read_text(encoding="utf-8"))
     base_raw["physics"]["energy_grid_policy"]["threshold_refinement"] = False
-    base_raw["solvers"]["monte_carlo"]["tail_max_collisions"] = 10
+    base_raw["solvers"]["monte_carlo"]["tail_trial_periods"] = 10
     base_raw["solvers"]["monte_carlo"]["tail_rate_rse_trigger"] = 0.2
     source_base.write_text(
         yaml.safe_dump(base_raw, sort_keys=False),
@@ -860,7 +867,7 @@ def test_tail_metadata_upgrade_recomputes_incomplete_case_evidence(
     source_summary = run_sweep(source_workflow)
 
     missing_fields = (
-        ("configured_max_collisions",),
+        ("configured_production_trial_periods",),
         ("executed_collisions",),
         ("activation_rate_rse_trigger",),
         (
@@ -908,8 +915,8 @@ def test_tail_metadata_upgrade_recomputes_incomplete_case_evidence(
         population_model="weighted_branching",
     )
     target_raw = yaml.safe_load(target_workflow.read_text(encoding="utf-8"))
-    target_raw["base_config"] = source_base.as_posix()
-    target_raw["mc"]["reuse_database"] = source_summary.database_path.as_posix()
+    target_raw.update({k: v for k, v in yaml.safe_load(source_base.read_text()).items() if k != "campaign"})
+    target_raw["campaign"]["mc"]["reuse_database"] = source_summary.database_path.as_posix()
     target_workflow.write_text(
         yaml.safe_dump(target_raw, sort_keys=False),
         encoding="utf-8",
@@ -944,7 +951,7 @@ def test_tail_metadata_upgrade_recomputes_incomplete_case_evidence(
             )
         ]
     assert all(
-        tail["configured_max_collisions"] == 10
+        tail["configured_production_trial_periods"] == 10
         and tail["executed_collisions"] in {0, 10}
         and tail["activation_rate_rse_trigger"] == pytest.approx(0.2)
         and isinstance(tail["reported_eedf_includes_main_production"], bool)

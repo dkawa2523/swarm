@@ -1,0 +1,155 @@
+{
+  "schema": "swarm.archived_comsol_model.v1",
+  "status": "historical_solved_model",
+  "source_solver": "two_term",
+  "current_package_compatibility_verified": false,
+  "current_physical_target_accepted": false,
+  "recorded_physical_target_accepted": true,
+  "recorded_solve_status": "completed",
+  "recorded_at_utc": "2026-09-13T15:15:49.526963Z",
+  "bundle_format_version": 1,
+  "model": {
+    "file": "argon_gec_icp_two_term_function_eedf.mph",
+    "sha256": "7f6fcfbd41f56ad1b2b85e5eb13e589557ce7b5d9314d37bb7815e2646fe2896",
+    "size_bytes": 29905362
+  },
+  "embedded_eedf_matches_bundle": true,
+  "files": [
+    {
+      "file": "argon_gec_icp_two_term_function_eedf.mph",
+      "sha256": "7f6fcfbd41f56ad1b2b85e5eb13e589557ce7b5d9314d37bb7815e2646fe2896",
+      "size_bytes": 29905362
+    },
+    {
+      "file": "bundle/collision_rate_kernels.csv",
+      "sha256": "dc8e22fe8410085dce9d83ae1c9f8783907a8b4784a14c42341085555a06d845",
+      "size_bytes": 8521
+    },
+    {
+      "file": "bundle/comsol_functions/sw_meanE.csv",
+      "sha256": "90bb6b48cbd00d9c0cbc7d0890a7600928e029552cba8bd3918fb5c5c018cac1",
+      "size_bytes": 631
+    },
+    {
+      "file": "bundle/comsol_functions/sw_muN.csv",
+      "sha256": "f0485c849befd9d05efde2fd401f478ff6d4fe9a655e84b6bc42314cac163bd8",
+      "size_bytes": 699
+    },
+    {
+      "file": "bundle/eedf.csv",
+      "sha256": "d3125a0931f48d611806eea869322f7310fa9bdf13838337cffa2a99bcebca90",
+      "size_bytes": 905209
+    },
+    {
+      "file": "bundle/eedf_f0_comsol_2d.csv",
+      "sha256": "e339dbb22d0c9101e57ac89ea86604477f0cdd901d3c74afe2e0f901a288baf7",
+      "size_bytes": 3294895
+    },
+    {
+      "file": "bundle/eedf_f0_vs_mean_energy.csv",
+      "sha256": "c22641c3ec1196ec2821d338bf383db004c7a17fcafe4341c76697021cbd43ec",
+      "size_bytes": 350122
+    },
+    {
+      "file": "bundle/elastic_energy_loss_vs_mean_energy.csv",
+      "sha256": "8c1603d329ddffb8931eb37dab5dce09a763137df31e4f775ef10d864f5d26e1",
+      "size_bytes": 1839
+    },
+    {
+      "file": "bundle/energy_loss.csv",
+      "sha256": "93de8ba5634680e4f1ba8cb83ef329fb57538e9ec25228d03ec6d44020a7e8d0",
+      "size_bytes": 3830
+    },
+    {
+      "file": "bundle/manifest.json",
+      "sha256": "78b777792fa89149b73ecc5ae645ec501e9d0b0ddc3fae2610bcca7b1bc1ff5a",
+      "size_bytes": 27450
+    },
+    {
+      "file": "bundle/mean_energy_vs_en.csv",
+      "sha256": "bd8d670932ab472ea18ae0d64d9c2524552dca49f8f6ae9491e35e9267cf469a",
+      "size_bytes": 691
+    },
+    {
+      "file": "bundle/quality.csv",
+      "sha256": "347d780f40c8acb2738f052224cade0f326034db0fce61d1944f8af3a43bdc58",
+      "size_bytes": 3568
+    },
+    {
+      "file": "bundle/rates_vs_en.csv",
+      "sha256": "71f987304899b7e88af7164c479f0c01da79996c56b8b0292dfc248f82ce12f1",
+      "size_bytes": 6701
+    },
+    {
+      "file": "bundle/rates_vs_mean_energy.csv",
+      "sha256": "c1b9259d8946cc2bb8985721b35ca4e55a7d3210b1c699ce2d36b5b6bdfc9f8d",
+      "size_bytes": 7511
+    },
+    {
+      "file": "bundle/townsend_vs_en.csv",
+      "sha256": "4345f49f7f93dce962f1faa796f71d3e83e77aee8b79b02e75c288950cdb79fc",
+      "size_bytes": 753
+    },
+    {
+      "file": "bundle/transport_vs_en.csv",
+      "sha256": "ac4b37fd01f5bcdd19c5a11fc46d0b9831afd55bb59776a56df43e554cf4d29b",
+      "size_bytes": 4493
+    },
+    {
+      "file": "bundle/transport_vs_mean_energy.csv",
+      "sha256": "7fe43593f6d770596c1d12db7972a0652c966a4125ccdf1139f3efcead8cf6f5",
+      "size_bytes": 4493
+    },
+    {
+      "file": "evidence/closure_readback.json",
+      "sha256": "d34740301f2cb9c9040de044c8eb7f0db2b740f2c7246ceba2dffaeaed245011",
+      "size_bytes": 12341
+    },
+    {
+      "file": "evidence/comsol_eedf_audit.json",
+      "sha256": "789673a766536afc5649ced9a8c5bcf475a5931e84412c73f2f9e39cfdc0665c",
+      "size_bytes": 7485
+    },
+    {
+      "file": "evidence/convergence.json",
+      "sha256": "d8d0290a47b249ae3ee7bbb6d1ef5e21cba405714eb6c5befcf0fe4aa9170be8",
+      "size_bytes": 3027
+    },
+    {
+      "file": "evidence/convergence_coil_power.csv",
+      "sha256": "e6bd1b55e5f0becdb11855b1b0ce61b6095534614a074e1d8520c15323658fee",
+      "size_bytes": 1136
+    },
+    {
+      "file": "evidence/convergence_mean_energy_max.csv",
+      "sha256": "39fbbf0a7bb8a734e022271ac4d78ddad13d7a9dcee64a86b251ba8cb8e56f54",
+      "size_bytes": 1161
+    },
+    {
+      "file": "evidence/convergence_mean_energy_min.csv",
+      "sha256": "6e9b680f9776e204ae408c3af0137458efcb0c1b65857f2de5a177b2a38de7bc",
+      "size_bytes": 1168
+    },
+    {
+      "file": "evidence/convergence_volume.csv",
+      "sha256": "784b88e27b0abaf0711c5aeb5414b015e8a5d6501e5fc337ee8f9c7af6497851",
+      "size_bytes": 4082
+    },
+    {
+      "file": "evidence/gec_icp_plan.json",
+      "sha256": "493b928de9fd3165bb648eb966173350d786afc8f78c7eb300b11617e11d9b89",
+      "size_bytes": 27258
+    },
+    {
+      "file": "evidence/run_status.json",
+      "sha256": "f62c0a8bbb069d93c5728bf7aeeaa2425d52e13616dbfb3d4259ea840ef874be",
+      "size_bytes": 27599
+    },
+    {
+      "file": "evidence/solve_output_provenance.json",
+      "sha256": "081e5559a45985db4a2117891335b8cc8c633c25982042af52a98bef4995488c",
+      "size_bytes": 613
+    }
+  ],
+  "note": "Unmodified historical model and original run evidence. Final MPH matches the solve-stage output hash; native-EEDF audit refers to its earlier pre-solve snapshot. Absolute paths refer to the original run. Imported EEDF is embedded. Format-v1 bundle is archival evidence, rejected by current format-v2 adapters."
+}

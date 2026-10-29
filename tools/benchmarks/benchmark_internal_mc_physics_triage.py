@@ -32,7 +32,7 @@ from electron_swarm.core.transport import ElectronTransport
 from tools.benchmarks.eedf_compare import compare_eedf_cases, normalize_eedf
 from tools.benchmarks.references.common import (
     reference_cases_from_frame,
-    reference_to_swarm_case,
+    reference_comparison_case,
 )
 from tools.benchmarks.common import (
     case_audit_metadata,
@@ -91,9 +91,6 @@ BAND_FIELDS = [
     "probability_mass",
     "mean_energy_contribution_eV",
     "survival_probability_at_left",
-    "sample_count",
-    "effective_sample_count",
-    "relative_standard_error",
 ]
 
 PAIR_FIELDS = [
@@ -133,7 +130,7 @@ class Distribution:
     widths_eV: np.ndarray = field(repr=False)
     metadata: dict[str, Any] = field(default_factory=dict)
     sample_count: np.ndarray | None = field(default=None, repr=False)
-    effective_sample_count: np.ndarray | None = field(default=None, repr=False)
+    weight_effective_count: np.ndarray | None = field(default=None, repr=False)
 
     @property
     def mean_energy_eV(self) -> float:
@@ -158,7 +155,7 @@ def _normalized_distribution(
     *,
     metadata: dict[str, Any] | None = None,
     sample_count: np.ndarray | None = None,
-    effective_sample_count: np.ndarray | None = None,
+    weight_effective_count: np.ndarray | None = None,
 ) -> Distribution:
     energy = np.asarray(energy_eV, dtype=float)
     widths = _finite_widths(energy, widths_eV)
@@ -174,10 +171,10 @@ def _normalized_distribution(
         sample_count=None
         if sample_count is None
         else np.asarray(sample_count, dtype=float),
-        effective_sample_count=(
+        weight_effective_count=(
             None
-            if effective_sample_count is None
-            else np.asarray(effective_sample_count, dtype=float)
+            if weight_effective_count is None
+            else np.asarray(weight_effective_count, dtype=float)
         ),
     )
 
@@ -210,7 +207,7 @@ def _distribution_from_case(
         case.energy_widths_eV,
         metadata=_case_distribution_metadata(case),
         sample_count=case.eedf_counts,
-        effective_sample_count=case.eedf_effective_counts,
+        weight_effective_count=case.eedf_effective_counts,
     )
 
 
@@ -274,11 +271,11 @@ def _distributions_from_internal_tail(
                     if "sample_count" in ordered
                     else None
                 ),
-                effective_sample_count=(
+                weight_effective_count=(
                     pd.to_numeric(
-                        ordered["effective_sample_count"], errors="coerce"
+                        ordered["weight_effective_count"], errors="coerce"
                     ).to_numpy(float)
-                    if "effective_sample_count" in ordered
+                    if "weight_effective_count" in ordered
                     else None
                 ),
             )
@@ -293,7 +290,7 @@ def _reference_distributions(path: Path, reference_id: str) -> list[Distribution
         convention="eedf",
     )
     return [
-        _distribution_from_case(reference_to_swarm_case(case), source=reference_id)
+        _distribution_from_case(reference_comparison_case(case), source=reference_id)
         for case in cases
     ]
 
@@ -474,19 +471,6 @@ def _band_rows(distributions: list[Distribution]) -> list[dict[str, object]]:
     for dist in distributions:
         for left, right in DEFAULT_BANDS:
             mass, mean_contribution = _band_integrals(dist, left, right)
-            mask = (dist.energy_eV >= left) & (dist.energy_eV < right)
-            sample_count = ""
-            effective_count = ""
-            relative_error = ""
-            if dist.sample_count is not None and len(dist.sample_count) == len(mask):
-                sample_count = float(np.nansum(dist.sample_count[mask]))
-            if dist.effective_sample_count is not None and len(
-                dist.effective_sample_count
-            ) == len(mask):
-                effective_value = float(np.nansum(dist.effective_sample_count[mask]))
-                effective_count = effective_value
-                if effective_value > 0.0:
-                    relative_error = 1.0 / effective_value**0.5
             right_label = "inf" if not np.isfinite(right) else f"{right:g}"
             rows.append(
                 {
@@ -499,9 +483,6 @@ def _band_rows(distributions: list[Distribution]) -> list[dict[str, object]]:
                     "probability_mass": mass,
                     "mean_energy_contribution_eV": mean_contribution,
                     "survival_probability_at_left": _tail_probability(dist, left),
-                    "sample_count": sample_count,
-                    "effective_sample_count": effective_count,
-                    "relative_standard_error": relative_error,
                 }
             )
     return rows
@@ -529,7 +510,7 @@ def _case_from_distribution(dist: Distribution) -> SwarmCaseResult:
         eedf_counts=None
         if dist.sample_count is None
         else dist.sample_count.astype(int),
-        eedf_effective_counts=dist.effective_sample_count,
+        eedf_effective_counts=dist.weight_effective_count,
         metadata=dist.metadata,
     )
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from electron_swarm.core.physical_context import PHYSICAL_CONTEXT_SCHEMA
+
 import csv
 from hashlib import sha256
 import json
@@ -11,9 +13,7 @@ import re
 from typing import Any
 
 import electron_swarm.solvers.monte_carlo.evidence as _mc_evidence
-from electron_swarm.solvers.monte_carlo.source_identity import (
-    monte_carlo_source_sha256,
-)
+from electron_swarm.core.source_identity import solver_source_fingerprint
 
 from swarm_workflow.selection import (
     ANCHOR_FALLBACK_SCHEMA,
@@ -68,7 +68,7 @@ _COMPOSITE_EVIDENCE_ROLES = {
 }
 _REQUIRED_PROVENANCE_HASHES = (
     "workflow_config_sha256",
-    "base_config_sha256",
+    "calculation_sha256",
     "cross_sections_sha256",
 )
 _SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
@@ -287,7 +287,7 @@ def _validate_physical_context(
     context = manifest.get("physical_context")
     if (
         not isinstance(context, dict)
-        or context.get("schema") != "swarm_physical_context.v1"
+        or context.get("schema") != PHYSICAL_CONTEXT_SCHEMA
     ):
         raise GecIcpBundleError("bundle lacks canonical physical-context provenance")
     field = context.get("field")
@@ -723,7 +723,7 @@ def _validate_mc_qualification(
         or recorded_plan.get("sha256") != plan_digest
         or recorded_plan.get("entries") != decoded
         or eedf_estimator_schema != _mc_evidence.MC_EEDF_ESTIMATOR_SCHEMA_VERSION
-        or solver_source_sha256 != monte_carlo_source_sha256()
+        or solver_source_sha256 != solver_source_fingerprint("monte_carlo")["sha256"]
     ):
         raise GecIcpBundleError(
             "MC sampling-plan, EEDF estimator, or solver-source provenance is "
@@ -874,10 +874,10 @@ def _validate_composite_qualification(
         != hashes.get("cross_sections_sha256")
         or mc_manifest.get("hashes", {}).get("workflow_config_sha256")
         != hashes.get("workflow_config_sha256")
-        or mc_manifest.get("hashes", {}).get("base_config_sha256")
-        != hashes.get("base_config_sha256")
+        or mc_manifest.get("hashes", {}).get("calculation_sha256")
+        != hashes.get("calculation_sha256")
         or mc_manifest.get("mc_sampling_plan") != manifest.get("mc_sampling_plan")
-        or mc_solver_source_sha256 != monte_carlo_source_sha256()
+        or mc_solver_source_sha256 != solver_source_fingerprint("monte_carlo")["sha256"]
     ):
         raise GecIcpBundleError(
             "composite source snapshots disagree with bundle provenance"

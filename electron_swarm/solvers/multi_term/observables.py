@@ -60,22 +60,18 @@ def _transport_from_pn(
     f1 = state.raw_coefficients[1]
     f1_energy = operator.moment_energy_eV[1]
     f1_weights = operator.moment_weights_eV[1]
-    drift = float(
-        np.sum(electron_speed_m_s(f1_energy) * f1 * f1_weights) / 3.0
-    )
+    drift = float(np.sum(electron_speed_m_s(f1_energy) * f1 * f1_weights) / 3.0)
     reduced_field = case.e_over_n_Td * TOWNSEND
     if not np.isfinite(drift) or drift <= 0.0 or reduced_field <= 0.0:
         raise FloatingPointError(
             "PN F1 velocity moment did not produce positive finite drift"
         )
     reduced_mobility = drift / reduced_field
-    _, reduced_diffusion, _, reduced_energy_diffusion = (
-        f0_reduced_transport_from_eedf(
-            operator.energy_eV,
-            operator.widths_eV,
-            f0,
-            operator.sigma_m_m2,
-        )
+    _, reduced_diffusion, _, reduced_energy_diffusion = f0_reduced_transport_from_eedf(
+        operator.energy_eV,
+        operator.widths_eV,
+        f0,
+        operator.sigma_m_m2,
     )
     if (
         not np.isfinite(reduced_diffusion)
@@ -83,9 +79,7 @@ def _transport_from_pn(
         or not np.isfinite(reduced_energy_diffusion)
         or reduced_energy_diffusion <= 0.0
     ):
-        raise FloatingPointError(
-            "PN F0 diffusion moment is non-finite or non-positive"
-        )
+        raise FloatingPointError("PN F0 diffusion moment is non-finite or non-positive")
     return ElectronTransport(
         definition=TRANSPORT_PN_F1_DRIFT_F0_DIFFUSION,
         gas_number_density_m3=case.gas_number_density_m3,
@@ -93,9 +87,7 @@ def _transport_from_pn(
         reduced_mobility_m2_V_s_m3=reduced_mobility,
         reduced_diffusion_L_m2_s_m3=float(reduced_diffusion),
         reduced_diffusion_T_m2_s_m3=float(reduced_diffusion),
-        reduced_electron_energy_diffusion_m2_s_m3=(
-            float(reduced_energy_diffusion)
-        ),
+        reduced_electron_energy_diffusion_m2_s_m3=(float(reduced_energy_diffusion)),
     )
 
 
@@ -134,9 +126,7 @@ def build_solution(
         ),
         "pn_residual": state.diagnostics.full_pn_relative_residual,
         "pn_iterations": state.diagnostics.iterations,
-        "pn_growth_frequency_s_inv": (
-            state.diagnostics.growth_frequency_s_inv
-        ),
+        "pn_growth_frequency_s_inv": (state.diagnostics.growth_frequency_s_inv),
         "field_coupling": "bidirectional_adjacent_legendre_moments",
         "drift_observable": "F1_velocity_moment",
         "diffusion_observable": "F0_gradient_reconstruction",

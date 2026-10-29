@@ -17,7 +17,7 @@ from tools.benchmarks.references.common import (
     eepf_to_eedf,
     parse_external_reference_configs,
     reference_comparison_metrics,
-    reference_to_swarm_case,
+    reference_comparison_case,
 )
 from tools.benchmarks.references.runner import run_external_reference_command
 from tests.product_helpers import base_product_config, write_config
@@ -144,7 +144,7 @@ def test_reference_comparison_metrics_against_swarm_case() -> None:
             format="electron_swarm_reference_csv",
         )
     )
-    candidate = reference_to_swarm_case(reference)
+    candidate = reference_comparison_case(reference)
     candidate.solver = "two_term"
     metrics = reference_comparison_metrics(reference, candidate)
     assert metrics["eedf_relative_l1"] == pytest.approx(0.0)
@@ -215,7 +215,9 @@ def test_bolsig_equivalence_missing_reference_skips(tmp_path: Path) -> None:
     assert any(path.name == "prod_report.md" for path in paths)
 
 
-def test_bolsig_equivalence_synthetic_reference_passes(tmp_path: Path) -> None:
+def test_bolsig_synthetic_without_rate_or_angular_evidence_is_not_full_pass(
+    tmp_path: Path,
+) -> None:
     data = base_product_config(tmp_path, ["two_term", "multi_term"])
     data["run"]["case_prefix"] = "ar_bolsig_equiv"
     seed_data = base_product_config(tmp_path, ["two_term"])
@@ -249,7 +251,8 @@ def test_bolsig_equivalence_synthetic_reference_passes(tmp_path: Path) -> None:
     run_external_benchmark(write_config(tmp_path, data, "bolsig_pass.yaml"))
     summary = pd.read_csv(tmp_path / "prod_summary.csv")
     two_row = summary[summary["candidate_solver"] == "two_term"].iloc[0]
-    assert two_row["status"] == "PASS"
+    assert two_row["status"] == "DEGRADED"
+    assert "major_rate_relative_difference" in two_row["unavailable_metrics"]
     assert two_row["eedf_relative_l1"] < 1.0e-12
 
 
@@ -325,7 +328,7 @@ def test_mcig_confidence_interval_status() -> None:
             angular_model="isotropic",
         )
     )
-    candidate = reference_to_swarm_case(reference)
+    candidate = reference_comparison_case(reference)
     candidate.solver = "two_term"
     status, coverage = _mc_confidence_status(reference, candidate, {})
     assert status == "pass_within_mc_uncertainty"
@@ -411,7 +414,7 @@ def _triage_swarm_case(
                 e_over_n_Td=50.0,
                 species="Ar",
                 process="ionization",
-                process_type="IONIZATION",
+                process_type="ionization",
                 threshold_eV=15.0,
                 rate_coefficient_m3_s=rate,
             )
@@ -475,6 +478,24 @@ def _run_synthetic_triage(
     monkeypatch.setattr(triage, "run_solver_variants", lambda cfg: (solver_cases, []))
     triage.run_triage(config_path)
     return pd.read_csv(tmp_path / "ar_triage_failure_analysis.csv")
+
+
+def test_triage_without_external_references_does_not_report_full_pass(
+    tmp_path, monkeypatch
+):
+    _run_synthetic_triage(
+        tmp_path,
+        monkeypatch,
+        references=[],
+        solver_cases=[
+            _triage_swarm_case("two_term", [0.6, 0.3, 0.1]),
+            _triage_swarm_case("multi_term", [0.6, 0.3, 0.1], lmax=1),
+        ],
+    )
+    matrix = pd.read_csv(tmp_path / "ar_triage_matrix.csv")
+    assert matrix.overall_status.tolist() == ["PARTIAL"]
+    report = (tmp_path / "ar_triage_report.md").read_text(encoding="utf-8")
+    assert "SKIP_EXTERNAL_REFERENCE" in report
 
 
 def test_triage_classifies_multi_term_lmax1_model_difference(

@@ -16,7 +16,7 @@ from scipy.stats import chi2, t as student_t
 
 import electron_swarm.solvers.monte_carlo.evidence as _mc_evidence
 
-from ...campaign.statistics import summarize_replicates
+from electron_swarm.core.statistics import summarize_replicates
 
 if TYPE_CHECKING:
     from ..policy import QualityThresholds
@@ -78,9 +78,9 @@ MC_TRANSPORT_SAMPLING_FIELDS = {
 MC_TRANSPORT_RUN_PROVENANCE_FIELDS = (
     "seed",
     "particles",
-    "warmup_collisions",
-    "production_collisions",
-    "tail_max_collisions",
+    "warmup_trial_periods",
+    "production_trial_periods",
+    "tail_trial_periods",
     "tail_rate_rse_trigger",
     "tail_collisions_executed",
     "population_model",

@@ -151,7 +151,6 @@ def compose_mc_anchor_fallback_tables(
             mixture_id,
             allowed_e=mc_fields,
         )
-        _mc_tables._require_case_mean_energy_strictly_increasing(mc_cases)
         mc_rates = _repository._load_rates(
             connection,
             _contracts.MC_SOLVER,
@@ -195,22 +194,6 @@ def compose_mc_anchor_fallback_tables(
     )
     _validate_composite_rows(cases, rates, eedf, selected)
 
-    mean_by_field = {
-        float(row["E_over_N_Td"]): float(row["mean_energy_eV"]) for row in cases
-    }
-    rates_by_mean = [
-        {
-            "mean_energy_eV": mean_by_field[float(row["E_over_N_Td"])],
-            **row,
-        }
-        for row in rates
-    ]
-    rates_by_mean.sort(
-        key=lambda row: (
-            float(row["mean_energy_eV"]),
-            *_rate_sort_key(row)[1:],
-        )
-    )
     quality = _composite_quality_rows(selected)
     failed_selected_fields = sorted(
         float(row["E_over_N_Td"])
@@ -228,7 +211,6 @@ def compose_mc_anchor_fallback_tables(
             staging,
             cases=cases,
             rates=rates,
-            rates_by_mean=rates_by_mean,
             eedf=eedf,
             quality=quality,
         )
@@ -266,7 +248,7 @@ def compose_mc_anchor_fallback_tables(
         hashes = {
             "anchor_fallback_plan_sha256": file_sha256(plan_file),
             "workflow_config_sha256": mc_manifest["hashes"]["workflow_config_sha256"],
-            "base_config_sha256": mc_manifest["hashes"]["base_config_sha256"],
+            "calculation_sha256": mc_manifest["hashes"]["calculation_sha256"],
             "cross_sections_sha256": mc_manifest["hashes"]["cross_sections_sha256"],
             "monte_carlo_database_sha256": database_hash,
             "monte_carlo_manifest_sha256": plan["inputs"][_contracts.MC_SOLVER][
@@ -332,12 +314,7 @@ def compose_mc_anchor_fallback_tables(
                 "units": _manifest_units(tables),
                 "table_argument": {
                     "primary": "E_over_N_Td",
-                    "secondary": "mean_energy_eV",
                     "eedf": "electron_energy_eV,E_over_N_Td",
-                },
-                "monotonicity": {
-                    "mean_energy_strictly_monotonic": True,
-                    "reason": None,
                 },
                 "quality_summary": {
                     "passed": selected_sources_qualified,
@@ -743,7 +720,6 @@ def _write_composite_tables(
     *,
     cases: list[dict[str, Any]],
     rates: list[dict[str, Any]],
-    rates_by_mean: list[dict[str, Any]],
     eedf: list[dict[str, Any]],
     quality: list[dict[str, Any]],
 ) -> dict[str, dict[str, Any]]:
@@ -798,23 +774,6 @@ def _write_composite_tables(
     )
     tables["eedf.csv"]["artifact_role"] = (
         "raw_swarm_eedf_audit_and_canonicalization_source"
-    )
-    tables["transport_vs_mean_energy.csv"] = _write_table(
-        directory / "transport_vs_mean_energy.csv",
-        (
-            "mean_energy_eV",
-            "E_over_N_Td",
-            "E_over_N_V_m2",
-            *_contracts.CASE_COLUMNS[3:],
-        ),
-        cases,
-        argument="mean_energy_eV",
-    )
-    tables["rates_vs_mean_energy.csv"] = _write_table(
-        directory / "rates_vs_mean_energy.csv",
-        ("mean_energy_eV", *_contracts.RATE_COLUMNS),
-        rates_by_mean,
-        argument="mean_energy_eV",
     )
     return tables
 

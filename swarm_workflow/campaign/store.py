@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict, fields
 from hashlib import sha256
 import math
 import sqlite3
@@ -10,9 +11,24 @@ from pathlib import Path
 import numpy as np
 
 from electron_swarm import SwarmCaseResult, eepf_from_eedf, widths_from_centers
+from electron_swarm.core.results import (
+    EnergyAngleDistributionResult,
+    RateResult,
+    RfPhaseResult,
+    validate_case_result,
+)
+from electron_swarm.core.transport import ElectronTransport
+from electron_swarm.core.physical_context import (
+    AngularPhysics,
+    ElectronElectronPhysics,
+    PhysicalContext,
+)
+from electron_swarm.core.observables import ObservableDefinition
+from electron_swarm.core.source_identity import SOLVER_IMPLEMENTATIONS_KEY
 
-from ..quality.propagator_source import PROPAGATOR_SOLVER_SOURCE_METADATA_KEY
+from electron_swarm.core.source_identity import PROPAGATOR_SOLVER_SOURCE_METADATA_KEY
 from .repository import read_metadata
+from .identity import WORKFLOW_IMPLEMENTATION_KEY
 
 
 LEGACY_ENERGY_TRANSPORT_COLUMNS = frozenset(
@@ -42,9 +58,9 @@ MC_SAMPLING_PLAN_FIELDS = frozenset(
     {
         "e_over_n_Td",
         "particles",
-        "warmup_collisions",
-        "max_collisions",
-        "tail_max_collisions",
+        "warmup_trial_periods",
+        "production_trial_periods",
+        "tail_trial_periods",
         "replicas",
         "transport_correlation_lag_barriers",
         "transport_estimator",
@@ -88,18 +104,16 @@ def canonical_mc_sampling_plan_json(value: object) -> str:
         controls: dict[str, int] = {}
         for name in (
             "particles",
-            "warmup_collisions",
-            "max_collisions",
-            "tail_max_collisions",
+            "warmup_trial_periods",
+            "production_trial_periods",
+            "tail_trial_periods",
             "replicas",
         ):
             raw_control = item[name]
             if isinstance(raw_control, bool) or not isinstance(raw_control, int):
                 raise WorkflowSchemaError(f"{field_name}.{name} must be an integer")
             control = int(raw_control)
-            minimum = (
-                0 if name in {"warmup_collisions", "tail_max_collisions"} else 1
-            )
+            minimum = 0 if name in {"warmup_trial_periods", "tail_trial_periods"} else 1
             if control < minimum:
                 qualifier = "nonnegative" if minimum == 0 else "positive"
                 raise WorkflowSchemaError(f"{field_name}.{name} must be {qualifier}")
@@ -185,9 +199,13 @@ def provenance_hash_manifest(
         )
     manifest = {
         workflow_key: metadata.get(workflow_key),
-        "base_config_sha256": metadata.get("base_config_sha256"),
+        "calculation_sha256": metadata.get("calculation_sha256"),
         "cross_sections_sha256": metadata.get("cross_sections_sha256"),
     }
+    if SOLVER_IMPLEMENTATIONS_KEY in metadata:
+        manifest["solver_implementations_sha256"] = sha256(
+            metadata[SOLVER_IMPLEMENTATIONS_KEY].encode("utf-8")
+        ).hexdigest()
     include_mc = source in (None, "monte_carlo")
     include_propagator = source in (None, "propagator")
     estimator_key = "mc_transport_estimator_schema_version"
@@ -252,6 +270,16 @@ def validate_workflow_schema(connection: sqlite3.Connection) -> None:
             f"{nonnullable}. Propagator P1 reports these quantities as "
             "unavailable; regenerate the database with the nullable schema."
         )
+    if "rf_phase_count" not in columns or any(
+        not connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)
+        ).fetchone()
+        for name in ("rf_phases", "rf_phase_eedf_bins")
+    ):
+        raise WorkflowSchemaError(
+            "Workflow storage is missing RF phase persistence; regenerate "
+            "the database with the current workflow instead of resuming incomplete cases."
+        )
 
 
 def _json_default(value: object) -> object:
@@ -275,17 +303,65 @@ def _finite_or_none(value: object) -> float | None:
     return number
 
 
+def _complete_case_keys(
+    connection: sqlite3.Connection,
+    key: tuple[int, str, float, int] | None = None,
+) -> set[tuple[int, str, float, int]]:
+    selection = (
+        " WHERE mixture_id=? AND solver=? AND e_over_n_Td=? AND replicate=?"
+        if key
+        else ""
+    )
+    rows = connection.execute(
+        f"""
+        WITH requested AS (
+            SELECT mixture_id, solver, e_over_n_Td, replicate, rf_phase_count FROM cases{selection}
+        ), phase AS (
+            SELECT p.mixture_id, p.solver, p.e_over_n_Td, p.replicate, COUNT(*) AS n,
+                   MIN(p.phase_index) AS first, MAX(p.phase_index) AS last
+            FROM rf_phases p JOIN requested USING(mixture_id, solver, e_over_n_Td, replicate)
+            GROUP BY p.mixture_id, p.solver, p.e_over_n_Td, p.replicate
+        ), bins AS (
+            SELECT b.mixture_id, b.solver, b.e_over_n_Td, b.replicate, COUNT(*) AS n
+            FROM eedf_bins b JOIN requested USING(mixture_id, solver, e_over_n_Td, replicate)
+            WHERE requested.rf_phase_count > 0
+            GROUP BY b.mixture_id, b.solver, b.e_over_n_Td, b.replicate
+        ), matrix AS (
+            SELECT m.mixture_id, m.solver, m.e_over_n_Td, m.replicate, COUNT(*) AS n
+            FROM rf_phase_eedf_bins m JOIN requested USING(mixture_id, solver, e_over_n_Td, replicate)
+            GROUP BY m.mixture_id, m.solver, m.e_over_n_Td, m.replicate
+        )
+        SELECT c.mixture_id, c.solver, c.e_over_n_Td, c.replicate
+        FROM requested c
+        LEFT JOIN phase p USING(mixture_id, solver, e_over_n_Td, replicate)
+        LEFT JOIN bins b USING(mixture_id, solver, e_over_n_Td, replicate)
+        LEFT JOIN matrix m USING(mixture_id, solver, e_over_n_Td, replicate)
+        WHERE COALESCE(p.n, 0) = c.rf_phase_count
+          AND COALESCE(m.n, 0) = c.rf_phase_count * COALESCE(b.n, 0)
+          AND (c.rf_phase_count = 0 OR
+               (b.n > 0 AND p.first = 0 AND p.last = c.rf_phase_count - 1))
+        """,
+        key or (),
+    )
+    return {(int(r[0]), str(r[1]), float(r[2]), int(r[3])) for r in rows}
+
+
 class WorkflowStore:
     """Small SQLite wrapper for workflow results."""
 
-    def __init__(self, path: Path) -> None:
-        self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.connection = sqlite3.connect(self.path)
+    def __init__(self, path: Path, *, readonly: bool = False) -> None:
+        self.path = Path(path).resolve()
+        if readonly:
+            self.connection = sqlite3.connect(self.path.as_uri() + "?mode=ro", uri=True)
+            self.connection.execute("BEGIN")
+        else:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self.connection = sqlite3.connect(self.path)
         self.connection.execute("PRAGMA foreign_keys = ON")
         try:
             validate_workflow_schema(self.connection)
-            self._create_schema()
+            if not readonly:
+                self._create_schema()
         except Exception:
             self.connection.close()
             raise
@@ -346,6 +422,7 @@ class WorkflowStore:
                 schema_version TEXT NOT NULL,
                 metadata_json TEXT NOT NULL,
                 diagnostics_json TEXT NOT NULL,
+                rf_phase_count INTEGER NOT NULL DEFAULT 0 CHECK(rf_phase_count >= 0),
                 PRIMARY KEY (mixture_id, solver, e_over_n_Td, replicate),
                 FOREIGN KEY (mixture_id) REFERENCES mixtures(mixture_id)
             );
@@ -386,7 +463,6 @@ class WorkflowStore:
                 eepf REAL NOT NULL,
                 sample_count INTEGER,
                 effective_sample_count REAL,
-                relative_standard_error REAL,
                 PRIMARY KEY (
                     mixture_id, solver, e_over_n_Td, replicate, bin_index
                 ),
@@ -414,6 +490,35 @@ class WorkflowStore:
                     mixture_id, solver, e_over_n_Td, replicate
                 ) REFERENCES cases(mixture_id, solver, e_over_n_Td, replicate)
             );
+            CREATE TABLE IF NOT EXISTS rf_phases (
+                mixture_id INTEGER NOT NULL,
+                solver TEXT NOT NULL,
+                e_over_n_Td REAL NOT NULL,
+                replicate INTEGER NOT NULL,
+                phase_index INTEGER NOT NULL,
+                phase_fraction REAL NOT NULL,
+                phase_rad REAL NOT NULL,
+                instantaneous_e_over_n_Td REAL NOT NULL,
+                mean_energy_eV REAL NOT NULL,
+                ionization_rate_coefficient_m3_s REAL NOT NULL,
+                PRIMARY KEY(mixture_id, solver, e_over_n_Td, replicate, phase_index),
+                FOREIGN KEY(mixture_id, solver, e_over_n_Td, replicate)
+                    REFERENCES cases(mixture_id, solver, e_over_n_Td, replicate)
+            );
+            CREATE TABLE IF NOT EXISTS rf_phase_eedf_bins (
+                mixture_id INTEGER NOT NULL,
+                solver TEXT NOT NULL,
+                e_over_n_Td REAL NOT NULL,
+                replicate INTEGER NOT NULL,
+                phase_index INTEGER NOT NULL,
+                bin_index INTEGER NOT NULL,
+                eedf REAL NOT NULL,
+                PRIMARY KEY(mixture_id, solver, e_over_n_Td, replicate, phase_index, bin_index),
+                FOREIGN KEY(mixture_id, solver, e_over_n_Td, replicate, phase_index)
+                    REFERENCES rf_phases(mixture_id, solver, e_over_n_Td, replicate, phase_index),
+                FOREIGN KEY(mixture_id, solver, e_over_n_Td, replicate, bin_index)
+                    REFERENCES eedf_bins(mixture_id, solver, e_over_n_Td, replicate, bin_index)
+            );
             """
         )
         self.connection.commit()
@@ -435,7 +540,10 @@ class WorkflowStore:
         required_keys = [
             "workflow_config_sha256",
             "quality_thresholds_json",
+            WORKFLOW_IMPLEMENTATION_KEY,
         ]
+        if SOLVER_IMPLEMENTATIONS_KEY in values:
+            required_keys.append(SOLVER_IMPLEMENTATIONS_KEY)
         if "mc_transport_estimator_schema_version" in values:
             required_keys.append("mc_transport_estimator_schema_version")
         if "mc_eedf_estimator_schema_version" in values:
@@ -510,16 +618,7 @@ class WorkflowStore:
 
     def existing_case_keys(self) -> set[tuple[int, str, float, int]]:
         """Return committed case keys that are safe resume checkpoints."""
-
-        return {
-            (int(row[0]), str(row[1]), float(row[2]), int(row[3]))
-            for row in self.connection.execute(
-                """
-                SELECT mixture_id, solver, e_over_n_Td, replicate
-                FROM cases
-                """
-            )
-        }
+        return _complete_case_keys(self.connection)
 
     def import_cases(
         self,
@@ -536,7 +635,14 @@ class WorkflowStore:
 
         if not keys:
             return 0
-        tables = ("cases", "rates", "eedf_bins", "energy_angle_bins")
+        tables = (
+            "cases",
+            "rates",
+            "eedf_bins",
+            "energy_angle_bins",
+            "rf_phases",
+            "rf_phase_eedf_bins",
+        )
         columns: dict[str, list[str]] = {}
         for table in tables:
             target_columns = [
@@ -555,6 +661,7 @@ class WorkflowStore:
                 )
             columns[table] = target_columns
 
+        complete = _complete_case_keys(source)
         imported = 0
         with self.connection:
             for key in keys:
@@ -568,6 +675,10 @@ class WorkflowStore:
                 ).fetchone()
                 if parent is None:
                     continue
+                if key not in complete:
+                    raise WorkflowSchemaError(
+                        f"Reusable case has incomplete RF data: {key}"
+                    )
                 for table in tables:
                     rows = (
                         [parent]
@@ -583,6 +694,10 @@ class WorkflowStore:
                                 else "bin_index"
                                 if table == "eedf_bins"
                                 else "energy_index, polar_index"
+                                if table == "energy_angle_bins"
+                                else "phase_index"
+                                if table == "rf_phases"
+                                else "phase_index, bin_index"
                             }
                             """,
                             key,
@@ -605,17 +720,139 @@ class WorkflowStore:
         replicate: int,
     ) -> bool:
         key = (int(mixture_id), solver, float(e_over_n_Td), int(replicate))
-        return (
-            self.connection.execute(
-                """
-            SELECT 1 FROM cases
-            WHERE mixture_id = ? AND solver = ? AND e_over_n_Td = ?
-              AND replicate = ?
-            """,
+        return bool(_complete_case_keys(self.connection, key))
+
+    def read_case(
+        self,
+        *,
+        mixture_id: int,
+        solver: str,
+        e_over_n_Td: float,
+        replicate: int,
+    ) -> SwarmCaseResult:
+        """Read one complete case, including its native distribution coordinates.
+
+        This restores stored data; it does not manufacture an execution record.
+        Workflow provenance and qualification remain attached to the database.
+        """
+        key = (mixture_id, solver, float(e_over_n_Td), replicate)
+
+        def rows(table: str, order: str = "") -> list[dict]:
+            cursor = self.connection.execute(
+                f"SELECT * FROM {table} WHERE mixture_id=? AND solver=? AND e_over_n_Td=? AND replicate=?"
+                + (f" ORDER BY {order}" if order else ""),
                 key,
-            ).fetchone()
-            is not None
+            )
+            names = [column[0] for column in cursor.description]
+            return [dict(zip(names, row, strict=True)) for row in cursor]
+
+        parents = rows("cases")
+        if not parents:
+            raise KeyError(key)
+        if not _complete_case_keys(self.connection, key):
+            raise WorkflowSchemaError(f"Stored case has incomplete RF data: {key}")
+        parent = parents[0]
+        metadata = json.loads(parent["metadata_json"])
+        bins = rows("eedf_bins", "bin_index")
+        transport = ElectronTransport(
+            definition=parent["transport_definition"],
+            **{
+                f.name: parent[f.name]
+                for f in fields(ElectronTransport)
+                if f.name != "definition"
+            },
         )
+        context = metadata.pop("physical_context", None)
+        meanings = metadata.pop("transport_observables", {})
+        if context is not None:
+            context = PhysicalContext(
+                **{
+                    name: value
+                    for name, value in context.items()
+                    if name
+                    not in {"species", "angular_scattering", "electron_electron"}
+                },
+                species=tuple(tuple(component) for component in context["species"]),
+                angular_scattering=AngularPhysics(**context["angular_scattering"]),
+                electron_electron=ElectronElectronPhysics(
+                    **context["electron_electron"]
+                ),
+            )
+        case = SwarmCaseResult(
+            solver=solver,
+            case_id=parent["case_id"],
+            e_over_n_Td=e_over_n_Td,
+            mean_energy_eV=parent["mean_energy_eV"],
+            net_ionization_frequency_s=parent["net_ionization_frequency_s"],
+            effective_townsend_m2=parent["effective_townsend_m2"],
+            transport=transport,
+            energy_eV=np.array([r["energy_eV"] for r in bins]),
+            energy_widths_eV=np.array([r["energy_width_eV"] for r in bins]),
+            eedf=np.array([r["eedf"] for r in bins]),
+            rates=[
+                RateResult(
+                    **{
+                        f.name: row[f.name] for f in fields(RateResult) if f.name in row
+                    },
+                    case_id=parent["case_id"],
+                    gas_number_density_m3=parent["gas_number_density_m3"]
+                    if row["frequency_s_inv"] is not None
+                    else None,
+                )
+                for row in rows("rates", "rate_index")
+            ],
+            metadata=metadata,
+            diagnostics=json.loads(parent["diagnostics_json"]),
+            schema_version=parent["schema_version"],
+            physical_context=context,
+            transport_observables={
+                name: ObservableDefinition(**value) for name, value in meanings.items()
+            },
+        )
+        for attribute, column, dtype in (
+            ("eedf_counts", "sample_count", np.int64),
+            ("eedf_effective_counts", "effective_sample_count", float),
+        ):
+            values = [row[column] for row in bins]
+            if any(value is not None for value in values):
+                if any(value is None for value in values):
+                    raise WorkflowSchemaError(
+                        f"Stored case has incomplete {column}: {key}"
+                    )
+                setattr(case, attribute, np.array(values, dtype=dtype))
+        phases = rows("rf_phases", "phase_index")
+        if phases:
+            phase_eedf = rows("rf_phase_eedf_bins", "phase_index, bin_index")
+            case.rf_phase = RfPhaseResult(
+                **{
+                    name: np.array([row[name] for row in phases])
+                    for name in (
+                        "phase_fraction",
+                        "phase_rad",
+                        "instantaneous_e_over_n_Td",
+                        "mean_energy_eV",
+                        "ionization_rate_coefficient_m3_s",
+                    )
+                },
+                eedf=np.array([row["eedf"] for row in phase_eedf]).reshape(
+                    len(phases), len(bins)
+                ),
+            )
+        angular = rows("energy_angle_bins", "energy_index, polar_index")
+        if angular:
+            polar_count = max(row["polar_index"] for row in angular) + 1
+            energy_rows = angular[::polar_count]
+            case.energy_angle_distribution = EnergyAngleDistributionResult(
+                energy_eV=np.array([r["energy_eV"] for r in energy_rows]),
+                energy_widths_eV=np.array([r["energy_width_eV"] for r in energy_rows]),
+                mu=np.array([r["mu"] for r in angular[:polar_count]]),
+                mu_widths=np.array([r["mu_width"] for r in angular[:polar_count]]),
+                density_eV_inv=np.array(
+                    [r["energy_angle_density_eV_inv"] for r in angular]
+                ).reshape(len(energy_rows), polar_count),
+            )
+        validate_case_result(case)
+        return case
 
     def write_case(
         self,
@@ -632,6 +869,20 @@ class WorkflowStore:
         """
 
         key = (mixture_id, case.solver, float(case.e_over_n_Td), int(replicate))
+        if any(
+            rate.gas_number_density_m3 is not None
+            and rate.gas_number_density_m3 != case.transport.gas_number_density_m3
+            for rate in case.rates
+        ):
+            raise ValueError("rates must use the case gas number density")
+        phase = case.rf_phase
+        if phase is not None:
+            validate_case_result(case)
+            if any(
+                not np.all(np.isfinite(getattr(phase, item.name)))
+                for item in fields(RfPhaseResult)
+            ):
+                raise ValueError("RF phase data must be finite")
         widths = case.energy_widths_eV
         if widths is None or len(widths) != len(case.energy_eV):
             widths = widths_from_centers(case.energy_eV)
@@ -640,6 +891,12 @@ class WorkflowStore:
         effective_counts = case.eedf_effective_counts
 
         with self.connection:
+            # Remove dependent phase rows before replacing their shared energy grid.
+            for table in ("rf_phase_eedf_bins", "rf_phases"):
+                self.connection.execute(
+                    f"DELETE FROM {table} WHERE mixture_id=? AND solver=? AND e_over_n_Td=? AND replicate=?",
+                    key,
+                )
             self.connection.execute(
                 """
                 INSERT OR REPLACE INTO cases(
@@ -654,8 +911,8 @@ class WorkflowStore:
                     reduced_electron_energy_diffusion_L_m2_s_m3,
                     reduced_electron_energy_diffusion_T_m2_s_m3,
                     net_ionization_frequency_s, effective_townsend_m2,
-                    schema_version, metadata_json, diagnostics_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    schema_version, metadata_json, diagnostics_json, rf_phase_count
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     *key,
@@ -677,8 +934,23 @@ class WorkflowStore:
                     float(case.net_ionization_frequency_s),
                     float(case.effective_townsend_m2),
                     case.schema_version,
-                    _json_dumps(case.metadata),
+                    _json_dumps(
+                        {
+                            **case.metadata,
+                            "physical_context": asdict(case.physical_context)
+                            if case.physical_context
+                            else None,
+                            "transport_observables": {
+                                name: asdict(definition)
+                                for name, definition in (
+                                    case.transport_observables
+                                    or case.transport.observable_definitions
+                                ).items()
+                            },
+                        }
+                    ),
                     _json_dumps(case.diagnostics),
+                    len(phase.phase_fraction) if phase is not None else 0,
                 ),
             )
             self.connection.execute(
@@ -733,8 +1005,8 @@ class WorkflowStore:
                 INSERT INTO eedf_bins(
                     mixture_id, solver, e_over_n_Td, replicate, bin_index,
                     energy_eV, energy_width_eV, eedf, eepf, sample_count,
-                    effective_sample_count, relative_standard_error
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    effective_sample_count
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -744,28 +1016,41 @@ class WorkflowStore:
                         float(widths[index]),
                         float(case.eedf[index]),
                         float(eepf[index]),
-                        (
-                            int(counts[index])
-                            if counts is not None and index < len(counts)
-                            else None
-                        ),
-                        (
-                            float(effective_counts[index])
-                            if effective_counts is not None
-                            and index < len(effective_counts)
-                            else None
-                        ),
-                        (
-                            float(1.0 / math.sqrt(effective_counts[index]))
-                            if effective_counts is not None
-                            and index < len(effective_counts)
-                            and effective_counts[index] > 0.0
-                            else None
-                        ),
+                        int(counts[index])
+                        if counts is not None and index < len(counts)
+                        else None,
+                        float(effective_counts[index])
+                        if effective_counts is not None
+                        and index < len(effective_counts)
+                        else None,
                     )
                     for index, energy in enumerate(case.energy_eV)
                 ],
             )
+            if phase is not None:
+                self.connection.executemany(
+                    "INSERT INTO rf_phases VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    [
+                        (
+                            *key,
+                            index,
+                            float(phase.phase_fraction[index]),
+                            float(phase.phase_rad[index]),
+                            float(phase.instantaneous_e_over_n_Td[index]),
+                            float(phase.mean_energy_eV[index]),
+                            float(phase.ionization_rate_coefficient_m3_s[index]),
+                        )
+                        for index in range(len(phase.phase_fraction))
+                    ],
+                )
+                self.connection.executemany(
+                    "INSERT INTO rf_phase_eedf_bins VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    [
+                        (*key, index, energy_index, float(value))
+                        for index, row in enumerate(phase.eedf)
+                        for energy_index, value in enumerate(row)
+                    ],
+                )
             self.connection.execute(
                 """
                 DELETE FROM energy_angle_bins

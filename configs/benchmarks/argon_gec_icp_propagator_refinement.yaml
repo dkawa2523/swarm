@@ -1,0 +1,67 @@
+schema_version: 2
+run:
+  solvers:
+  - id: propagator
+  e_over_n_Td:
+  - 1500.0
+  - 2500.0
+  - 2744.2936035
+  case_prefix: argon_gec_icp_propagator
+conditions:
+  gas_temperature_K: 300.0
+  pressure_Pa: 2.66644
+  gas_mixture:
+  - species: Ar
+    fraction: 1.0
+    mass_amu: 39.948
+cross_sections:
+  format: csv
+  high_energy_extrapolation: zero
+  files:
+  - path: ../../examples/cross_sections/argon_application_library.csv
+    species: Ar
+    format: csv
+physics:
+  field:
+    type: dc
+    magnetic_field:
+      enabled: false
+      B_T: 0.0
+      angle_EB_deg: 0.0
+  angular_scattering:
+    model: isotropic
+    higher_moment_closure: zero
+  electron_electron:
+    enabled: false
+    model: none
+  ionization:
+    energy_sharing: equal
+  energy_grid_policy:
+    adaptive: true
+    threshold_refinement: true
+    tail_probability_target: 1.0e-09
+    tail_metrics: true
+    tail_rate_warning_fraction: 0.05
+    max_eV_limit: 5000.0
+solvers:
+  propagator:
+    method: stationary_response
+    energy_cells: 300
+    polar_cells: 48
+    max_iterations: 2000
+    convergence_tolerance: 1.0e-08
+    max_memory_mb: 256
+comparison:
+  enabled: false
+feature_policy:
+  unsupported: fail
+  degraded: record
+output:
+  directory: ../../outputs/argon_gec_icp/propagator_cases
+  base_name: argon_gec_icp_propagator
+campaign:
+  database: ../../outputs/qualification/gec_icp_propagator_v10.sqlite
+  execution:
+    deterministic:
+      workers: 2
+      global_memory_budget_mb: 2048

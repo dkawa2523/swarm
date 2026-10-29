@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from electron_swarm.core.transport import ElectronTransport
-from electron_swarm.io.writers import SUMMARY_COLUMNS
+from electron_swarm.io.tables import SUMMARY_COLUMNS
 from swarm_workflow.campaign.aggregate import aggregate_database
 from swarm_workflow.campaign.store import WorkflowSchemaError, WorkflowStore
 from swarm_workflow.tables.contracts import CASE_COLUMNS, UNITS

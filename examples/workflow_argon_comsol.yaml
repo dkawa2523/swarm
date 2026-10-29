@@ -1,12 +1,50 @@
-base_config: argon_comsol_base.yaml
-database: ../outputs/argon_comsol/swarm.sqlite
-e_over_n_Td: [1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 1000.0]
-mixtures:
-  - Ar: 1.0
-mc:
-  replicas: 1
-  base_seed: 12345
-quality:
-  mobility_rse: 0.2
-  diffusion_rse: 0.3
-  major_rate_rse: 0.5
+schema_version: 2
+run:
+  solvers:
+  - id: two_term
+  e_over_n_Td:
+  - 1.0
+  - 2.0
+  - 5.0
+  - 10.0
+  - 20.0
+  - 50.0
+  - 100.0
+  - 200.0
+  - 500.0
+  - 1000.0
+  case_prefix: ar_comsol
+conditions:
+  gas_temperature_K: 300.0
+  pressure_Pa: 13.3
+  gas_mixture:
+  - species: Ar
+    fraction: 1.0
+    mass_amu: 39.948
+cross_sections:
+  format: csv
+  high_energy_extrapolation: zero
+  files:
+  - path: cross_sections/argon_application_library.csv
+    species: Ar
+    format: csv
+physics:
+  angular_scattering:
+    model: isotropic
+  ionization:
+    energy_sharing: equal
+  energy_grid_policy:
+    tail_probability_target: 1.0e-09
+    max_eV_limit: 1000.0
+feature_policy:
+  unsupported: fail
+  degraded: record
+output:
+  directory: ../outputs/argon_comsol
+  base_name: argon_comsol
+campaign:
+  database: ../outputs/argon_comsol/swarm.sqlite
+  quality:
+    mobility_rse: 0.2
+    diffusion_rse: 0.3
+    major_rate_rse: 0.5

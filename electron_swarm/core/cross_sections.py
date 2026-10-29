@@ -17,7 +17,7 @@ For LXCat/BOLSIG-style ``txt|lxcat|bolsig|dat`` inputs, the loader first uses
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from pathlib import Path
 import numpy as np
@@ -206,8 +206,7 @@ class CrossSectionProcess:
                 f"{self.species}:{self.process}"
             )
         if self.threshold_eV is not None and (
-            not np.isfinite(float(self.threshold_eV))
-            or float(self.threshold_eV) < 0.0
+            not np.isfinite(float(self.threshold_eV)) or float(self.threshold_eV) < 0.0
         ):
             raise CrossSectionValidationError(
                 f"Invalid threshold for {self.species}:{self.process}"
@@ -226,11 +225,15 @@ class CrossSectionProcess:
             }.get(self.process_type)
         elif not isinstance(self.scattering_role, ScatteringRole):
             self.scattering_role = ScatteringRole(str(self.scattering_role))
-        if self.process_type not in {
-            ProcessType.ELASTIC,
-            ProcessType.MOMENTUM,
-            ProcessType.EFFECTIVE,
-        } and self.scattering_role is not None:
+        if (
+            self.process_type
+            not in {
+                ProcessType.ELASTIC,
+                ProcessType.MOMENTUM,
+                ProcessType.EFFECTIVE,
+            }
+            and self.scattering_role is not None
+        ):
             raise CrossSectionValidationError(
                 f"Non-scattering process {self.species}:{self.process} "
                 "cannot declare a scattering role"
@@ -266,9 +269,7 @@ class CrossSectionProcess:
 
         energy = np.asarray(energy_eV, dtype=float)
         if right is None:
-            policy = str(
-                self.metadata.get("high_energy_extrapolation", "hold")
-            ).lower()
+            policy = str(self.metadata.get("high_energy_extrapolation", "hold")).lower()
             if policy == "zero":
                 right = 0.0
             elif policy == "hold":
@@ -338,9 +339,7 @@ def prepare_active_mixture_inputs(
     """Filter and validate the one cross-section inventory used by every solver."""
 
     components = tuple(
-        component
-        for component in conditions.gas_mixture
-        if component.fraction > 0.0
+        component for component in conditions.gas_mixture if component.fraction > 0.0
     )
     active_species = {component.species for component in components}
     if isinstance(cross_sections, ActiveMixtureInputs):
@@ -350,7 +349,7 @@ def prepare_active_mixture_inputs(
             )
         _validate_active_processes(cross_sections.processes, active_species)
         return ActiveMixtureInputs(
-            processes=list(cross_sections.processes),
+            processes=_canonical_process_masses(cross_sections.processes, components),
             components=components,
         )
 
@@ -361,7 +360,28 @@ def prepare_active_mixture_inputs(
     ]
 
     _validate_active_processes(processes, active_species)
-    return ActiveMixtureInputs(processes=processes, components=components)
+    return ActiveMixtureInputs(
+        processes=_canonical_process_masses(processes, components),
+        components=components,
+    )
+
+
+def _canonical_process_masses(processes, components) -> list[CrossSectionProcess]:
+    """Use one explicit gas mass in every operator, allowing source rounding only."""
+    masses = {component.species: component.mass_amu for component in components}
+    canonical = []
+    for process in processes:
+        mass = masses[process.species]
+        if process.mass_amu is not None and not np.isclose(
+            process.mass_amu, mass, rtol=5e-4, atol=0.0
+        ):
+            raise CrossSectionValidationError(
+                f"conflicting mass for {process.species}: conditions={mass:g} amu, "
+                f"cross section {process.process!r}={process.mass_amu:g} amu; "
+                "use one physical species mass"
+            )
+        canonical.append(replace(process, mass_amu=mass))
+    return canonical
 
 
 def _validate_active_processes(
@@ -402,7 +422,9 @@ def _validate_active_processes(
             )
 
 
-def _read_csv_long(path: Path, default_species: str | None) -> list[CrossSectionProcess]:
+def _read_csv_long(
+    path: Path, default_species: str | None
+) -> list[CrossSectionProcess]:
     df = pd.read_csv(path)
     columns = {c.lower(): c for c in df.columns}
     required = {"energy_ev", "cross_section_m2"}
@@ -530,16 +552,16 @@ def _default_species(
     if file_species:
         return file_species
     active = [
-        component
-        for component in conditions.gas_mixture
-        if component.fraction > 0.0
+        component for component in conditions.gas_mixture if component.fraction > 0.0
     ]
     if len(active) == 1:
         return active[0].species
     return None
 
 
-def _read_lxcat_text(path: Path, default_species: str | None) -> list[CrossSectionProcess]:
+def _read_lxcat_text(
+    path: Path, default_species: str | None
+) -> list[CrossSectionProcess]:
     if default_species is None:
         raise ValueError(
             f"{path}: species must be set for txt/lxcat/bolsig inputs when the gas mixture has multiple species"
@@ -556,7 +578,9 @@ def _read_lxcat_text(path: Path, default_species: str | None) -> list[CrossSecti
                 ),
                 process_type=_process_type_from_lxcat(section.type),
                 scattering_role=_scattering_role_from_lxcat(section.type),
-                threshold_eV=float(section.threshold) if section.threshold is not None else None,
+                threshold_eV=float(section.threshold)
+                if section.threshold is not None
+                else None,
                 mass_amu=None,
                 energy_eV=section.data["energy"].to_numpy(dtype=float),
                 cross_section_m2=section.data["cross section"].to_numpy(dtype=float),
@@ -565,7 +589,9 @@ def _read_lxcat_text(path: Path, default_species: str | None) -> list[CrossSecti
     return processes
 
 
-def _read_bolsig_like(path: Path, default_species: str | None) -> list[CrossSectionProcess]:
+def _read_bolsig_like(
+    path: Path, default_species: str | None
+) -> list[CrossSectionProcess]:
     """Fallback parser for simple BOLSIG+/LXCat blocks."""
 
     processes: list[CrossSectionProcess] = []

@@ -39,9 +39,7 @@ def _mc_energy_edges(
     speed_coordinate = np.linspace(0.0, 1.0, core_cells + 1)
     parts = [core_limit * speed_coordinate * speed_coordinate]
     if max_energy > _MC_VELOCITY_CORE_LIMIT_EV:
-        parts.append(
-            _smooth_tail_edges(_MC_VELOCITY_CORE_LIMIT_EV, max_energy)[1:]
-        )
+        parts.append(_smooth_tail_edges(_MC_VELOCITY_CORE_LIMIT_EV, max_energy)[1:])
     threshold_values = () if thresholds_eV is None else tuple(thresholds_eV)
     thresholds = np.asarray(threshold_values, dtype=float)
     if thresholds.ndim != 1 or np.any(~np.isfinite(thresholds)):

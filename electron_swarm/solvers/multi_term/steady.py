@@ -61,9 +61,7 @@ def _full_relative_residual(
 
     residual_state = operator.matrix @ state - growth_s_inv * state
     state_norm = _moment_l1(operator, state)
-    scale = (
-        _weighted_operator_l1_norm(operator) + abs(growth_s_inv)
-    ) * state_norm
+    scale = (_weighted_operator_l1_norm(operator) + abs(growth_s_inv)) * state_norm
     return _moment_l1(operator, residual_state) / max(scale, 1.0e-300)
 
 
@@ -75,8 +73,7 @@ def _normalized_linear_solve(
 
     dimension = operator.matrix.shape[0]
     shifted = (
-        operator.matrix
-        - growth_s_inv * sparse.identity(dimension, format="csr")
+        operator.matrix - growth_s_inv * sparse.identity(dimension, format="csr")
     ).tolil()
     n = len(operator.widths_eV)
     diagonal = np.abs(operator.matrix[:n, :n].diagonal())
@@ -120,9 +117,7 @@ def solve_stationary_pn(
         state = _normalized_linear_solve(operator, growth)
         applied = operator.matrix @ state
         applied_blocks = _split(operator, applied)
-        new_growth = weighted_integral(
-            applied_blocks[0], operator.widths_eV
-        )
+        new_growth = weighted_integral(applied_blocks[0], operator.widths_eV)
         residual = _full_relative_residual(operator, state, new_growth)
         if previous is not None:
             shape_change = _moment_l1(operator, state - previous) / max(
@@ -159,9 +154,7 @@ def solve_stationary_pn(
         )
 
     raw_coefficients = _split(operator, state)
-    negative_mass = negative_mass_fraction(
-        raw_coefficients[0], operator.widths_eV
-    )
+    negative_mass = negative_mass_fraction(raw_coefficients[0], operator.widths_eV)
     if negative_mass > _NEGATIVE_F0_MASS_LIMIT:
         raise RuntimeError(
             "stationary PN converged to a nonphysical negative F0 mass "
@@ -191,7 +184,9 @@ def solve_stationary_pn(
             f0,
         ),
         eedf_tail_fraction=float(
-            np.sum(f0[tail_mask] * operator.widths_eV[tail_mask])
+            # Signed roundoff cannot cancel physical tail mass or make a
+            # probability negative. Count its magnitude conservatively.
+            np.sum(np.abs(f0[tail_mask]) * operator.widths_eV[tail_mask])
         ),
     )
     return StationaryPNState(

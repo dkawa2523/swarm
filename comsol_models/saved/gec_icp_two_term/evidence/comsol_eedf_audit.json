@@ -1,0 +1,199 @@
+{
+  "active_table_binding": {
+    "comparison": "strict COMSOL-evaluated saved Function values at table nodes, one-coordinate midpoints, derivative probes, and constant extrapolation probes",
+    "failed_samples": 0,
+    "maximum_candidate_relative_error": 1.1933073967341655e-09,
+    "passed": true,
+    "samples": 1577,
+    "strict_kinds": [
+      "anchor",
+      "energy_midpoint",
+      "derivative",
+      "outside"
+    ],
+    "table_path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\argon_gec_icp\\two_term_bundle\\mixture_0000\\eedf_f0_comsol_2d.csv",
+    "table_sha256": "e339dbb22d0c9101e57ac89ea86604477f0cdd901d3c74afe2e0f901a288baf7"
+  },
+  "derivatives": {
+    "continuity_contract": "C0; finite one-sided slopes may jump at mean-energy anchors",
+    "groups": 91,
+    "maximum_observed_slope_jump": 0.047511412076298484,
+    "maximum_relative_one_sided_slope_error": 5.567330156275355e-10,
+    "passed": true
+  },
+  "method": "COMSOL parameter-engine evaluation of the saved component Function",
+  "moments": {
+    "maximum_error": 8.739424555650526e-14,
+    "passed": true,
+    "rows": [
+      {
+        "group": "moment_anchor_0000",
+        "mean_energy_relative_error": 7.226862704034207e-14,
+        "normalization": 1.0000000000000002,
+        "normalization_error": 2.220446049250313e-16,
+        "reconstructed_mean_energy_eV": 2.457991679305762,
+        "requested_mean_energy_eV": 2.4579916793059398
+      },
+      {
+        "group": "moment_anchor_0023",
+        "mean_energy_relative_error": 4.9791436720084334e-14,
+        "normalization": 0.9999999999999986,
+        "normalization_error": 1.4432899320127035e-15,
+        "reconstructed_mean_energy_eV": 5.690314129258051,
+        "requested_mean_energy_eV": 5.690314129257768
+      },
+      {
+        "group": "moment_anchor_0046",
+        "mean_energy_relative_error": 3.759568130502998e-14,
+        "normalization": 0.9999999999999991,
+        "normalization_error": 8.881784197001252e-16,
+        "reconstructed_mean_energy_eV": 7.465335668426324,
+        "requested_mean_energy_eV": 7.465335668426604
+      },
+      {
+        "group": "moment_anchor_0069",
+        "mean_energy_relative_error": 7.442232995390359e-14,
+        "normalization": 0.9999999999999998,
+        "normalization_error": 2.220446049250313e-16,
+        "reconstructed_mean_energy_eV": 22.675170187165012,
+        "requested_mean_energy_eV": 22.6751701871667
+      },
+      {
+        "group": "moment_anchor_0092",
+        "mean_energy_relative_error": 3.25540398064681e-14,
+        "normalization": 1.0,
+        "normalization_error": 0.0,
+        "reconstructed_mean_energy_eV": 42.56179395765365,
+        "requested_mean_energy_eV": 42.561793957655034
+      },
+      {
+        "group": "moment_mid_0000",
+        "mean_energy_relative_error": 3.100683307891408e-14,
+        "normalization": 1.0000000000000004,
+        "normalization_error": 4.440892098500626e-16,
+        "reconstructed_mean_energy_eV": 2.5207250522711524,
+        "requested_mean_energy_eV": 2.5207250522712306
+      },
+      {
+        "group": "moment_mid_0030",
+        "mean_energy_relative_error": 8.739424555650526e-14,
+        "normalization": 0.9999999999999992,
+        "normalization_error": 7.771561172376096e-16,
+        "reconstructed_mean_energy_eV": 6.219690889201439,
+        "requested_mean_energy_eV": 6.219690889201982
+      },
+      {
+        "group": "moment_mid_0061",
+        "mean_energy_relative_error": 6.951232840398682e-15,
+        "normalization": 0.9999999999999993,
+        "normalization_error": 6.661338147750939e-16,
+        "reconstructed_mean_energy_eV": 11.244005592701278,
+        "requested_mean_energy_eV": 11.2440055927012
+      },
+      {
+        "group": "moment_mid_0091",
+        "mean_energy_relative_error": 2.8794949493288616e-14,
+        "normalization": 1.0000000000000002,
+        "normalization_error": 2.220446049250313e-16,
+        "reconstructed_mean_energy_eV": 42.19587460755675,
+        "requested_mean_energy_eV": 42.19587460755797
+      }
+    ],
+    "tolerance": 1e-07
+  },
+  "native_projection_fidelity": {
+    "all_point_normalized_rmse": 1.390302622892656e-10,
+    "interpretation": "fidelity of COMSOL's structured tensor-product linear grid at dense moment rows and two-coordinate interior probes",
+    "kinds": [
+      "cell_center",
+      "moment_anchor",
+      "moment_mid"
+    ],
+    "maximum_relative_error_limit": 0.1,
+    "maximum_relative_error_significant": 3.164980903702423e-09,
+    "normalized_rmse_limit": 0.02,
+    "passed": true,
+    "samples": 5536,
+    "significance_fraction_of_peak": 1e-05,
+    "significant_samples": 4540
+  },
+  "passed": true,
+  "point_values": {
+    "kinds": [
+      "anchor",
+      "cell_center",
+      "derivative",
+      "energy_midpoint",
+      "moment",
+      "outside"
+    ],
+    "minimum_value": 0.0,
+    "passed": true,
+    "projection_fidelity_samples": 5536,
+    "samples": 7113,
+    "strict_samples": 1577
+  },
+  "provenance": {
+    "contract_sha256": "6572af24ce5f9601d1fb397a7117e749a88eb5288691e3c3ecf18526b4061df0",
+    "model_path": "C:\\Users\\user\\Desktop\\swarm_5\\comsol_modes\\work\\argon_gec_icp_two_term_function_eedf.mph",
+    "model_sha256": "1f335e8fa26bcd4384cc60f96bf24371016e050078127bfd415ed916483af30e",
+    "query_sha256": "0ea0d1843c7b26faae0882655879714d036fafcf7548609fbcd91b664d28d2b0",
+    "table_sha256": "e339dbb22d0c9101e57ac89ea86604477f0cdd901d3c74afe2e0f901a288baf7",
+    "values_sha256": "2f28bacd98b01205c7d7480f1040cbab8c1fa59c49c2e18db17d76d0c66996b2"
+  },
+  "rates": {
+    "passed": true,
+    "processes": {
+      "elastic": {
+        "normalized_rmse": 1.367572472878498e-15,
+        "passed": true,
+        "samples": 9
+      },
+      "excitation": {
+        "normalized_rmse": 2.857284925307758e-16,
+        "passed": true,
+        "samples": 9
+      },
+      "ionization": {
+        "normalized_rmse": 3.653913808969225e-16,
+        "passed": true,
+        "samples": 9
+      }
+    },
+    "status": "evaluated"
+  },
+  "saved_function_contract": {
+    "expected": {
+      "argunit": "eV|eV",
+      "audit_queries_sha256": "0ea0d1843c7b26faae0882655879714d036fafcf7548609fbcd91b664d28d2b0",
+      "audit_table_sha256": "e339dbb22d0c9101e57ac89ea86604477f0cdd901d3c74afe2e0f901a288baf7",
+      "eedf_selection": "sw_icp_eedf_two_term",
+      "extrap": "const",
+      "function_names": "sw_icp_eedf_two_term",
+      "fununit": "1",
+      "interp": "linear",
+      "problem_count": "0",
+      "source": "file",
+      "struct": "spreadsheet"
+    },
+    "mismatches": {},
+    "passed": true,
+    "settings": {
+      "argunit": "eV|eV",
+      "audit_queries_sha256": "0ea0d1843c7b26faae0882655879714d036fafcf7548609fbcd91b664d28d2b0",
+      "audit_table_sha256": "e339dbb22d0c9101e57ac89ea86604477f0cdd901d3c74afe2e0f901a288baf7",
+      "eedf_selection": "sw_icp_eedf_two_term",
+      "extrap": "const",
+      "filename": "C:/Users/user/Desktop/swarm_5/outputs/argon_gec_icp/two_term_bundle/mixture_0000/eedf_f0_comsol_2d.csv",
+      "function_names": "sw_icp_eedf_two_term",
+      "fununit": "1",
+      "imported_name": "eedf_f0_comsol_2d.csv",
+      "interp": "linear",
+      "problem_count": "0",
+      "problems": "",
+      "source": "file",
+      "struct": "spreadsheet"
+    }
+  },
+  "status": "passed"
+}

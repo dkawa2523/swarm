@@ -11,11 +11,11 @@ import numpy as np
 from scipy import sparse
 
 from electron_swarm.core.constants import ELECTRON_MASS_KG, EV_TO_J
-from electron_swarm.core.cross_sections import ScatteringRole, mixture_fraction
+from electron_swarm.core.cross_sections import ScatteringRole
 from electron_swarm.physics.angular_scattering import build_angular_model
 from electron_swarm.solvers.boltzmann_common.collisions import (
-    assemble_collision_operator,
     build_effective_collision_data,
+    build_inelastic_collision_data,
 )
 from electron_swarm.solvers.boltzmann_common.grid import electron_speed_m_s
 from electron_swarm.solvers.boltzmann_common.operators import (
@@ -28,131 +28,86 @@ from .models import MultiTermCase, PNOperator
 _SPEED_PER_SQRT_EV = np.sqrt(2.0 * EV_TO_J / ELECTRON_MASS_KG)
 
 
-def _scattering_integrals(
-    case: MultiTermCase,
-    energy_eV: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, bool, bool, bool]:
-    """Return mixture total/momentum/effective integrals and completeness."""
-
-    total = np.zeros_like(energy_eV)
-    momentum = np.zeros_like(energy_eV)
-    effective = np.zeros_like(energy_eV)
-    complete_total = True
-    complete_momentum = True
-    complete_effective = True
-    for component in case.config.conditions.gas_mixture:
-        if component.fraction <= 0.0:
-            continue
-        species_processes = case.cross_sections.by_species(component.species)
-        by_role = {
-            role: [
-                process
-                for process in species_processes
-                if process.scattering_role == role
-            ]
-            for role in ScatteringRole
-        }
-        complete_total &= bool(by_role[ScatteringRole.ELASTIC_TOTAL])
-        complete_momentum &= bool(
-            by_role[ScatteringRole.ELASTIC_MOMENTUM_TRANSFER]
-        )
-        complete_effective &= bool(
-            by_role[ScatteringRole.EFFECTIVE_MOMENTUM_TRANSFER]
-        )
-        fraction = mixture_fraction(
-            case.config.conditions,
-            component.species,
-        )
-        for process in by_role[ScatteringRole.ELASTIC_TOTAL]:
-            total += fraction * process.sigma(energy_eV)
-        for process in by_role[ScatteringRole.ELASTIC_MOMENTUM_TRANSFER]:
-            momentum += fraction * process.sigma(energy_eV)
-        for process in by_role[ScatteringRole.EFFECTIVE_MOMENTUM_TRANSFER]:
-            effective += fraction * process.sigma(energy_eV)
-    return (
-        total,
-        momentum,
-        effective,
-        complete_total,
-        complete_momentum,
-        complete_effective,
-    )
-
-
 def _angular_inputs(
     case: MultiTermCase,
     energy_eV: np.ndarray,
     lmax: int,
     angular: object,
-) -> tuple[np.ndarray, np.ndarray, bool]:
-    """Resolve elastic total and moments without relabeling ordinary XS as DCS."""
+) -> tuple[np.ndarray, np.ndarray]:
+    """Close each species before adding its linear collision generator."""
 
-    (
-        total,
-        momentum,
-        effective,
-        complete_total,
-        complete_momentum,
-        complete_effective,
-    ) = _scattering_integrals(case, energy_eV)
-    cross_section_floor = float(
-        case.multi_term_config.min_momentum_cross_section_m2
-    )
-
-    def regularized(scattering_integral: np.ndarray) -> np.ndarray:
-        """Keep the collision operator nonsingular beyond tabulated XS data."""
-
-        if np.any(~np.isfinite(scattering_integral)) or np.any(
-            scattering_integral < 0.0
-        ):
-            raise ValueError("elastic scattering integrals must be finite and nonnegative")
-        return np.maximum(scattering_integral, cross_section_floor)
-
-    method = case.multi_term_config.method
-    angular_name = str(getattr(angular, "name", ""))
-    if method == "pn_dcs":
-        moments = angular.moments(energy_eV, lmax)
-        if complete_total:
-            elastic_total = regularized(total)
-        elif complete_momentum:
-            denominator = 1.0 - moments[1]
-            if np.any(denominator <= 1.0e-8):
-                raise ValueError(
-                    "DCS moments too close to m1=1 to reconstruct total "
-                    "cross section from momentum transfer"
-                )
-            elastic_total = regularized(momentum / denominator)
-        else:
-            raise NotImplementedError(
-                "pn_dcs requires either elastic total cross sections or "
-                "momentum-transfer cross sections for every active species"
-            )
-        return moments, elastic_total, False
-
-    if angular_name in {"momentum_power", "maxent_p1"}:
-        if not complete_total or not complete_momentum:
-            raise NotImplementedError(
-                f"{angular_name} multi-term closure requires separate elastic "
-                "total and momentum-transfer cross sections for every active species"
-            )
-        total_regularized = regularized(total)
-        momentum_regularized = regularized(momentum)
-        moments = angular.moments(
-            energy_eV,
-            lmax,
-            sigma_total=total_regularized,
-            sigma_momentum=momentum_regularized,
+    total = np.zeros_like(energy_eV)
+    moment_integrals = np.zeros((lmax + 1, len(energy_eV)))
+    for component in case.config.conditions.gas_mixture:
+        if component.fraction <= 0.0:
+            continue
+        processes = case.cross_sections.by_species(component.species)
+        totals = [
+            p for p in processes if p.scattering_role == ScatteringRole.ELASTIC_TOTAL
+        ]
+        momenta = [
+            p
+            for p in processes
+            if p.scattering_role == ScatteringRole.ELASTIC_MOMENTUM_TRANSFER
+        ]
+        sigma_total = sum(
+            (p.sigma(energy_eV) for p in totals), np.zeros_like(energy_eV)
         )
-        return moments, total_regularized, False
+        sigma_momentum = sum(
+            (p.sigma(energy_eV) for p in momenta), np.zeros_like(energy_eV)
+        )
+        if angular.name in {"momentum_power", "maxent_p1"}:
+            if not totals or not momenta:
+                raise ValueError(
+                    f"{component.species}: {angular.name} requires total and momentum cross sections"
+                )
+            active = sigma_total > 0.0
+            if np.any((~active) & (sigma_momentum > 0.0)):
+                raise ValueError(
+                    f"{component.species}: momentum cross section exceeds zero total"
+                )
+            moments = np.zeros_like(moment_integrals)
+            moments[0] = 1.0
+            moments[:, active] = angular.moments(
+                energy_eV[active],
+                lmax,
+                sigma_total=sigma_total[active],
+                sigma_momentum=sigma_momentum[active],
+            )
+        else:
+            moments = angular.moments(energy_eV, lmax)
+            if not totals:
+                if not momenta:
+                    raise ValueError(
+                        f"{component.species}: no elastic scattering integral"
+                    )
+                denominator = 1.0 - moments[1]
+                if np.any(denominator <= 1e-8):
+                    raise ValueError(
+                        "angular moments too close to m1=1 to reconstruct total cross section"
+                    )
+                sigma_total = sigma_momentum / denominator
+            elif momenta and not np.allclose(
+                sigma_momentum,
+                sigma_total * (1.0 - moments[1]),
+                rtol=1e-6,
+                atol=1e-30,
+            ):
+                raise ValueError(
+                    f"{component.species}: elastic total and momentum integrals disagree with angular moments; use maxent_p1 for unequal isotropic integrals"
+                )
+        weighted_total = component.fraction * sigma_total
+        total += weighted_total
+        moment_integrals += moments * weighted_total
 
-    moments = angular.moments(energy_eV, lmax)
-    if complete_total:
-        return moments, regularized(total), False
-    if complete_momentum:
-        return moments, regularized(momentum), False
-    if complete_effective:
-        return moments, regularized(effective), True
-    raise ValueError("no complete elastic scattering integral is available")
+    moments = np.divide(
+        moment_integrals,
+        total[None, :],
+        out=np.zeros_like(moment_integrals),
+        where=total[None, :] > 0.0,
+    )
+    moments[0] = 1.0
+    return moments, total
 
 
 def _center_to_face_derivative(centers: np.ndarray) -> sparse.csr_matrix:
@@ -249,11 +204,8 @@ def build_angular_damping(
     energy_eV: np.ndarray,
     speed_m_s: np.ndarray,
     sigma_total_m2: np.ndarray,
-    nu_m_s_inv: np.ndarray,
     inelastic_loss_s_inv: np.ndarray,
     moments: np.ndarray,
-    *,
-    effective_momentum_input: bool,
 ) -> np.ndarray:
     """Build the collision eigenvalue ``nu_l`` for every angular moment."""
 
@@ -267,32 +219,22 @@ def build_angular_damping(
         raise ValueError("angular moments must have m0=1")
     sigma_total = np.asarray(sigma_total_m2, dtype=float)
     if sigma_total.shape != shape or np.any(~np.isfinite(sigma_total)):
-        raise ValueError("sigma_total_like must match the PN energy grid")
-    if np.any(sigma_total <= 0.0):
-        raise ValueError("sigma_total_like must be positive for PN damping")
+        raise ValueError("elastic total cross section must match the PN energy grid")
+    if np.any(sigma_total < 0.0):
+        raise ValueError(
+            "elastic total cross section must be nonnegative for PN damping"
+        )
 
     damping = np.zeros_like(moments)
-    if effective_momentum_input:
-        if case.multi_term_config.method == "pn_dcs":
-            raise NotImplementedError(
-                "pn_dcs requires an elastic total cross section; an effective "
-                "momentum cross section cannot normalize DCS moments"
-            )
-        if case.config.physics.angular_scattering.model != "isotropic":
-            raise NotImplementedError(
-                "anisotropic PN closure requires separate elastic total and "
-                "momentum-transfer cross sections"
-            )
-        damping[1:] = np.asarray(nu_m_s_inv, dtype=float)
-    else:
-        base = (
+    base = case.gas_number_density_m3 * np.asarray(speed_m_s, dtype=float) * sigma_total
+    loss = np.asarray(inelastic_loss_s_inv, dtype=float)
+    for ell in range(1, lmax + 1):
+        damping[ell] = np.maximum(
+            base * (1.0 - moments[ell]) + loss,
             case.gas_number_density_m3
-            * np.asarray(speed_m_s, dtype=float)
-            * sigma_total
+            * speed_m_s
+            * case.multi_term_config.min_momentum_cross_section_m2,
         )
-        loss = np.asarray(inelastic_loss_s_inv, dtype=float)
-        for ell in range(1, lmax + 1):
-            damping[ell] = base * (1.0 - moments[ell]) + loss
     if not np.all(np.isfinite(damping[1:])) or np.any(damping[1:] <= 0.0):
         raise ValueError("PN angular damping must be finite and positive")
     return damping
@@ -323,7 +265,7 @@ def assemble_pn_operator(case: MultiTermCase) -> PNOperator:
         case.gas_number_density_m3,
         case.multi_term_config,
     )
-    inelastic = assemble_collision_operator(
+    inelastic = build_inelastic_collision_data(
         case.config,
         case.cross_sections,
         energy,
@@ -339,7 +281,7 @@ def assemble_pn_operator(case: MultiTermCase) -> PNOperator:
         0.0,
         collisions,
     )
-    isotropic_collision = (inelastic + elastic_energy).tocsr()
+    isotropic_collision = (inelastic.matrix + elastic_energy).tocsr()
 
     method = case.multi_term_config.method
     angular = build_angular_model(case.config)
@@ -352,7 +294,7 @@ def assemble_pn_operator(case: MultiTermCase) -> PNOperator:
         raise NotImplementedError(
             "pn_dcs requires physics.angular_scattering.model=moment_table"
         )
-    moments, elastic_total, effective_input = _angular_inputs(
+    moments, elastic_total = _angular_inputs(
         case,
         energy,
         lmax,
@@ -363,30 +305,32 @@ def assemble_pn_operator(case: MultiTermCase) -> PNOperator:
         energy,
         speed,
         elastic_total,
-        collisions.nu_m,
         collisions.inelastic_loss_frequency_s_inv,
         moments,
-        effective_momentum_input=effective_input,
     )
 
-    sizes = tuple(len(energy) if ell % 2 == 0 else len(energy) - 1 for ell in range(lmax + 1))
+    sizes = tuple(
+        len(energy) if ell % 2 == 0 else len(energy) - 1 for ell in range(lmax + 1)
+    )
     starts = np.cumsum((0, *sizes))
-    slices = tuple(slice(int(starts[ell]), int(starts[ell + 1])) for ell in range(lmax + 1))
+    slices = tuple(
+        slice(int(starts[ell]), int(starts[ell + 1])) for ell in range(lmax + 1)
+    )
     moment_energy = tuple(
-        energy if ell % 2 == 0 else edges[1:-1]
-        for ell in range(lmax + 1)
+        energy if ell % 2 == 0 else edges[1:-1] for ell in range(lmax + 1)
     )
     moment_weights = tuple(
-        widths
-        if ell % 2 == 0
-        else 0.5 * (edges[2:] - edges[:-2])
+        widths if ell % 2 == 0 else 0.5 * (edges[2:] - edges[:-2])
         for ell in range(lmax + 1)
     )
     projections = tuple(
         _center_projection(energy, edges, ell) for ell in range(lmax + 1)
     )
     blocks: list[list[sparse.csr_matrix]] = [
-        [sparse.csr_matrix((sizes[row], sizes[column]), dtype=float) for column in range(lmax + 1)]
+        [
+            sparse.csr_matrix((sizes[row], sizes[column]), dtype=float)
+            for column in range(lmax + 1)
+        ]
         for row in range(lmax + 1)
     ]
     blocks[0][0] = isotropic_collision
@@ -407,9 +351,7 @@ def assemble_pn_operator(case: MultiTermCase) -> PNOperator:
             upper = build_field_coupling(
                 energy, edges, case.electric_field_V_m, ell, ell + 1
             )
-            blocks[ell][ell + 1] = (
-                (ell + 1.0) / (2.0 * ell + 3.0)
-            ) * upper
+            blocks[ell][ell + 1] = ((ell + 1.0) / (2.0 * ell + 3.0)) * upper
 
     matrix = sparse.bmat(blocks, format="csr")
     expected_dimension = int(sum(sizes))
@@ -422,8 +364,7 @@ def assemble_pn_operator(case: MultiTermCase) -> PNOperator:
         {
             "ordinary_integral_xs_closure": method == "pn_closure_direct",
             "exact_dcs_based": bool(
-                method == "pn_dcs"
-                and angular_metadata.get("exact_dcs_based", False)
+                method == "pn_dcs" and angular_metadata.get("exact_dcs_based", False)
             ),
         }
     )
@@ -436,8 +377,7 @@ def assemble_pn_operator(case: MultiTermCase) -> PNOperator:
         angular_moments=moments,
         angular_damping_s_inv=damping,
         sigma_m_m2=(
-            damping[1]
-            / np.maximum(case.gas_number_density_m3 * speed, 1.0e-300)
+            damping[1] / np.maximum(case.gas_number_density_m3 * speed, 1.0e-300)
         ),
         angular_metadata=angular_metadata,
         lmax=lmax,

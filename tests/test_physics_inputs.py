@@ -16,6 +16,7 @@ from electron_swarm.physics.angular_scattering import (
     MomentumPowerAngularModel,
     build_angular_model,
     expected_angular_metadata,
+    validate_angular_moments,
 )
 from electron_swarm.solvers.monte_carlo.kinematics import (
     boris_push,
@@ -117,7 +118,7 @@ def test_fp_energy_operator_preserves_normalized_finite_eedf() -> None:
     eedf /= np.sum(eedf * widths)
     before = mean_energy_eV(energy, widths, eedf)
 
-    updated, metadata = apply_fp_energy_operator(
+    updated = apply_fp_energy_operator(
         energy,
         widths,
         eedf,
@@ -128,8 +129,42 @@ def test_fp_energy_operator_preserves_normalized_finite_eedf() -> None:
     assert np.sum(updated * widths) == pytest.approx(1.0, abs=1.0e-12)
     assert np.all(np.isfinite(updated))
     assert np.all(updated >= 0.0)
-    assert mean_energy_eV(energy, widths, updated) == pytest.approx(before, rel=0.05)
-    assert metadata == {}
+    assert mean_energy_eV(energy, widths, updated) == pytest.approx(before, rel=1e-11)
+
+
+@pytest.mark.parametrize("alpha", [0.05, 0.5, 1.0])
+def test_fp_energy_preserves_energy_of_nonthermal_mixture_on_nonuniform_grid(alpha: float) -> None:
+    from electron_swarm.grids.energy import build_energy_grid, bound_energy_grid
+
+    grid = bound_energy_grid(build_energy_grid(min_eV=1e-4, max_eV=100, n=600, spacing="quadratic"), 2000)
+    energy, widths = grid.centers_eV, grid.widths_eV
+    components = [np.sqrt(energy) * np.exp(-energy / temperature) for temperature in (0.02, 0.5)]
+    old = sum(values / np.sum(values * widths) for values in components) / 2
+    new = apply_fp_energy_operator(energy, widths, old, relaxation_fraction=alpha)
+    assert np.sum(new * widths) == pytest.approx(1, abs=1e-12)
+    assert mean_energy_eV(energy, widths, new) == pytest.approx(mean_energy_eV(energy, widths, old), rel=1e-11)
+    assert np.all(new >= 0)
+    assert not np.allclose(new, old)
+
+
+@pytest.mark.parametrize("values", [[1, 0.99, -1], [1, 0.99, 0], [1, 0, 1, 0, -1]])
+def test_moment_table_rejects_unrealizable_distributions(tmp_path: Path, values: list[float]) -> None:
+    path = tmp_path / "moments.csv"
+    path.write_text(
+        ",".join(["energy_eV", *[f"m{i}" for i in range(len(values))]]) + "\n"
+        + "0," + ",".join(map(str, values)) + "\n1000," + ",".join(map(str, values)) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="not realizable"):
+        MomentTableAngularModel(path).moments(np.array([10.0]), len(values) - 1)
+
+
+def test_maxent_forward_peak_keeps_the_prescribed_first_moment() -> None:
+    energy = np.array([1.0, 10.0])
+    first = np.array([0.99999, -0.99999])
+    values = MaxEntP1AngularModel().moments(energy, 6, sigma_total=np.ones(2), sigma_momentum=1 - first)
+    assert values[1] == pytest.approx(first, abs=1e-12)
+    validate_angular_moments(values)
 
 
 def test_magnetic_field_vector_geometry() -> None:
@@ -499,3 +534,22 @@ def test_unimplemented_state_resolved_schema_is_rejected(tmp_path: Path) -> None
     data["physics"]["superelastic"] = {"enabled": True}
     with pytest.raises(ValueError, match="Unsupported physics fields"):
         load_config(write_config(tmp_path, data))
+
+
+@pytest.mark.parametrize("negative_mass", [1e-12, 1e-3])
+def test_fp_relaxation_handles_only_bounded_negative_roundoff(negative_mass: float) -> None:
+    from electron_swarm.collisions.ee_fp_energy import apply_fp_energy_operator
+
+    energy = np.array([0.5, 1.5, 2.5, 3.5])
+    widths = np.ones(4)
+    old = np.array([0.5, 0.3, 0.2 + negative_mass, -negative_mass])
+    if negative_mass > 1e-8:
+        with pytest.raises(ValueError, match="negative input exceeds"):
+            apply_fp_energy_operator(energy, widths, old, relaxation_fraction=0.5)
+    else:
+        relaxed = apply_fp_energy_operator(energy, widths, old, relaxation_fraction=0.5)
+        assert np.all(relaxed >= 0.0)
+        assert np.dot(relaxed, widths) == pytest.approx(1.0, abs=1e-13)
+        assert np.dot(energy * widths, relaxed) == pytest.approx(
+            np.dot(energy * widths, old), abs=1e-12,
+        )

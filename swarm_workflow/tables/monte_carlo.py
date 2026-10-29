@@ -352,14 +352,12 @@ def _load_qualified_mc_data(
         mixture_id,
         allowed_e=evidence.transport_eligible,
     )
-    _require_case_mean_energy_strictly_increasing(cases)
     eedf_rate_cases = _repository._load_cases(
         connection,
         _contracts.MC_SOLVER,
         mixture_id,
         allowed_e=evidence.eedf_rate_eligible,
     )
-    _require_case_mean_energy_strictly_increasing(eedf_rate_cases)
     rates = _repository._load_rates(
         connection,
         _contracts.MC_SOLVER,
@@ -457,11 +455,11 @@ def _mc_table_metadata(
         _repository._required_float(case, "mean_energy_eV") for case in cases
     ]
     adjacent_mean_ratios = [
-        right / left
+        max(right / left, left / right)
         for left, right in zip(active_mean_energies, active_mean_energies[1:])
     ]
     adjacent_mean_gaps = [
-        right - left
+        abs(right - left)
         for left, right in zip(active_mean_energies, active_mean_energies[1:])
     ]
     return {
@@ -510,14 +508,11 @@ def _mc_table_metadata(
         "eedf_rate_eligible_E_over_N_Td": sorted(evidence.eedf_rate_eligible),
         "eedf_rate_excluded_E_over_N_Td": eedf_rate_excluded,
         "component_mean_energy_range_eV": {
-            "transport": [
-                _repository._required_float(cases[0], "mean_energy_eV"),
-                _repository._required_float(cases[-1], "mean_energy_eV"),
-            ],
-            "eedf_rate": [
-                _repository._required_float(eedf_rate_cases[0], "mean_energy_eV"),
-                _repository._required_float(eedf_rate_cases[-1], "mean_energy_eV"),
-            ],
+            name: [min(values), max(values)]
+            for name, values in (
+                ("transport", [_repository._required_float(case, "mean_energy_eV") for case in cases]),
+                ("eedf_rate", [_repository._required_float(case, "mean_energy_eV") for case in eedf_rate_cases]),
+            )
         },
         "transport_policy": transport_policy,
         "transport_scope": {
@@ -526,13 +521,10 @@ def _mc_table_metadata(
             ),
             "full_cross_gradient_response_identified": False,
         },
-        "eedf_policy": (
-            "independent_replica_mc_histogram_then_nonnegative_local_C1_"
-            "reconstruction_and_moment_preserving_COMSOL_projection"
-        ),
+        "eedf_policy": "independent_replica_mc_histogram",
         "reaction_rate_policy": (
             "direct_mc_trajectory_rates_as_independent_function_eedf_tail_"
-            "evidence_not_active_COMSOL_input"
+            "source_evidence_only"
             if qualification_profile
             == _contracts.MC_QUALIFICATION_FUNCTION_EEDF_RESTRICTED_LMEA
             else (
@@ -614,17 +606,6 @@ def _mc_table_metadata(
         },
         "net_ionization_policy": "derive_from_mc_ionization_and_attachment_rates",
     }
-
-
-def _require_case_mean_energy_strictly_increasing(
-    cases: list[dict[str, Any]],
-) -> None:
-    values = [_repository._required_float(case, "mean_energy_eV") for case in cases]
-    if any(right <= left for left, right in zip(values, values[1:])):
-        raise _contracts.TableBuildError(
-            "qualified MC mean energy must be strictly increasing with E/N; "
-            "points are never repaired by monotonicity postprocessing"
-        )
 
 
 def _derive_net_townsend_from_rates(

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import pandas as pd
+from hashlib import sha256
+from io import StringIO
 
 from .common import (
     ExternalReferenceConfig,
@@ -15,7 +17,12 @@ from .common import (
 def _load_mcig_csv(config: ExternalReferenceConfig) -> list[ReferenceCaseResult]:
     if not config.path.exists():
         raise FileNotFoundError(f"MCIG reference output not found: {config.path}")
-    frame = pd.read_csv(config.path)
+    content = config.path.read_bytes()
+    frame = pd.read_csv(
+        StringIO(content.decode("utf-8-sig")),
+        dtype={"case_id": str},
+        keep_default_na=False,
+    )
     rename = {
         "E_eV": "energy_eV",
         "energy": "energy_eV",
@@ -34,6 +41,8 @@ def _load_mcig_csv(config: ExternalReferenceConfig) -> list[ReferenceCaseResult]
         reference_id="mcig",
         convention=config.eedf_convention,
         metadata={
+            "source_path": str(config.path.resolve()),
+            "source_sha256": sha256(content).hexdigest(),
             "reference_format": "mcig_csv",
             "reference_role": "monte_carlo_reference",
             "uncertainty_unavailable": config.uncertainty == "unavailable",

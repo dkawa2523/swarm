@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
+from electron_swarm.core.physical_context import workflow_physical_context
+
 from dataclasses import dataclass, field
 from hashlib import sha256
 import math
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
-import yaml
 
-from electron_swarm import SwarmConfig, load_config
+from electron_swarm import SwarmConfig
+from .document import read_calculation
+from electron_swarm.core.solver_configs import resolve_monte_carlo_sampling
+from electron_swarm.core.config_sections.common import strict_float
 
-from ..selection import file_sha256, physical_context, read_selection
+from ..selection import file_sha256, read_selection
 from ..quality.monte_carlo.policy import (
     MonteCarloConvergencePolicy,
     MonteCarloPolicyError,
@@ -59,7 +63,8 @@ class MeanEnergySupportConfig:
 @dataclass(frozen=True, slots=True)
 class WorkflowConfig:
     path: Path
-    base_config_path: Path
+    calculation: SwarmConfig
+    calculation_sha256: str
     database_path: Path
     e_over_n_Td: tuple[float, ...]
     mixtures: tuple[MixtureSpec, ...]
@@ -79,17 +84,9 @@ class WorkflowConfig:
     mean_energy_support: MeanEnergySupportConfig | None = None
 
 
-def _read_mapping(path: Path) -> dict[str, Any]:
-    with path.open("r", encoding="utf-8") as fp:
-        data = yaml.safe_load(fp) or {}
-    if not isinstance(data, dict):
-        raise ValueError("workflow YAML root must be a mapping")
-    return data
-
-
 def _resolve_path(value: object, base: Path, field_name: str) -> Path:
-    if not isinstance(value, (str, Path)):
-        raise ValueError(f"{field_name} must be a path")
+    if not isinstance(value, (str, Path)) or not str(value).strip() or "\0" in str(value):
+        raise ValueError(f"{field_name} must be a nonempty path")
     path = Path(value)
     if not path.is_absolute():
         path = base / path
@@ -99,9 +96,11 @@ def _resolve_path(value: object, base: Path, field_name: str) -> Path:
 def _positive_float_sequence(value: object, field_name: str) -> tuple[float, ...]:
     if not isinstance(value, list) or not value:
         raise ValueError(f"{field_name} must be a non-empty list")
-    items = tuple(float(item) for item in value)
+    items = tuple(strict_float(item, field_name) for item in value)
     if any(not math.isfinite(item) or item <= 0.0 for item in items):
         raise ValueError(f"{field_name} values must be finite and positive")
+    if len(set(items)) != len(items):
+        raise ValueError(f"{field_name} values must be unique")
     return items
 
 
@@ -129,7 +128,7 @@ def _parse_deterministic_execution(
     unknown = set(raw) - {"deterministic"}
     if unknown:
         raise ValueError(f"Unsupported workflow execution fields: {sorted(unknown)}")
-    deterministic_raw = raw.get("deterministic", {}) or {}
+    deterministic_raw = raw.get("deterministic", {})
     if not isinstance(deterministic_raw, dict):
         raise ValueError("workflow execution.deterministic must be a mapping")
     deterministic_unknown = set(deterministic_raw) - {
@@ -154,6 +153,10 @@ def _parse_deterministic_execution(
         if raw_budget is not None
         else None
     )
+    if deterministic_raw and not deterministic_enabled:
+        raise ValueError(
+            "execution.deterministic requires an enabled deterministic solver"
+        )
     if deterministic_enabled and workers > 1 and memory_budget is None:
         raise ValueError(
             "workflow execution.deterministic.global_memory_budget_mb is "
@@ -292,9 +295,9 @@ def _parse_mc_sampling_plan(
     allowed = {
         "e_over_n_Td",
         "particles",
-        "warmup_collisions",
-        "max_collisions",
-        "tail_max_collisions",
+        "warmup_trial_periods",
+        "production_trial_periods",
+        "tail_trial_periods",
         "replicas",
         "transport_correlation_lag_barriers",
         "transport_estimator",
@@ -303,12 +306,13 @@ def _parse_mc_sampling_plan(
     anchor_set = set(anchors)
     overrides: dict[float, SamplingPlanEntry] = {}
     mc_defaults = base_config.solvers.monte_carlo
-    default_particles = int(mc_defaults.particles or 256)
-    default_warmup = int(mc_defaults.warmup_collisions or 0)
-    default_production = int(mc_defaults.max_collisions or 100)
+    sampling = resolve_monte_carlo_sampling(mc_defaults)
+    default_particles = sampling.particles
+    default_warmup = sampling.warmup_trial_periods
+    default_production = sampling.production_trial_periods
     default_tail = (
-        int(mc_defaults.tail_max_collisions)
-        if mc_defaults.tail_max_collisions is not None
+        int(mc_defaults.tail_trial_periods)
+        if mc_defaults.tail_trial_periods is not None
         else None
     )
     default_lag = _transport_correlation_lag(
@@ -330,7 +334,9 @@ def _parse_mc_sampling_plan(
         if missing:
             raise ValueError(f"{field_name} is missing required fields: {missing}")
 
-        e_over_n = float(item["e_over_n_Td"])
+        e_over_n = strict_float(
+            item["e_over_n_Td"], "workflow mc.sampling_plan.e_over_n_Td"
+        )
         if not math.isfinite(e_over_n) or e_over_n <= 0.0:
             raise ValueError(f"{field_name}.e_over_n_Td must be finite and positive")
         if e_over_n not in anchor_set:
@@ -341,17 +347,17 @@ def _parse_mc_sampling_plan(
             raise ValueError(
                 f"workflow mc.sampling_plan has duplicate E/N anchor {e_over_n:g} Td"
             )
-        production_collisions = _positive_int(
-            item.get("max_collisions", default_production),
-            f"{field_name}.max_collisions",
+        production_trial_periods = _positive_int(
+            item.get("production_trial_periods", default_production),
+            f"{field_name}.production_trial_periods",
         )
-        raw_tail_collisions = item.get("tail_max_collisions", default_tail)
+        raw_tail_collisions = item.get("tail_trial_periods", default_tail)
         tail_collisions = (
             0
             if raw_tail_collisions is None
             else _positive_int(
                 raw_tail_collisions,
-                f"{field_name}.tail_max_collisions",
+                f"{field_name}.tail_trial_periods",
             )
         )
         overrides[e_over_n] = SamplingPlanEntry(
@@ -360,12 +366,12 @@ def _parse_mc_sampling_plan(
                 item.get("particles", default_particles),
                 f"{field_name}.particles",
             ),
-            warmup_collisions=_nonnegative_int(
-                item.get("warmup_collisions", default_warmup),
-                f"{field_name}.warmup_collisions",
+            warmup_trial_periods=_nonnegative_int(
+                item.get("warmup_trial_periods", default_warmup),
+                f"{field_name}.warmup_trial_periods",
             ),
-            max_collisions=production_collisions,
-            tail_max_collisions=tail_collisions,
+            production_trial_periods=production_trial_periods,
+            tail_trial_periods=tail_collisions,
             replicas=_positive_int(
                 item.get("replicas", default_replicas),
                 f"{field_name}.replicas",
@@ -386,9 +392,9 @@ def _parse_mc_sampling_plan(
             SamplingPlanEntry(
                 e_over_n_Td=e_over_n,
                 particles=default_particles,
-                warmup_collisions=default_warmup,
-                max_collisions=default_production,
-                tail_max_collisions=(default_tail if default_tail is not None else 0),
+                warmup_trial_periods=default_warmup,
+                production_trial_periods=default_production,
+                tail_trial_periods=(default_tail if default_tail is not None else 0),
                 replicas=default_replicas,
                 transport_correlation_lag_barriers=default_lag,
                 transport_estimator=default_transport_estimator,
@@ -398,76 +404,30 @@ def _parse_mc_sampling_plan(
     )
 
 
-def _normalize_mixture(
-    raw: object,
-    *,
-    mixture_id: int,
-    base_species: tuple[str, ...],
-) -> MixtureSpec:
-    if not isinstance(raw, dict) or not raw:
-        raise ValueError("workflow mixtures entries must be non-empty mappings")
-    unknown = sorted(set(str(key) for key in raw) - set(base_species))
-    if unknown:
-        raise ValueError(
-            f"workflow mixture {mixture_id} has unknown species: {unknown}"
-        )
-    values: dict[str, float] = {}
-    for species in base_species:
-        fraction = float(raw.get(species, 0.0))
-        if not math.isfinite(fraction) or fraction < 0.0:
-            raise ValueError(
-                f"workflow mixture {mixture_id} has invalid fraction for {species}"
-            )
-        values[species] = fraction
-    total = sum(values.values())
-    if total <= 0.0:
-        raise ValueError(f"workflow mixture {mixture_id} fractions are all zero")
-    return MixtureSpec(
-        mixture_id=mixture_id,
-        fractions={species: value / total for species, value in values.items()},
-    )
-
-
-def _load_workflow_raw(path: Path) -> tuple[dict[str, Any], Path]:
-    workflow_path = path.resolve()
-    return _read_mapping(workflow_path), workflow_path
-
-
 def load_workflow(path: str | Path) -> WorkflowConfig:
-    raw, workflow_path = _load_workflow_raw(Path(path))
+    document = read_calculation(path)
+    workflow_path = document.path
     base_dir = workflow_path.parent
-    allowed = {
-        "base_config",
-        "database",
-        "e_over_n_Td",
-        "mixtures",
-        "mc",
-        "quality",
-        "execution",
-        "mean_energy_support",
-    }
+    if document.campaign is None:
+        raise ValueError("campaign settings are required for a persisted calculation")
+    raw = document.campaign
+    allowed = {"database", "mc", "quality", "execution", "mean_energy_support"}
     unknown = set(raw) - allowed
     if unknown:
-        raise ValueError(f"Unsupported workflow fields: {sorted(unknown)}")
-
-    base_config_path = _resolve_path(raw.get("base_config"), base_dir, "base_config")
-    base_config = load_config(base_config_path)
-    base_species = tuple(gas.species for gas in base_config.conditions.gas_mixture)
-    if len(set(base_species)) != len(base_species):
-        raise ValueError("base_config gas_mixture species must be unique")
-
-    mixtures_raw = raw.get("mixtures")
-    if not isinstance(mixtures_raw, list) or not mixtures_raw:
-        raise ValueError("workflow mixtures must be a non-empty list")
-    mixtures = tuple(
-        _normalize_mixture(
-            item,
-            mixture_id=index,
-            base_species=base_species,
+        raise ValueError(f"Unsupported campaign fields: {sorted(unknown)}")
+    base_config = document.template
+    if base_config.comparison.enabled:
+        raise NotImplementedError(
+            "campaign comparison output is not implemented; use a direct comparison "
+            "without campaign settings"
         )
-        for index, item in enumerate(mixtures_raw)
+    mixtures = tuple(
+        MixtureSpec(mixture_id=index, fractions=fractions)
+        for index, fractions in enumerate(document.mixtures)
     )
-    e_over_n_Td = _positive_float_sequence(raw.get("e_over_n_Td"), "e_over_n_Td")
+    e_over_n_Td = _positive_float_sequence(
+        base_config.run.e_over_n_Td, "run.e_over_n_Td"
+    )
     deterministic_enabled = any(
         item.enabled and item.id != "monte_carlo" for item in base_config.run.solvers
     )
@@ -485,12 +445,11 @@ def load_workflow(path: str | Path) -> WorkflowConfig:
         enabled_solvers=enabled_solvers,
     )
 
-    mc_raw = raw.get("mc", {}) or {}
+    mc_raw = raw.get("mc", {})
     if not isinstance(mc_raw, dict):
         raise ValueError("workflow mc must be a mapping")
     mc_unknown = set(mc_raw) - {
         "replicas",
-        "base_seed",
         "e_over_n_Td",
         "workers",
         "reuse_database",
@@ -505,21 +464,11 @@ def load_workflow(path: str | Path) -> WorkflowConfig:
     mc_enabled = any(
         item.enabled and item.id == "monte_carlo" for item in base_config.run.solvers
     )
-    raw_base_seed = mc_raw.get("base_seed")
-    if mc_enabled and (
-        "base_seed" not in mc_raw
-        or isinstance(raw_base_seed, bool)
-        or not isinstance(raw_base_seed, int)
-    ):
-        raise ValueError(
-            "workflow mc.base_seed is required and must be an integer "
-            "when monte_carlo is enabled"
-        )
-    if raw_base_seed is not None and (
-        isinstance(raw_base_seed, bool) or not isinstance(raw_base_seed, int)
-    ):
-        raise ValueError("workflow mc.base_seed must be an integer")
-    mc_base_seed = int(raw_base_seed) if raw_base_seed is not None else None
+    if mc_raw and not mc_enabled:
+        raise ValueError("workflow mc settings require an enabled monte_carlo solver")
+    mc_base_seed = base_config.solvers.monte_carlo.seed
+    if mc_enabled and mc_base_seed is None:
+        raise ValueError("solvers.monte_carlo.seed is required and must be a nonnegative integer")
     mc_workers = _positive_int(mc_raw.get("workers", 1), "workflow mc.workers")
     mc_reuse_database = (
         _resolve_path(
@@ -585,13 +534,15 @@ def load_workflow(path: str | Path) -> WorkflowConfig:
             previous = read_selection(previous_decision)
             identity = previous.get("mc_run_identity", {})
             if (
-                identity.get("base_config_sha256") != file_sha256(base_config_path)
+                identity.get("calculation_sha256") != document.calculation_sha256()
                 or identity.get("base_seed") != mc_base_seed
             ):
                 raise MonteCarloPolicyError(
                     "MC config or base seed changed after the previous decision"
                 )
-            if previous.get("physical_context") != physical_context(base_config):
+            if previous.get("physical_context") != workflow_physical_context(
+                base_config
+            ):
                 raise MonteCarloPolicyError(
                     "MC physical context changed after the previous decision"
                 )
@@ -619,7 +570,8 @@ def load_workflow(path: str | Path) -> WorkflowConfig:
 
     return WorkflowConfig(
         path=workflow_path,
-        base_config_path=base_config_path,
+        calculation=document.template,
+        calculation_sha256=document.calculation_sha256(),
         database_path=_resolve_path(raw.get("database"), base_dir, "database"),
         e_over_n_Td=e_over_n_Td,
         mixtures=mixtures,

@@ -19,9 +19,7 @@ DIRECT_MC_TRANSPORT_OBSERVATION_END_FRACTION: float = 0.8
 MC_EEDF_ESTIMATOR_SCHEMA_VERSION: str = (
     "exact_bin_residence_piecewise_linear_rate_integrals.v2"
 )
-MC_MAGNETIC_EEDF_ESTIMATOR_SCHEMA_VERSION: str = (
-    "boris_endpoint_energy_residence.v1"
-)
+MC_MAGNETIC_EEDF_ESTIMATOR_SCHEMA_VERSION: str = "boris_endpoint_energy_residence.v1"
 
 WEIGHTED_MC_TRANSPORT_ESTIMATOR_SCHEMA_VERSION: str = (
     "direct_mc_weighted_growth_configured_lag.v6"

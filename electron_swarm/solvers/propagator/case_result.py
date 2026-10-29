@@ -166,8 +166,7 @@ def _case_diagnostics(
                 1.0e-8,
             ),
             "tail_probability_target": solver_config.tail_probability_target,
-            "edge_to_peak": float(eedf[-1])
-            / max(float(np.max(eedf)), 1.0e-300),
+            "edge_to_peak": float(eedf[-1]) / max(float(np.max(eedf)), 1.0e-300),
             "edge_to_peak_target": max(
                 solver_config.tail_probability_target,
                 1.0e-10,
@@ -176,9 +175,7 @@ def _case_diagnostics(
             "grid_max_limit_eV": solver_config.max_eV_limit,
             "growth_frequency_s_inv": solution.growth_frequency_s_inv,
             "reported_net_ionization_frequency_s_inv": net_frequency,
-            "discrete_population_growth_frequency_s_inv": (
-                discrete_growth_frequency
-            ),
+            "discrete_population_growth_frequency_s_inv": (discrete_growth_frequency),
             "growth_number_balance_relative_difference": abs(
                 solution.growth_frequency_s_inv - discrete_growth_frequency
             )
@@ -195,16 +192,12 @@ def _case_diagnostics(
                 "status": "available",
                 "symbol": "K_epsilon_el",
                 "rate_coefficient_eV_m3_s": elastic_loss,
-                "estimator": (
-                    "same_discrete_finite_temperature_elastic_sg_operator"
-                ),
+                "estimator": ("same_discrete_finite_temperature_elastic_sg_operator"),
                 "operator": (
                     "finite_volume_scharfetter_gummel_elastic_energy_generator"
                 ),
                 "source_eedf": "same_solved_energy_angle_distribution",
-                "neutral_thermal_motion_model": (
-                    "finite_temperature_fokker_planck"
-                ),
+                "neutral_thermal_motion_model": ("finite_temperature_fokker_planck"),
                 "gas_temperature_terms_included": True,
                 "gas_temperature_K": float(config.conditions.gas_temperature_K),
                 "sign_convention": "positive_is_net_electron_energy_loss",
@@ -220,8 +213,7 @@ def _algorithm_metadata(config: SwarmConfig) -> dict[str, object]:
     return {
         "acceleration_scheme": "stationary_collision_coupled_shell_response",
         "steady_algorithm": (
-            "positive_perron_cone_certified_safeguarded_"
-            "secant_brent_number_balance"
+            "positive_perron_cone_certified_safeguarded_secant_brent_number_balance"
         ),
         "perron_branch_selection": (
             "staged_largest_real_cone_certificate_with_multiritz_fallback"
@@ -232,8 +224,7 @@ def _algorithm_metadata(config: SwarmConfig) -> dict[str, object]:
             else "maxent_p1_reversible_cell_joint_exact_p1"
         ),
         "elastic_recoil_model": (
-            "momentum_transfer_driven_finite_temperature_"
-            "first_mass_ratio_reversible_sg"
+            "momentum_transfer_driven_finite_temperature_first_mass_ratio_reversible_sg"
         ),
         "elastic_frequency_model": "separate_cell_integrated_total_and_momentum",
         "elastic_equilibrium_measure": "cell_integrated_maxwell_energy_mass",
@@ -250,18 +241,14 @@ def _algorithm_metadata(config: SwarmConfig) -> dict[str, object]:
             "coefficient_richardson_limit": SHELL_COEFFICIENT_ERROR_TOLERANCE,
             "maximum_coefficient_segments": SHELL_MAX_COEFFICIENT_SEGMENTS,
         },
-        "outer_energy_boundary": (
-            "zero_incoming_with_measured_characteristic_escape"
-        ),
+        "outer_energy_boundary": ("zero_incoming_with_measured_characteristic_escape"),
         "energy_domain_strategy": (
             "one_shot_core_plus_stretched_tail_to_configured_ceiling"
         ),
         "energy_core_coordinate": "sinh_stretched_speed",
         "energy_core_coordinate_strength": 2.5,
         "response_shift_policy": "minimum_nonnegative_local_outflow_shift",
-        "reaction_rate_estimator": (
-            "xs_knot_threshold_partitioned_cell_quadrature"
-        ),
+        "reaction_rate_estimator": ("xs_knot_threshold_partitioned_cell_quadrature"),
         "inelastic_energy_transfer": (
             "positive_weak_projection_with_incident_and_daughter_energy_identity"
         ),
@@ -285,13 +272,10 @@ def _case_metadata(
             "xs_knot_threshold_partitioned_positive_weak_projection"
         ),
         "elastic_recoil_model": (
-            "momentum_transfer_driven_finite_temperature_"
-            "first_mass_ratio_reversible_sg"
+            "momentum_transfer_driven_finite_temperature_first_mass_ratio_reversible_sg"
         ),
         "neutral_thermal_motion_model": "finite_temperature_fokker_planck",
-        "elastic_collision_xs_role": ";".join(
-            operator.collisions.elastic_xs_roles
-        ),
+        "elastic_collision_xs_role": ";".join(operator.collisions.elastic_xs_roles),
         "elastic_total_xs_process_ids": ";".join(
             operator.collisions.elastic_total_process_ids
         ),

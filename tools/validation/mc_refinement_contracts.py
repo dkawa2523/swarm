@@ -20,7 +20,7 @@ MAX_REPRESENTATIONAL_MOMENT_CHANGE_EV = 1.0e-12
 MAX_AGGREGATE_RECONSTRUCTION_TV = 1.0e-12
 MAX_AGGREGATE_MEAN_RELATIVE_ERROR = 1.0e-12
 REFINEMENT_CONTEXT_METADATA = (
-    "base_config_sha256",
+    "calculation_sha256",
     "cross_section_files_json",
     "cross_sections_sha256",
     "mc_base_seed",

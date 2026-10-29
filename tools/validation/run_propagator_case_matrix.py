@@ -27,7 +27,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
-from electron_swarm.core.config_parser import load_config  # noqa: E402
+from swarm_workflow.campaign.document import load_case_template, calculation_sha256  # noqa: E402
 from electron_swarm.runner import run  # noqa: E402
 from electron_swarm.solvers.propagator.steady import (  # noqa: E402
     PropagatorConvergenceError,
@@ -64,13 +64,13 @@ def _json_value(value: Any) -> Any:
 
 
 def _run_one(
-    base_config_path: str,
+    calculation_path: str,
     mixture_id: int,
     fractions: dict[str, float],
     field_td: float,
 ) -> dict[str, Any]:
     started = time.perf_counter()
-    base = load_config(base_config_path)
+    base = load_case_template(calculation_path)
     mixture = MixtureSpec(mixture_id=mixture_id, fractions=fractions)
     config = _clone_config(
         base,
@@ -122,7 +122,7 @@ def main() -> None:
     workflow = load_workflow(workflow_path)
     jobs = [
         (
-            str(workflow.base_config_path),
+            str(workflow.path),
             mixture.mixture_id,
             dict(mixture.fractions),
             float(field),
@@ -146,8 +146,8 @@ def main() -> None:
         "schema": SCHEMA,
         "workflow": str(workflow_path),
         "workflow_sha256": _sha256(workflow_path),
-        "base_config": str(workflow.base_config_path),
-        "base_config_sha256": _sha256(workflow.base_config_path),
+        "calculation": str(workflow.path),
+        "calculation_sha256": calculation_sha256(workflow.path),
         "workers": args.workers,
         "passed": sum(item["status"] == "passed" for item in results),
         "failed": sum(item["status"] == "failed" for item in results),

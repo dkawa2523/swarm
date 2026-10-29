@@ -6,11 +6,9 @@ import json
 from pathlib import Path
 import pytest
 
-from electron_swarm import load_config
-from electron_swarm.solvers.monte_carlo.source_identity import (
-    monte_carlo_source_sha256,
-)
-from swarm_workflow.selection import physical_context
+from swarm_workflow.campaign.document import load_case_template
+from electron_swarm.core.source_identity import solver_source_fingerprint
+from electron_swarm.core.physical_context import workflow_physical_context
 
 from swarm_workflow.cli import main as workflow_cli_main
 from swarm_workflow.quality.monte_carlo.policy import (
@@ -47,9 +45,9 @@ def _tables(
         {
             "e_over_n_Td": anchor,
             "particles": 128,
-            "warmup_collisions": 16,
-            "max_collisions": 32,
-            "tail_max_collisions": 32,
+            "warmup_trial_periods": 16,
+            "production_trial_periods": 32,
+            "tail_trial_periods": 32,
             "replicas": 4,
             "transport_correlation_lag_barriers": 4,
             "transport_estimator": "single_field",
@@ -104,9 +102,9 @@ def _tables(
             for anchor in fallback_anchors
         ],
     )
-    context = physical_context(
-        load_config(
-            Path(__file__).resolve().parents[1] / "examples/argon_gec_ccp_base.yaml"
+    context = workflow_physical_context(
+        load_case_template(
+            Path(__file__).resolve().parents[1] / "examples/workflow_argon_gec_ccp_two_term.yaml"
         )
     )
     for directory in (mc, two_term):
@@ -120,12 +118,12 @@ def _tables(
                     "species": [{"species": "Ar", "fraction": 1.0, "mass_amu": 39.948}],
                 },
                 "hashes": {
-                    "base_config_sha256": "a" * 64,
+                    "calculation_sha256": "a" * 64,
                     "cross_sections_sha256": "b" * 64,
                     "mc_transport_estimator_schema_version": "test_estimator.v1",
                     "mc_eedf_estimator_schema_version": "test_eedf.v1",
                     **(
-                        {"mc_solver_source_sha256": (monte_carlo_source_sha256())}
+                        {"mc_solver_source_sha256": (solver_source_fingerprint("monte_carlo")["sha256"])}
                         if directory == mc
                         else {}
                     ),
@@ -217,8 +215,8 @@ def test_stationarity_failure_extends_time_once_without_adding_replicas(
     assert decision["selected_solver"] is None
     assert updated["particles"] == current["particles"]
     assert updated["replicas"] == current["replicas"] == 4
-    assert updated["warmup_collisions"] == 4 * current["warmup_collisions"]
-    assert updated["max_collisions"] == 4 * current["max_collisions"]
+    assert updated["warmup_trial_periods"] == 4 * current["warmup_trial_periods"]
+    assert updated["production_trial_periods"] == 4 * current["production_trial_periods"]
     assert decision["next_sampling_plan"][1] == decision["current_sampling_plan"][1]
     assert decision["reuse_previous_mc_database"] is True
 
@@ -262,7 +260,7 @@ def test_precision_only_failure_adds_four_replicas_and_reuses_cases(
     assert decision["action"] == "add_replicas"
     assert decision["reuse_previous_mc_database"] is True
     assert decision["next_sampling_plan"][0]["replicas"] == 8
-    assert decision["next_sampling_plan"][0]["max_collisions"] == 32
+    assert decision["next_sampling_plan"][0]["production_trial_periods"] == 32
 
 
 def test_lineage_failure_increases_only_the_failed_anchor_population(
@@ -294,9 +292,9 @@ def test_censored_rate_failure_extends_only_the_tail_budget(tmp_path: Path) -> N
     assert decision["action"] == "extend_tail"
     current = decision["current_sampling_plan"][0]
     updated = decision["next_sampling_plan"][0]
-    assert updated["tail_max_collisions"] == 4 * current["tail_max_collisions"]
-    assert updated["warmup_collisions"] == current["warmup_collisions"]
-    assert updated["max_collisions"] == current["max_collisions"]
+    assert updated["tail_trial_periods"] == 4 * current["tail_trial_periods"]
+    assert updated["warmup_trial_periods"] == current["warmup_trial_periods"]
+    assert updated["production_trial_periods"] == current["production_trial_periods"]
 
 
 def test_decision_routes_from_typed_axis_not_failure_text(tmp_path: Path) -> None:

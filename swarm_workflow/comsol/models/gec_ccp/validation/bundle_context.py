@@ -17,7 +17,7 @@ from ..contracts import GecCcpMapping
 
 GEC_PROVENANCE_HASH_KEYS = (
     "workflow_config_sha256",
-    "base_config_sha256",
+    "calculation_sha256",
     "cross_sections_sha256",
 )
 GEC_OPTIONAL_PROVENANCE_HASH_KEYS = (

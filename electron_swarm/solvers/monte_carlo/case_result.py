@@ -133,9 +133,9 @@ def _finalize_case_statistics(
         "case_seed_derivation": _mc_evidence.MC_CASE_SEED_DERIVATION,
         "solver_source_sha256": setup.solver_source_sha256,
         "particles": int(setup.particles),
-        "warmup_collisions": int(setup.warmup_collisions),
-        "production_collisions": int(setup.collisions),
-        "tail_max_collisions": int(setup.tail_collisions),
+        "warmup_trial_periods": int(setup.warmup_trial_periods),
+        "production_trial_periods": int(setup.collisions),
+        "tail_trial_periods": int(setup.tail_collisions),
         "tail_rate_rse_trigger": float(setup.cfg.tail_rate_rse_trigger),
         "tail_collisions_executed": (
             int(setup.tail_collisions) if state.tail_sampling_used else 0
@@ -157,9 +157,7 @@ def _finalize_case_statistics(
         ),
         "numeric_kernel_fallback_reason": setup.compiled_fallback_reason,
         "transport_estimator": setup.cfg.transport_estimator,
-        "eedf_estimator_schema_version": (
-            _eedf_estimator_schema(setup)
-        ),
+        "eedf_estimator_schema_version": (_eedf_estimator_schema(setup)),
         "transport_field_legs": (
             2 if setup.cfg.transport_estimator == "paired_field_parity" else 1
         ),
@@ -264,7 +262,7 @@ def _assemble_case_evidence(
         "mc_particles": int(setup.particles),
         "mc_population_model": setup.population_model,
         "mc_collision_clock": "global",
-        "mc_tail_max_collisions": int(setup.tail_collisions),
+        "mc_tail_trial_periods": int(setup.tail_collisions),
         "mc_tail_rate_rse_trigger": float(setup.cfg.tail_rate_rse_trigger),
         "mc_tail_collisions_executed": (
             int(setup.tail_collisions) if state.tail_sampling_used else 0
@@ -304,15 +302,15 @@ def _assemble_case_evidence(
         "gas_temperature_K": float(setup.config.conditions.gas_temperature_K),
         "inelastic_target_motion_model": "stationary_target_lab_energy",
         "ionization_source_model": setup.config.physics.ionization.energy_sharing,
-        "ionization_source_treatment": (setup.config.physics.ionization.energy_sharing),
+        "ionization_source_treatment": _result_evidence._ionization_source_treatment(
+            setup.config
+        ),
         "eedf_estimator": (
             f"pooled_main_and_tail_time_residence_{residence_integration}"
             if state.tail_sampling_used
             else f"time_residence_{residence_integration}"
         ),
-        "eedf_estimator_schema_version": (
-            _eedf_estimator_schema(setup)
-        ),
+        "eedf_estimator_schema_version": (_eedf_estimator_schema(setup)),
         "tail_sampling_model": (
             "reaction_kernel_weighted_ensemble"
             if state.tail_sampling_used
@@ -367,7 +365,7 @@ def _assemble_case_evidence(
             else "none"
         ),
         "resampling_interval_barriers": setup.tail_resample_interval,
-        "configured_max_collisions": int(setup.tail_collisions),
+        "configured_production_trial_periods": int(setup.tail_collisions),
         "executed_collisions": (
             int(setup.tail_collisions) if state.tail_sampling_used else 0
         ),
@@ -503,7 +501,9 @@ def _assemble_swarm_case_result(
         "magnetic_field_B_T": setup.effective_B_T,
         "magnetic_field_angle_EB_deg": float(setup.magnetic.angle_EB_deg),
         "ionization_source_model": setup.config.physics.ionization.energy_sharing,
-        "ionization_source_treatment": setup.config.physics.ionization.energy_sharing,
+        "ionization_source_treatment": _result_evidence._ionization_source_treatment(
+            setup.config
+        ),
         "tail_refinement_treatment": _tail_refinement_treatment(setup, state),
         "monte_carlo_base_seed": int(setup.cfg.seed),
         "monte_carlo_case_seed": int(state.case_seed),

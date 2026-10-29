@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from io import StringIO
 from pathlib import Path
+from hashlib import sha256
 
 import pandas as pd
 
@@ -20,7 +21,8 @@ def _load_bolsig_text(path: Path, *, convention: str) -> list[ReferenceCaseResul
         raise FileNotFoundError(f"BOLSIG+ reference output not found: {path}")
     metadata: dict[str, str] = {}
     table_lines: list[str] = []
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
+    content = path.read_bytes()
+    for raw_line in content.decode("utf-8-sig").splitlines():
         line = raw_line.strip()
         if not line:
             continue
@@ -52,6 +54,8 @@ def _load_bolsig_text(path: Path, *, convention: str) -> list[ReferenceCaseResul
         reference_id="bolsig_plus",
         convention=convention,
         metadata={
+            "source_path": str(path.resolve()),
+            "source_sha256": sha256(content).hexdigest(),
             "reference_format": "bolsig_text",
             "reference_role": "two_term_reference",
             "angular_model": "unknown",

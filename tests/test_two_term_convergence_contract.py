@@ -60,6 +60,42 @@ def test_stationary_two_term_refuses_last_unconverged_iterate(
         solver.solve_case(10.0, "case")
 
 
+def test_capped_pure_elastic_distribution_has_exact_zero_creation_and_converges(tmp_path) -> None:
+    path = tmp_path / "elastic.csv"
+    path.write_text(
+        "species,process,type,threshold_eV,mass_amu,energy_eV,cross_section_m2\n"
+        + "".join(
+            f"Ar,momentum,momentum,0,39.948,{energy},1e-20\n"
+            for energy in [0.0, 1.0, 10.0, 100.0, 1000.0]
+        ),
+        encoding="utf-8",
+    )
+    data = base_product_config(tmp_path)
+    data["cross_sections"]["files"] = [{"path": path.as_posix(), "format": "csv"}]
+    solver = _solver(tmp_path, data)
+    native = solver.solve_native_distribution(50.0)
+
+    assert native.diagnostics.converged is True
+    assert native.edges_eV[-1] == 1000.0
+    assert native.diagnostics.growth_frequency_s == 0.0
+    assert np.all(native.operator_block.net_creation_frequency_s_inv == 0.0)
+    assert native.diagnostics.residual <= native.diagnostics.residual_effective_tolerance
+    assert native.diagnostics.residual_requested_tolerance == (
+        solver.solver_config.convergence.residual_tolerance
+    )
+
+
+
+def test_low_field_ionization_tail_converges_without_relaxing_tolerances(tmp_path) -> None:
+    solver = _solver(tmp_path, base_product_config(tmp_path, ["two_term"]))
+    native = solver.solve_native_distribution(10.0)
+    assert native.diagnostics.converged
+    assert native.diagnostics.iterations < solver.solver_config.convergence.max_iterations
+    assert native.diagnostics.residual <= native.diagnostics.residual_effective_tolerance
+    assert native.diagnostics.growth_frequency_s == pytest.approx(0.25592, rel=1e-4)
+    assert np.dot(native.eedf_eV_inv, native.widths_eV) == pytest.approx(1.0)
+
+
 def test_periodic_two_term_refuses_unconverged_cycle(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,

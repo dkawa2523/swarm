@@ -24,7 +24,7 @@ py -3 -c "from electron_swarm.runner import run_from_config; r=run_from_config(r
 For a deterministic workflow:
 
 ~~~powershell
-py -3 -m swarm_workflow.cli sweep <workflow.yaml>
+py -3 -m swarm_workflow.cli run <workflow.yaml>
 ~~~
 
 Reuse a compatible workflow database to resume missing cases. Do not delete it, change provenance, or start a duplicate process. A changed method, `lmax`, angular table, cross section, physics request, mixture, or E/N grid needs a distinct run/database.

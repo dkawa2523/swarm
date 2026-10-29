@@ -238,9 +238,9 @@ def _sample_weighted_branching_collision(
             event_energy_loss_eV = float(daughters.threshold_loss_eV)
             audit.record_reaction(outcome, weight)
             energies = daughters.energies_eV
-            ensemble.velocities[particle] = random_direction(rng) * speed_from_energy_m_s(
-                max(energies[0], 1.0e-4)
-            )
+            ensemble.velocities[particle] = random_direction(
+                rng
+            ) * speed_from_energy_m_s(max(energies[0], 1.0e-4))
             if len(energies) > 1:
                 ensemble.append_particle(
                     position=ensemble.positions[particle].copy(),
@@ -266,9 +266,9 @@ def _sample_weighted_branching_collision(
                 outcome.inelastic_energy_loss_eV + outcome.ionization_threshold_loss_eV
             )
             audit.record_reaction(outcome, weight)
-            ensemble.velocities[particle] = random_direction(rng) * speed_from_energy_m_s(
-                outcome.tracked_energy_eV
-            )
+            ensemble.velocities[particle] = random_direction(
+                rng
+            ) * speed_from_energy_m_s(outcome.tracked_energy_eV)
 
     if sampling_enabled:
         if event_energy_loss_eV is None or reaction_rate_block_index is None:

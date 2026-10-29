@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isclose, isfinite
+from .observables import transport_observables
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,10 +20,30 @@ class ElectronTransport:
     reduced_electron_energy_diffusion_L_m2_s_m3: float | None = None
     reduced_electron_energy_diffusion_T_m2_s_m3: float | None = None
 
+    @property
+    def observable_definitions(self):
+        return {
+            name: definition
+            for name, definition in transport_observables(self.definition).items()
+            if getattr(self, name) is not None
+        }
+
     def __post_init__(self) -> None:
+        if not isfinite(self.gas_number_density_m3) or self.gas_number_density_m3 <= 0:
+            raise ValueError("transport gas number density must be finite and positive")
         scalar = self.reduced_electron_energy_diffusion_m2_s_m3
         if scalar is None:
             return
+        for component in (
+            self.reduced_electron_energy_diffusion_L_m2_s_m3,
+            self.reduced_electron_energy_diffusion_T_m2_s_m3,
+        ):
+            if component is not None and not isclose(
+                component, scalar, rel_tol=1e-12, abs_tol=0.0
+            ):
+                raise ValueError(
+                    "scalar electron-energy diffusion contradicts its tensor components"
+                )
         if self.reduced_electron_energy_diffusion_L_m2_s_m3 is None:
             object.__setattr__(
                 self,
@@ -57,14 +79,10 @@ class ElectronTransport:
             drift_velocity_m_s=float(drift_velocity_m_s),
             reduced_mobility_m2_V_s_m3=float(mobility_m2_V_s) * density,
             reduced_diffusion_L_m2_s_m3=(
-                None
-                if diffusion_L_m2_s is None
-                else float(diffusion_L_m2_s) * density
+                None if diffusion_L_m2_s is None else float(diffusion_L_m2_s) * density
             ),
             reduced_diffusion_T_m2_s_m3=(
-                None
-                if diffusion_T_m2_s is None
-                else float(diffusion_T_m2_s) * density
+                None if diffusion_T_m2_s is None else float(diffusion_T_m2_s) * density
             ),
             reduced_electron_energy_mobility_m2_V_s_m3=(
                 None
@@ -125,8 +143,7 @@ class ElectronTransport:
         if self.reduced_electron_energy_mobility_m2_V_s_m3 is None:
             return None
         return (
-            self.reduced_electron_energy_mobility_m2_V_s_m3
-            / self.gas_number_density_m3
+            self.reduced_electron_energy_mobility_m2_V_s_m3 / self.gas_number_density_m3
         )
 
     @property
@@ -134,8 +151,7 @@ class ElectronTransport:
         if self.reduced_electron_energy_diffusion_m2_s_m3 is None:
             return None
         return (
-            self.reduced_electron_energy_diffusion_m2_s_m3
-            / self.gas_number_density_m3
+            self.reduced_electron_energy_diffusion_m2_s_m3 / self.gas_number_density_m3
         )
 
     @property

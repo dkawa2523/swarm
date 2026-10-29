@@ -29,10 +29,7 @@ def parse_conditions(raw: dict[str, Any]) -> ConditionsConfig:
             "gas_temperature_K",
             "pressure_Pa",
             "gas_number_density_m3",
-            "length_scale_m",
             "gas_mixture",
-            "species",
-            "mass_amu",
         },
         "conditions",
     )
@@ -51,39 +48,28 @@ def parse_conditions(raw: dict[str, Any]) -> ConditionsConfig:
         )
         if "species" not in item:
             raise ValueError(f"conditions.gas_mixture[{index}].species is required")
+        if "mass_amu" not in item:
+            raise ValueError(
+                f"conditions.gas_mixture[{index}].mass_amu is required; gas masses are never inferred from an argon default"
+            )
 
-    if "gas_mixture" not in cond_raw:
-        gas_mixture = [
-            GasComponent(
-                species=string_value(
-                    cond_raw.get("species", "Ar"),
-                    "conditions.species",
-                ),
-                fraction=1.0,
-                mass_amu=strict_float(
-                    cond_raw.get("mass_amu", 39.948),
-                    "conditions.mass_amu",
-                ),
-            )
-        ]
-    else:
-        gas_mixture = [
-            GasComponent(
-                species=string_value(
-                    item["species"],
-                    f"conditions.gas_mixture[{index}].species",
-                ),
-                fraction=strict_float(
-                    item.get("fraction", 1.0),
-                    f"conditions.gas_mixture[{index}].fraction",
-                ),
-                mass_amu=strict_float(
-                    item.get("mass_amu", 39.948),
-                    f"conditions.gas_mixture[{index}].mass_amu",
-                ),
-            )
-            for index, item in enumerate(gas_mixture_raw)
-        ]
+    gas_mixture = [
+        GasComponent(
+            species=string_value(
+                item["species"],
+                f"conditions.gas_mixture[{index}].species",
+            ),
+            fraction=strict_float(
+                item.get("fraction", 1.0),
+                f"conditions.gas_mixture[{index}].fraction",
+            ),
+            mass_amu=strict_float(
+                item["mass_amu"],
+                f"conditions.gas_mixture[{index}].mass_amu",
+            ),
+        )
+        for index, item in enumerate(gas_mixture_raw)
+    ]
 
     return ConditionsConfig(
         gas_temperature_K=strict_float(
@@ -101,11 +87,6 @@ def parse_conditions(raw: dict[str, Any]) -> ConditionsConfig:
                 "conditions.gas_number_density_m3",
             )
             if cond_raw.get("gas_number_density_m3") is not None
-            else None
-        ),
-        length_scale_m=(
-            strict_float(cond_raw["length_scale_m"], "conditions.length_scale_m")
-            if cond_raw.get("length_scale_m") is not None
             else None
         ),
         gas_mixture=gas_mixture,

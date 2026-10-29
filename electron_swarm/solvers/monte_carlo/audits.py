@@ -159,8 +159,8 @@ class _MonteCarloRunAudit:
     seed: int | None
     particles: int
     population_model: str
-    warmup_collisions: int
-    production_collisions: int
+    warmup_trial_periods: int
+    production_trial_periods: int
     trial_collision_frequency_s_inv: float
     max_cross_section_energy_eV: float
     tail_threshold_eV: float
@@ -261,8 +261,8 @@ class _MonteCarloRunAudit:
             "mc_seed": self.seed,
             "mc_particles": int(self.particles),
             "mc_population_model": self.population_model,
-            "mc_warmup_collisions": int(self.warmup_collisions),
-            "mc_production_collisions": int(self.production_collisions),
+            "mc_warmup_trial_periods": int(self.warmup_trial_periods),
+            "mc_production_trial_periods": int(self.production_trial_periods),
             "mc_trial_collision_frequency_s_inv": float(
                 self.trial_collision_frequency_s_inv
             ),

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Literal, Protocol
 
 import numpy as np
+from scipy.special import ive
 
 AngularModelName = Literal["isotropic", "momentum_power", "maxent_p1", "moment_table"]
 HigherMomentClosure = Literal["zero", "power", "maxent", "table"]
@@ -22,8 +23,7 @@ ANGULAR_METADATA_KEYS = (
 class AngularMomentProvider(Protocol):
     name: str
 
-    def metadata(self) -> dict[str, object]:
-        ...
+    def metadata(self) -> dict[str, object]: ...
 
     def moments(
         self,
@@ -32,8 +32,7 @@ class AngularMomentProvider(Protocol):
         *,
         sigma_total: np.ndarray | float | None = None,
         sigma_momentum: np.ndarray | float | None = None,
-    ) -> np.ndarray:
-        ...
+    ) -> np.ndarray: ...
 
     def sample_mu(
         self,
@@ -43,8 +42,7 @@ class AngularMomentProvider(Protocol):
         *,
         sigma_total: np.ndarray | float | None = None,
         sigma_momentum: np.ndarray | float | None = None,
-    ) -> np.ndarray | float:
-        ...
+    ) -> np.ndarray | float: ...
 
 
 def _energy_vector(energy_eV: np.ndarray | float) -> np.ndarray:
@@ -113,22 +111,11 @@ def _m1_from_cross_sections(
 
 
 def _finalize_moments(out: np.ndarray) -> np.ndarray:
-    out = np.nan_to_num(out, nan=0.0, posinf=1.0, neginf=-1.0)
+    if not np.all(np.isfinite(out)):
+        raise FloatingPointError("angular closure produced non-finite moments")
     out = np.clip(out, -1.0, 1.0)
     out[0, :] = 1.0
     return out
-
-
-def _legendre_values(lmax: int, mu: np.ndarray) -> np.ndarray:
-    values = np.zeros((lmax + 1, mu.size), dtype=float)
-    values[0, :] = 1.0
-    if lmax >= 1:
-        values[1, :] = mu
-    for ell in range(1, lmax):
-        values[ell + 1, :] = (
-            (2 * ell + 1) * mu * values[ell, :] - ell * values[ell - 1, :]
-        ) / (ell + 1)
-    return values
 
 
 def _langevin(kappa: float) -> float:
@@ -141,7 +128,8 @@ def _langevin(kappa: float) -> float:
 
 
 def _inverse_langevin(target: float) -> float:
-    target = float(np.clip(target, -0.999999, 0.999999))
+    limit = np.nextafter(1.0, 0.0)
+    target = float(np.clip(target, -limit, limit))
     if abs(target) < 1.0e-10:
         return 0.0
     sign = 1.0 if target > 0.0 else -1.0
@@ -258,7 +246,6 @@ class MomentumPowerAngularModel:
 
 @dataclass(frozen=True, slots=True)
 class MaxEntP1AngularModel:
-    quadrature_order: int = 64
     name: str = "maxent_p1"
 
     def metadata(self) -> dict[str, object]:
@@ -280,20 +267,31 @@ class MaxEntP1AngularModel:
         if lmax == 0:
             return out
 
-        mu, weights = np.polynomial.legendre.leggauss(self.quadrature_order)
-        legendre = _legendre_values(lmax, mu)
-        targets = np.clip(m1, -0.999999, 0.999999)
-        for index, target in enumerate(targets):
+        for index, target in enumerate(m1):
             if abs(target) < 1.0e-10:
                 continue
+            if abs(target) == 1.0:
+                out[:, index] = target ** np.arange(lmax + 1)
+                continue
             kappa = _inverse_langevin(float(target))
-            exponent = kappa * mu
-            exponent -= float(np.max(exponent))
-            weighted = weights * np.exp(exponent)
-            norm = float(np.sum(weighted))
-            if norm <= 0.0 or not np.isfinite(norm):
-                raise ValueError("maxent_p1 quadrature produced invalid norm")
-            out[:, index] = (legendre @ weighted) / norm
+            # Scaled modified Bessel functions integrate the maxent law even
+            # when its forward peak is much narrower than a fixed quadrature.
+            orders = np.arange(lmax + 1)
+            magnitude = abs(kappa)
+            if magnitude > 1e6:
+                ratios = (
+                    1.0
+                    - orders * (orders + 1) / (2.0 * magnitude)
+                    + (orders - 1)
+                    * orders
+                    * (orders + 1)
+                    * (orders + 2)
+                    / (8.0 * magnitude**2)
+                )
+            else:
+                ratios = ive(orders + 0.5, magnitude) / ive(0.5, magnitude)
+            out[:, index] = ratios * np.sign(kappa) ** orders
+        out[1] = m1
         return _finalize_moments(out)
 
     def sample_mu(
@@ -330,12 +328,55 @@ def _moment_column_index(name: str) -> int | None:
     return int(suffix)
 
 
+def validate_angular_moments(moments: np.ndarray) -> None:
+    """Require a nonnegative measure on [-1, 1] for each moment column.
+
+    The truncated Hausdorff conditions use power-moment Hankel matrices.
+    They include the familiar variance bound but also constrain every higher
+    supplied moment. Convex interpolation then preserves realizability.
+    """
+
+    values = np.asarray(moments, dtype=float)
+    if values.ndim != 2 or not np.all(np.isfinite(values)):
+        raise ValueError("angular moments must be a finite 2-D array")
+    if not np.allclose(values[0], 1.0, rtol=1e-10, atol=1e-10):
+        raise ValueError("angular moments require m0=1")
+    degree = len(values) - 1
+    if degree == 0:
+        return
+    powers = np.empty_like(values)
+    for order in range(degree + 1):
+        polynomial = np.zeros(order + 1)
+        polynomial[-1] = 1.0
+        powers[order] = (
+            np.polynomial.legendre.poly2leg(polynomial) @ values[: order + 1]
+        )
+    n = degree // 2
+    if degree % 2:
+        indices = np.add.outer(np.arange(n + 1), np.arange(n + 1))
+        matrices = (
+            powers[indices] + powers[indices + 1],
+            powers[indices] - powers[indices + 1],
+        )
+    else:
+        indices = np.add.outer(np.arange(n + 1), np.arange(n + 1))
+        inner = np.add.outer(np.arange(n), np.arange(n))
+        matrices = (powers[indices], powers[inner] - powers[inner + 2])
+    for matrix in matrices:
+        eigenvalues = np.linalg.eigvalsh(np.moveaxis(matrix, -1, 0))
+        if np.any(eigenvalues < -1e-10):
+            raise ValueError("angular moment table is not realizable on [-1, 1]")
+
+
 def _load_moment_table(path: Path) -> tuple[np.ndarray, np.ndarray]:
     with path.open("r", encoding="utf-8", newline="") as fp:
         reader = csv.DictReader(fp)
         if reader.fieldnames is None:
             raise ValueError("moment_table CSV must have a header row")
         fieldnames = [name.strip() for name in reader.fieldnames]
+        if len(set(fieldnames)) != len(fieldnames):
+            raise ValueError("moment_table CSV columns must be unique")
+        reader.fieldnames = fieldnames
         if "energy_eV" not in fieldnames:
             raise ValueError("moment_table CSV requires energy_eV column")
         moment_indices = {
@@ -347,12 +388,16 @@ def _load_moment_table(path: Path) -> tuple[np.ndarray, np.ndarray]:
             raise ValueError("moment_table CSV requires m0 column")
         expected = set(range(max(moment_indices) + 1))
         if set(moment_indices) != expected:
-            raise ValueError("moment_table CSV moment columns must be contiguous from m0")
+            raise ValueError(
+                "moment_table CSV moment columns must be contiguous from m0"
+            )
         energies: list[float] = []
         rows: list[list[float]] = []
         for row in reader:
             energies.append(float(row["energy_eV"]))
-            rows.append([float(row[moment_indices[ell]]) for ell in sorted(moment_indices)])
+            rows.append(
+                [float(row[moment_indices[ell]]) for ell in sorted(moment_indices)]
+            )
     if not energies:
         raise ValueError("moment_table CSV must contain at least one row")
     energy = np.asarray(energies, dtype=float)
@@ -370,6 +415,7 @@ def _load_moment_table(path: Path) -> tuple[np.ndarray, np.ndarray]:
     if np.any((moments[1:] < -1.0) | (moments[1:] > 1.0)):
         raise ValueError("moment_table moments must be in [-1, 1]")
     moments[0, :] = 1.0
+    validate_angular_moments(moments)
     return energy, moments
 
 
@@ -402,12 +448,16 @@ class MomentTableAngularModel:
         energy = _energy_vector(energy_eV)
         table_energy, table_moments = _load_moment_table(self.path)
         if lmax >= table_moments.shape[0]:
-            raise ValueError("moment_table does not contain enough moment columns for lmax")
+            raise ValueError(
+                "moment_table does not contain enough moment columns for lmax"
+            )
         if energy.size and (
-            energy[0] < table_energy[0] - 1.0e-12
-            or energy[-1] > table_energy[-1] + 1.0e-12
+            np.min(energy) < table_energy[0] - 1.0e-12
+            or np.max(energy) > table_energy[-1] + 1.0e-12
         ):
-            raise ValueError("moment_table energy range does not cover solver energy grid")
+            raise ValueError(
+                "moment_table energy range does not cover solver energy grid"
+            )
         out = _base_moments(energy, lmax)
         for ell in range(1, lmax + 1):
             out[ell] = np.interp(energy, table_energy, table_moments[ell])
@@ -456,7 +506,9 @@ def build_angular_model(
             raise ValueError("moment_table angular scattering requires table closure")
         table = getattr(angular, "moment_table", None)
         if table is None:
-            raise ValueError("moment_table angular scattering requires moment_table config")
+            raise ValueError(
+                "moment_table angular scattering requires moment_table config"
+            )
         return MomentTableAngularModel(
             path=Path(table.path),
             provenance=table.provenance,
@@ -475,9 +527,7 @@ def expected_angular_metadata(config: object) -> dict[str, object]:
     metadata.update(
         {
             "moment_table_provenance": (
-                str(table.provenance)
-                if is_moment_table and table is not None
-                else ""
+                str(table.provenance) if is_moment_table and table is not None else ""
             ),
             "exact_dcs_based": bool(
                 is_moment_table

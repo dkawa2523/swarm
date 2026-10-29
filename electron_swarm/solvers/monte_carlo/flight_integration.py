@@ -84,9 +84,9 @@ def _energy_moment_primitives(
         return first, third, fifth
     energy = minimum_energy + quadratic_energy * value * value
     root_energy = math.sqrt(max(energy, 0.0))
-    inverse_root = math.asinh(
-        sqrt_quadratic * value / math.sqrt(minimum_energy)
-    ) / sqrt_quadratic
+    inverse_root = (
+        math.asinh(sqrt_quadratic * value / math.sqrt(minimum_energy)) / sqrt_quadratic
+    )
     first = 0.5 * (value * root_energy + minimum_energy * inverse_root)
     third = 0.25 * value * energy * root_energy + 0.75 * minimum_energy * first
     fifth = (
@@ -112,7 +112,9 @@ def _analytic_energy_moments(
     width = right_fraction - left_fraction
     if delta_squared == 0.0:
         energy = _energy_at_fraction(
-            before_velocity_m_s, velocity_delta_m_s, 0.5 * (left_fraction + right_fraction)
+            before_velocity_m_s,
+            velocity_delta_m_s,
+            0.5 * (left_fraction + right_fraction),
         )
         root_energy = math.sqrt(max(energy, 0.0))
         return (
@@ -136,11 +138,7 @@ def _analytic_energy_moments(
     vertex_vz = before_velocity_m_s[2] + vertex * dz
     minimum_energy = max(
         _ENERGY_FACTOR
-        * (
-            vertex_vx * vertex_vx
-            + vertex_vy * vertex_vy
-            + vertex_vz * vertex_vz
-        ),
+        * (vertex_vx * vertex_vx + vertex_vy * vertex_vy + vertex_vz * vertex_vz),
         0.0,
     )
     quadratic_energy = _ENERGY_FACTOR * delta_squared
@@ -297,9 +295,7 @@ def _accumulate_histogram_branch(
     current = start_fraction
     branch_midpoint = 0.5 * (start_fraction + end_fraction)
 
-    if abs(end_energy - start_energy) <= (
-        64.0 * _FLOAT_EPSILON * energy_scale
-    ):
+    if abs(end_energy - start_energy) <= (64.0 * _FLOAT_EPSILON * energy_scale):
         energy = _energy_at_fraction(
             before_velocity_m_s, velocity_delta_m_s, branch_midpoint
         )
@@ -313,10 +309,7 @@ def _accumulate_histogram_branch(
 
     if end_energy > start_energy:
         boundary_index = _upper_bound(edges_eV, start_energy)
-        while (
-            boundary_index < edges_eV.size
-            and edges_eV[boundary_index] < end_energy
-        ):
+        while boundary_index < edges_eV.size and edges_eV[boundary_index] < end_energy:
             crossing = _crossing_fraction(
                 before_velocity_m_s,
                 velocity_delta_m_s,
@@ -367,9 +360,7 @@ def _accumulate_histogram_branch(
 
     if end_fraction > current:
         midpoint = 0.5 * (current + end_fraction)
-        energy = _energy_at_fraction(
-            before_velocity_m_s, velocity_delta_m_s, midpoint
-        )
+        energy = _energy_at_fraction(before_velocity_m_s, velocity_delta_m_s, midpoint)
         touched_count = _touch_histogram_bin(
             _histogram_bin(edges_eV, energy),
             weight * duration_s * (end_fraction - current),
@@ -520,9 +511,10 @@ def _evaluate_local_rate_rule(
     for node_index in range(nodes.size):
         fraction = midpoint + half_width * nodes[node_index]
         fraction_delta = fraction - midpoint
-        energy_offset = _ENERGY_FACTOR * fraction_delta * (
-            2.0 * velocity_dot_delta
-            + (fraction + midpoint) * delta_squared
+        energy_offset = (
+            _ENERGY_FACTOR
+            * fraction_delta
+            * (2.0 * velocity_dot_delta + (fraction + midpoint) * delta_squared)
         )
         energy = max(reference_energy + energy_offset, 0.0)
         speed = math.sqrt(max(_SPEED_FACTOR * energy, 0.0))
@@ -536,11 +528,9 @@ def _evaluate_local_rate_rule(
             ):
                 sigma = rate_right_m2[process_index]
             else:
-                sigma = (
-                    rate_values_m2[process_index, anchor_index]
-                    + rate_slopes_m2_eV[process_index, interval]
-                    * (reference_offset + energy_offset)
-                )
+                sigma = rate_values_m2[process_index, anchor_index] + rate_slopes_m2_eV[
+                    process_index, interval
+                ] * (reference_offset + energy_offset)
             rate = max(sigma, 0.0) * speed
             rate_out[process_index] += factor * rate
             fixed_loss = constant_loss_eV[process_index]
@@ -589,12 +579,9 @@ def _combine_rate_moments(
         else:
             slope = rate_slopes_m2_eV[process_index, interval]
             intercept = (
-                rate_values_m2[process_index, interval]
-                - slope * rate_grid_eV[interval]
+                rate_values_m2[process_index, interval] - slope * rate_grid_eV[interval]
             )
-        rate = speed_factor * (
-            intercept * moment_half + slope * moment_three_halves
-        )
+        rate = speed_factor * (intercept * moment_half + slope * moment_three_halves)
         rate_out[process_index] = max(rate, 0.0)
         fixed_loss = constant_loss_eV[process_index]
         recoil_ratio = recoil_mass_ratio[process_index]
@@ -784,9 +771,7 @@ def _integrate_rate_branch(
     branch_midpoint = 0.5 * (start_fraction + end_fraction)
     energy_scale = max(abs(start_energy), abs(end_energy), 1.0)
 
-    if abs(end_energy - start_energy) > (
-        64.0 * _FLOAT_EPSILON * energy_scale
-    ):
+    if abs(end_energy - start_energy) > (64.0 * _FLOAT_EPSILON * energy_scale):
         if end_energy > start_energy:
             boundary_index = _upper_bound(breakpoints_eV, start_energy)
             while (
@@ -825,10 +810,7 @@ def _integrate_rate_branch(
                 boundary_index += 1
         else:
             boundary_index = _lower_bound(breakpoints_eV, start_energy) - 1
-            while (
-                boundary_index >= 0
-                and breakpoints_eV[boundary_index] > end_energy
-            ):
+            while boundary_index >= 0 and breakpoints_eV[boundary_index] > end_energy:
                 crossing = _crossing_fraction(
                     before_velocity_m_s,
                     velocity_delta_m_s,

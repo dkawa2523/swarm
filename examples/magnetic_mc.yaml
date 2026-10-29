@@ -29,7 +29,7 @@ physics:
 solvers:
   monte_carlo:
     particles: 32
-    max_collisions: 12
+    production_trial_periods: 12
     seed: 11
 
 output:
