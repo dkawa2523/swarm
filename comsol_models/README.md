@@ -45,7 +45,7 @@ format-v2 COMSOL bundle、単一Swarm YAMLとモデル別マッピングがあ�
 | --- | --- | --- | --- |
 | [positive_column](positive_column/) | 26 | 0.0444–500 | オフライン準備通過、MPHへの反映未完了 |
 | [gec_ccp](gec_ccp/) | 47 | 0.05–500 | bundle生成済み、アダプタの入力ハッシュ連鎖検査で停止 |
-| [gec_icp](gec_icp/) | 10 | 1–300 | オフライン準備通過、MPHへの反映未完了 |
+| [gec_icp](gec_icp/) | 10 | 1–300 | 元の作業場所で準備通過。別フォルダでは断面積のパス依存ハッシュで停止 |
 
 **これらのディレクトリには設定済みMPHはない。** COMSOLの起動が
 `The license has expired / License error: -10`で停止した。
@@ -67,7 +67,10 @@ py -3 -m swarm_workflow.cli run-gec-ccp comsol_models/gec_ccp/mapping.yaml --dry
 py -3 -m swarm_workflow.cli run-gec-icp comsol_models/gec_icp/mapping.yaml --dry-run
 ```
 
-CCPの上記コマンドは現時点で明示的に停止する。検査を外して進めない。
+CCPの上記コマンドは現時点で明示的に停止する。ICPもGitHubから別フォルダへ取得すると停止する。
+ICPの断面積ファイル自体のSHA-256は元と同じだが、アダプタが比較する複合ハッシュに
+絶対パスが含まれるためである。`gec_icp/evidence/relocation_preflight.json`に検証結果を記録した。
+検査を外したり、bundleの由来を書き換えて進めたりしない。
 `--dry-run`を外すと設定だけでなくモデルの計算も行うため、入力範囲・運転条件を確認して実行する。
 Swarmを再計算する場合は各ディレクトリの`swarm.yaml`を`swarm-workflow run`に渡す。
 保存済み`swarm_results.sqlite`は元結果の読み取り用コピーであり、別の場所への移動に合わせて改変していない。

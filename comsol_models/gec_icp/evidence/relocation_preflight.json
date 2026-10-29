@@ -1,0 +1,12 @@
+{
+  "schema": "swarm.relocated_preflight.v1",
+  "status": "blocked",
+  "reason": "bundle cross_sections_sha256 does not match the repository canonical examples/cross_sections/argon_application_library.csv combined hash",
+  "canonical_csv_sha256": "0c7666cc6b1ff86e1374e2adf30c48d6b04770ba564bc07b2bc4100e4735a5f2",
+  "canonical_combined_sha256": "05615db3ace9d5ad149f2bb51af71deb6a488387ce3dd06d44db80c92abc583e",
+  "canonical_csv_bytes_match_original": true,
+  "reason_category": "combined_cross_section_hash_contains_absolute_path",
+  "note": "Original bundle is immutable. Its provenance was not rewritten to force acceptance after relocation.",
+  "relocated_canonical_csv_path": "C:\\Users\\user\\AppData\\Local\\Temp\\swarm_mph_release_t27d9jc5\\download_check\\examples\\cross_sections\\argon_application_library.csv",
+  "recorded_bundle_cross_sections_sha256": "a70cd71afa33710fbb4189b82fb61612f75f492ba1dc7e626789e759f70ea921"
+}
