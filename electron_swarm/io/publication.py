@@ -30,6 +30,7 @@ OUTPUT_SUFFIXES = (
     "comparison_summary.csv",
     "manifest.json",
     "reaction_rates.csv",
+    "reaction_pathways.csv",
     "figure_data.csv",
 )
 

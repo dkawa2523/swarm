@@ -31,6 +31,9 @@ Optional `output.export: {solver: multi_term, quantities: [reaction_rates]}`
 adds simulator-neutral DC coefficient points with physical context and MC
 replica uncertainty, independently of transport or COMSOL requirements.
 Use `swarm-workflow export-reaction-rates` to produce the same data from saved results.
+Use [reaction pathway screening](docs/reaction_pathways.md) to connect native
+DC rates to curated equations and rank direct sources or sinks at the specified
+gas conditions. A runnable Ar/N₂ example is included.
 For a fixed gas state, [read and interpolate qualified coefficients](docs/coefficient_lookup.md)
 for use in a Global model or other plasma simulator.
 With `pip install 'electron-swarm[plot]'`, add

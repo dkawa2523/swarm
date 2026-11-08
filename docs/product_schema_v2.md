@@ -498,9 +498,13 @@ its cases cannot be merged into the new implementation's campaign.
 The `output` block configures `directory`, `base_name`, optional
 `figures: [eedf, transport, reaction_rates]`, and optional
 `export: {solver: multi_term, quantities: [reaction_rates]}`. The selected
-canonical solver must be enabled and runnable. This first export supports
-DC reaction-coefficient points only; RF and other quantities fail explicitly.
-See [the coefficient output workflow](swarm_inputs.md#結果を他のモデルへ渡す).
+canonical solver must be enabled and runnable. Coefficient export supports
+DC E/N points. Selecting `reaction_pathways` also requires
+`output.export.pathways.catalog`. It publishes native rates and the pathway
+decisions for the same points. Optional `focus_species` and
+`minimum_activity_s_inv` control ranking. See the
+[coefficient workflow](swarm_inputs.md#結果を他のモデルへ渡す) and
+[pathway catalog and screening rules](reaction_pathways.md).
 Binary64 values are always written losslessly; lossy formatting is not a product option.
 Product YAML does not accept external reference inputs.
 BOLSIG+ / MCIG files are benchmark-tool inputs, not product schema fields.

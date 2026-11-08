@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Literal
 from importlib.util import find_spec
 
+from electron_swarm.chemistry.catalog import PathwayScreen
 from .solver_ids import CANONICAL_SOLVER_IDS, SolverId
 
 FigureKind = Literal["eedf", "transport", "reaction_rates", "energy_angle", "rf_phase"]
@@ -22,13 +23,31 @@ _FIGURE_SOURCES = {
 class RateExportConfig:
     solver: SolverId
     quantities: tuple[str, ...] = ("reaction_rates",)
+    pathways: PathwayScreen | None = None
 
     def __post_init__(self) -> None:
         if self.solver not in CANONICAL_SOLVER_IDS:
             raise ValueError("output.export.solver must be a canonical solver id")
-        if self.quantities != ("reaction_rates",):
+        supported = {"reaction_rates", "reaction_pathways"}
+        if (
+            not self.quantities
+            or any(
+                not isinstance(item, str) or item not in supported
+                for item in self.quantities
+            )
+            or len(set(self.quantities)) != len(self.quantities)
+        ):
             raise ValueError(
-                "output.export.quantities currently supports only [reaction_rates]"
+                "output.export.quantities must select unique reaction_rates or reaction_pathways"
+            )
+        if "reaction_pathways" in self.quantities:
+            if not isinstance(self.pathways, PathwayScreen):
+                raise ValueError(
+                    "reaction_pathways requires output.export.pathways with a catalog"
+                )
+        elif self.pathways is not None:
+            raise ValueError(
+                "output.export.pathways requires reaction_pathways in quantities"
             )
 
 
@@ -89,7 +108,7 @@ class OutputConfig:
     def export_plan(self) -> dict | None:
         if self.export is None:
             return None
-        return {
+        plan = {
             "solver": self.export.solver,
             "quantities": list(self.export.quantities),
             "independent_variable": "E_over_N_Td",
@@ -98,6 +117,10 @@ class OutputConfig:
             "directory": str(self.directory),
             "csv": f"{self.base_name}_reaction_rates.csv",
         }
+        if self.export.pathways is not None:
+            plan["pathways"] = self.export.pathways.plan()
+            plan["pathways_csv"] = f"{self.base_name}_reaction_pathways.csv"
+        return plan
 
     def figure_plan(self, *, runnable, field_type: str) -> dict | None:
         if not self.figures:

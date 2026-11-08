@@ -11,7 +11,7 @@ import numpy as np
 from electron_swarm import __version__
 
 from electron_swarm.core.identity import content_digest
-from electron_swarm.core.output import OutputConfig
+from electron_swarm.core.output import OutputConfig, RateExportConfig
 from electron_swarm.core.solver_ids import CANONICAL_SOLVER_IDS
 from electron_swarm.core.statistics import summarize_replicates
 from .artifacts import PRODUCT_ARTIFACT_SCHEMA, ProductRunArtifact, json_scalar
@@ -19,6 +19,7 @@ from .publication import read_generation, publish_tables
 
 
 RATE_ARTIFACT_SCHEMA = "swarm.reaction_rates.v1"
+CHANNEL_COLUMNS = ("species", "process", "process_type", "threshold_eV")
 RATE_COLUMNS = {
     "series_id": "string",
     "solver": "string",
@@ -107,9 +108,7 @@ def _channels(sample):
     result = {}
     species = {s[0]: s[1] for s in sample.physical_context["species"]}
     for row in sample.rates:
-        key = tuple(
-            row[name] for name in ("species", "process", "process_type", "threshold_eV")
-        )
+        key = tuple(row[name] for name in CHANNEL_COLUMNS)
         if any(not isinstance(v, str) or not v for v in key[:3]):
             raise ValueError("reaction_rates requires explicit species/process/type")
         if key[3] is not None:
@@ -231,12 +230,7 @@ def build_reaction_rates(
                         "series_id": series_id,
                         "solver": solver,
                         "E_over_N_Td": e_over_n,
-                        **dict(
-                            zip(
-                                ("species", "process", "process_type", "threshold_eV"),
-                                key,
-                            )
-                        ),
+                        **dict(zip(CHANNEL_COLUMNS, key, strict=True)),
                         "target_species_fraction": fraction,
                         "rate_coefficient_m3_s": stats.mean,
                         "mixture_weighted_rate_m3_s": stats.mean * fraction,
@@ -327,6 +321,23 @@ def _optional(value):
     return value.item() if isinstance(value, np.generic) else value
 
 
+def reaction_export_tables(
+    artifact: ReactionRatesArtifact, export: RateExportConfig | None
+) -> tuple[dict, dict, dict]:
+    """Assemble one set of native rate evidence and any requested screening table."""
+    metadata = {"reaction_rates": artifact.metadata}
+    tables = {"reaction_rates_csv": artifact.table}
+    kinds = {"reaction_rates_csv": RATE_COLUMNS}
+    if export is not None and export.pathways is not None:
+        from .pathways import PATHWAY_COLUMNS, screen_reaction_pathways
+
+        screening, pathways = screen_reaction_pathways(artifact, export.pathways)
+        metadata["reaction_pathways"] = screening
+        tables["reaction_pathways_csv"] = pathways
+        kinds["reaction_pathways_csv"] = PATHWAY_COLUMNS
+    return metadata, tables, kinds
+
+
 def write_reaction_rates(
     artifact: ReactionRatesArtifact, output: OutputConfig
 ) -> dict[str, Path]:
@@ -346,17 +357,13 @@ def write_reaction_rates(
         }
         artifact.table["numerical_status"] = status
     _validate_artifact(artifact)
+    export_metadata, tables, kinds = reaction_export_tables(artifact, output.export)
     metadata = {
         "artifact_schema": RATE_ARTIFACT_SCHEMA,
         "artifact_role": "reaction_rates",
-        "reaction_rates": artifact.metadata,
+        **export_metadata,
     }
-    return publish_tables(
-        metadata,
-        {"reaction_rates_csv": artifact.table},
-        {"reaction_rates_csv": RATE_COLUMNS},
-        output,
-    )
+    return publish_tables(metadata, tables, kinds, output)
 
 
 def read_reaction_rates(manifest_path: str | Path) -> ReactionRatesArtifact:
@@ -393,16 +400,7 @@ def _validate_artifact(artifact: ReactionRatesArtifact) -> None:
         metadata["solver"]
     }:
         raise ValueError("reaction_rates requires one explicit canonical solver")
-    if table.duplicated(
-        [
-            "series_id",
-            "E_over_N_Td",
-            "species",
-            "process",
-            "process_type",
-            "threshold_eV",
-        ]
-    ).any():
+    if table.duplicated(["series_id", "E_over_N_Td", *CHANNEL_COLUMNS]).any():
         raise ValueError("reaction_rates has duplicate physical points/channels")
     for row in table.to_dict("records"):
         coefficient = _number(row["rate_coefficient_m3_s"], "rate_coefficient_m3_s")

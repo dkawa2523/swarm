@@ -9,14 +9,18 @@ from electron_swarm.core.provenance import publication_view
 from electron_swarm.core.results import SwarmRunResult, validate_case_result
 from .artifacts import PRODUCT_ARTIFACT_SCHEMA, ProductRunArtifact
 from .publication import publish_tables, read_generation
-from .reaction_rates import RATE_COLUMNS, build_reaction_rates, case_rate_sample
+from .reaction_rates import (
+    build_reaction_rates,
+    case_rate_sample,
+    reaction_export_tables,
+)
 from .tables import result_tables, table_kinds, case_descriptions
 
 
 def _write_generation(result: SwarmRunResult, output: OutputConfig):
     tables = result_tables(result)
     kinds = {key: table_kinds(key, frame.columns) for key, frame in tables.items()}
-    reaction_rates = None
+    export_metadata = {}
     if output.export is not None:
         reaction_rates = build_reaction_rates(
             [case_rate_sample(case) for case in result.cases],
@@ -29,9 +33,12 @@ def _write_generation(result: SwarmRunResult, output: OutputConfig):
                 "input_evidence": result.metadata.get("input_evidence", {}),
             },
         )
-        tables["reaction_rates_csv"] = reaction_rates.table
-        kinds["reaction_rates_csv"] = RATE_COLUMNS
-    return tables, kinds, reaction_rates.metadata if reaction_rates else None
+        export_metadata, extra_tables, extra_kinds = reaction_export_tables(
+            reaction_rates, output.export
+        )
+        tables.update(extra_tables)
+        kinds.update(extra_kinds)
+    return tables, kinds, export_metadata
 
 
 def write_outputs(result: SwarmRunResult, output: OutputConfig) -> dict[str, Path]:
@@ -42,7 +49,7 @@ def write_outputs(result: SwarmRunResult, output: OutputConfig) -> dict[str, Pat
     result, evidence_scope, execution = publication_view(result)
     for case in result.cases:
         validate_case_result(case)
-    tables, kinds, reaction_rates = _write_generation(result, output)
+    tables, kinds, export_metadata = _write_generation(result, output)
     metadata = {
         "schema_version": 2,
         "artifact_role": "swarm_product_run",
@@ -67,9 +74,8 @@ def write_outputs(result: SwarmRunResult, output: OutputConfig) -> dict[str, Pat
         "configuration": result.metadata.get("configuration"),
         "implementations": result.metadata.get("implementations", {}),
         "input_files": result.metadata.get("input_files", {}),
+        **export_metadata,
     }
-    if reaction_rates:
-        metadata["reaction_rates"] = reaction_rates
     return publish_tables(metadata, tables, kinds, output)
 
 

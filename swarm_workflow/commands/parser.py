@@ -111,7 +111,7 @@ def _add_input_commands(subparsers: argparse._SubParsersAction) -> None:
     plot.set_defaults(handler=handlers.plot_command)
     rates = subparsers.add_parser(
         "export-reaction-rates",
-        help="Export neutral k(E/N) points from a product manifest or workflow database",
+        help="Export neutral k(E/N) points and optional pathways from saved Swarm data",
     )
     rates.add_argument(
         "source", type=Path, help="product _manifest.json or workflow SQLite database"
@@ -119,6 +119,18 @@ def _add_input_commands(subparsers: argparse._SubParsersAction) -> None:
     rates.add_argument("--solver", required=True, choices=CANONICAL_SOLVER_IDS)
     rates.add_argument("--output", required=True, type=Path)
     rates.add_argument("--base-name", default="swarm")
+    rates.add_argument(
+        "--pathway-catalog", type=Path, help="reviewed electron-impact catalog YAML"
+    )
+    rates.add_argument(
+        "--focus-species",
+        help="rank pathways by the production or loss of this species",
+    )
+    rates.add_argument(
+        "--minimum-activity-s-inv",
+        type=float,
+        help="minimum ranking score per electron",
+    )
     rates.set_defaults(handler=handlers.export_reaction_rates_command)
     tables = subparsers.add_parser(
         "build-tables",

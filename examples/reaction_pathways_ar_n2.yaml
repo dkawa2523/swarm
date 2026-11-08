@@ -1,0 +1,34 @@
+schema_version: 2
+
+run:
+  solvers: [{id: two_term}]
+  e_over_n_Td: [20, 50, 100]
+  case_prefix: ar_n2_pathways
+
+conditions:
+  gas_temperature_K: 300
+  pressure_Pa: 13.3
+  gas_mixture:
+    - {species: Ar, fraction: 0.9, mass_amu: 39.948}
+    - {species: N2, fraction: 0.1, mass_amu: 28.0134}
+
+cross_sections:
+  high_energy_extrapolation: zero
+  files:
+    - {path: cross_sections/argon_application_library.csv, species: Ar, format: csv}
+    - {path: ../cross_sections/N2_Biagi.txt, species: N2, format: lxcat}
+
+physics:
+  energy_grid_policy:
+    threshold_refinement: false
+
+feature_policy: {unsupported: fail, degraded: record}
+
+output:
+  directory: ../outputs/examples
+  base_name: ar_n2_pathways
+  export:
+    solver: two_term
+    quantities: [reaction_pathways]
+    pathways:
+      catalog: cross_sections/ar_n2.reactions.yaml

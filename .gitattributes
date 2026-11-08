@@ -14,4 +14,5 @@ comsol_models/gec_ccp/results/swarm_tables/domain_phase_closure.csv filter=lfs d
 examples/cross_sections/argon_application_library.csv -text whitespace=cr-at-eol
 examples/cross_sections/argon_application_library.provenance.json -text
 Model/Ar_xsecs.txt -text whitespace=cr-at-eol
+cross_sections/N2_Biagi.txt -text
 tests/fixtures/references/argon_p1_projection/*.csv -text

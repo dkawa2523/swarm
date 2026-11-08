@@ -1,0 +1,176 @@
+schema: swarm.electron_impact_catalog.v1
+datasets:
+  argon_application_library:
+    sha256: 0c7666cc6b1ff86e1374e2adf30c48d6b04770ba564bc07b2bc4100e4735a5f2
+    reference: https://doc.comsol.com/6.4/doc/com.comsol.help.models.plasma.boltzmann_argon/boltzmann_argon.html
+  biagi_n2:
+    sha256: 21919339bd8b3dc9545e1e41ae9e1e6ce01bfafba3c54d9813ddf025f8bbed81
+    reference: https://lxcat.net/Biagi
+
+species:
+  Ar: {atoms: {Ar: 1}, charge: 0}
+  Ars: {atoms: {Ar: 1}, charge: 0}
+  Ar+: {atoms: {Ar: 1}, charge: 1}
+  N2: {atoms: {N: 2}, charge: 0}
+  N2(v=1): {atoms: {N: 2}, charge: 0}
+  N2(v=2): {atoms: {N: 2}, charge: 0}
+  N2(v=3): {atoms: {N: 2}, charge: 0}
+  N2(v=4): {atoms: {N: 2}, charge: 0}
+  N2(v=5): {atoms: {N: 2}, charge: 0}
+  N2(v=6): {atoms: {N: 2}, charge: 0}
+  N2(v=7): {atoms: {N: 2}, charge: 0}
+  N2(v=8): {atoms: {N: 2}, charge: 0}
+  N2(v=9): {atoms: {N: 2}, charge: 0}
+  N2(v=10): {atoms: {N: 2}, charge: 0}
+  N2(v=11): {atoms: {N: 2}, charge: 0}
+  N2(v=12): {atoms: {N: 2}, charge: 0}
+  N2(v=13): {atoms: {N: 2}, charge: 0}
+  N2(v=14): {atoms: {N: 2}, charge: 0}
+  N2(v=15): {atoms: {N: 2}, charge: 0}
+  "N2(A3SIG,v=0-4)": {atoms: {N: 2}, charge: 0}
+
+reactions:
+  ar_excitation:
+    target: Ar
+    process: e+Ar=>e+Ars
+    threshold_eV: 11.5
+    category: excitation
+    products: {e: 1, Ars: 1}
+    resolution: lumped
+    reference: COMSOL Argon Boltzmann Analysis, Table 1, reaction 2
+  ar_ionization:
+    target: Ar
+    process: e+Ar=>2e+Ar+
+    threshold_eV: 15.8
+    category: ionization
+    products: {e: 2, Ar+: 1}
+    resolution: resolved
+    reference: COMSOL Argon Boltzmann Analysis, Table 1, reaction 4
+  n2_v1:
+    target: N2
+    process: E + N2 -> E + N2( VIB V1), Excitation
+    threshold_eV: 0.2889
+    category: excitation
+    products: {e: 1, N2(v=1): 1}
+    resolution: resolved
+    reference: LXCat Biagi N2, Magboltz 8.97, VIB V1 block
+  n2_v2:
+    target: N2
+    process: E + N2 -> E + N2( VIB 2V1), Excitation
+    threshold_eV: 0.5742
+    category: excitation
+    products: {e: 1, N2(v=2): 1}
+    resolution: resolved
+    reference: LXCat Biagi N2, Magboltz 8.97, VIB 2V1 block
+  n2_v3:
+    target: N2
+    process: E + N2 -> E + N2( VIB 3V1), Excitation
+    threshold_eV: 0.8559
+    category: excitation
+    products: {e: 1, N2(v=3): 1}
+    resolution: resolved
+    reference: LXCat Biagi N2, Magboltz 8.97, VIB 3V1 block
+  n2_v4:
+    target: N2
+    process: E + N2 -> E + N2( VIB 4V1), Excitation
+    threshold_eV: 1.1342
+    category: excitation
+    products: {e: 1, N2(v=4): 1}
+    resolution: resolved
+    reference: LXCat Biagi N2, Magboltz 8.97, VIB 4V1 block
+  n2_v5:
+    target: N2
+    process: E + N2 -> E + N2( VIB 5V1), Excitation
+    threshold_eV: 1.4088
+    category: excitation
+    products: {e: 1, N2(v=5): 1}
+    resolution: resolved
+    reference: LXCat Biagi N2, Magboltz 8.97, VIB 5V1 block
+  n2_v6:
+    target: N2
+    process: E + N2 -> E + N2( VIB 6V1), Excitation
+    threshold_eV: 1.6801
+    category: excitation
+    products: {e: 1, N2(v=6): 1}
+    resolution: resolved
+    reference: LXCat Biagi N2, Magboltz 8.97, VIB 6V1 block
+  n2_v7:
+    target: N2
+    process: E + N2 -> E + N2( VIB 7V1), Excitation
+    threshold_eV: 1.9475
+    category: excitation
+    products: {e: 1, N2(v=7): 1}
+    resolution: resolved
+    reference: LXCat Biagi N2, Magboltz 8.97, VIB 7V1 block
+  n2_v8:
+    target: N2
+    process: E + N2 -> E + N2( VIB 8V1), Excitation
+    threshold_eV: 2.2115
+    category: excitation
+    products: {e: 1, N2(v=8): 1}
+    resolution: resolved
+    reference: LXCat Biagi N2, Magboltz 8.97, VIB 8V1 block
+  n2_v9:
+    target: N2
+    process: E + N2 -> E + N2( VIB 9V1), Excitation
+    threshold_eV: 2.4718
+    category: excitation
+    products: {e: 1, N2(v=9): 1}
+    resolution: resolved
+    reference: LXCat Biagi N2, Magboltz 8.97, VIB 9V1 block
+  n2_v10:
+    target: N2
+    process: E + N2 -> E + N2( VIB 10V1), Excitation
+    threshold_eV: 2.7284
+    category: excitation
+    products: {e: 1, N2(v=10): 1}
+    resolution: resolved
+    reference: LXCat Biagi N2, Magboltz 8.97, VIB 10V1 block
+  n2_v11:
+    target: N2
+    process: E + N2 -> E + N2( VIB 11V1), Excitation
+    threshold_eV: 2.9815
+    category: excitation
+    products: {e: 1, N2(v=11): 1}
+    resolution: resolved
+    reference: LXCat Biagi N2, Magboltz 8.97, VIB 11V1 block
+  n2_v12:
+    target: N2
+    process: E + N2 -> E + N2( VIB 12V1), Excitation
+    threshold_eV: 3.231
+    category: excitation
+    products: {e: 1, N2(v=12): 1}
+    resolution: resolved
+    reference: LXCat Biagi N2, Magboltz 8.97, VIB 12V1 block
+  n2_v13:
+    target: N2
+    process: E + N2 -> E + N2( VIB 13V1), Excitation
+    threshold_eV: 3.4769
+    category: excitation
+    products: {e: 1, N2(v=13): 1}
+    resolution: resolved
+    reference: LXCat Biagi N2, Magboltz 8.97, VIB 13V1 block
+  n2_v14:
+    target: N2
+    process: E + N2 -> E + N2( VIB 14V1), Excitation
+    threshold_eV: 3.7191
+    category: excitation
+    products: {e: 1, N2(v=14): 1}
+    resolution: resolved
+    reference: LXCat Biagi N2, Magboltz 8.97, VIB 14V1 block
+  n2_v15:
+    target: N2
+    process: E + N2 -> E + N2( VIB 15V1), Excitation
+    threshold_eV: 3.9576
+    category: excitation
+    products: {e: 1, N2(v=15): 1}
+    resolution: resolved
+    reference: LXCat Biagi N2, Magboltz 8.97, VIB 15V1 block
+  n2_a_v0_4:
+    target: N2
+    process: E + N2 -> E + N2( A3SIG V=0-4), Excitation
+    threshold_eV: 6.725
+    category: excitation
+    products: {e: 1, "N2(A3SIG,v=0-4)": 1}
+    resolution: lumped
+    reference: LXCat Biagi N2, Magboltz 8.97, A3SIG V=0-4 block

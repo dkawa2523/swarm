@@ -152,8 +152,7 @@ positive-columnは接続先mapの`results.fields`に出力式と単位を指定�
 `dataset`と`solutions: all`または`last`を明示する。
 CSVはdataset・保存解番号・点番号・時刻・解パラメータを保持する。
 任意座標・補間時刻の指定は未対応として拒否する。
-組成スキャンを組成の時間発展として扱わない。化学種の時系列は利用側プラズマモデルの結果になる。
-Swarmの設定に化学反応網・濃度初期値・化学種時間積分を加える予定はない。
+組成スキャンの各点は固定ガス条件である。化学種の時系列は利用側プラズマモデルが計算する。
 既存のRF位相別EEDFは電子応答として扱い、プラズマ結果の時系列図は接続先の後処理へ置く。
 現状の対応範囲・再現した不足・改訂案は[出力仕様レビュー](dev/modeling_output_review.md)を参照する。
 
@@ -252,7 +251,10 @@ swarm-workflow export-reaction-rates outputs/argon/cases.sqlite --solver monte_c
 `series_id`はそのartifact内の識別子であり、別artifactとの条件照合には物理contextを使う。
 `k [m^3/s]`は対象粒子あたり、`mixture_weighted_rate_m3_s`は`x k`。
 二体反応源`n_e n_target k`に対し、組成を二重に掛けない。
-化学量論や化学種ごとの正味生成・消滅源は、利用側の反応網から与える。
+直接電子衝突の化学量論と生成・消費経路を併せて得るには
+`quantities: [reaction_pathways]` と断面積に対応するカタログを指定する。
+利用側はこの経路と重粒子反応や壁を組み合わせて反応網を構成する。
+[設定と判定規則](reaction_pathways.md)
 輸送量、driftによるTownsend換算、平均エネルギーの単調性は、この出力の条件にしない。
 e-e後処理の更新済みratesも出力し、元のtransport-stale情報は系列のcase metadataに保持する。
 

@@ -19,8 +19,8 @@ from electron_swarm.io.publication import (
 )
 from electron_swarm.io.reaction_rates import (
     RATE_ARTIFACT_SCHEMA,
-    RATE_COLUMNS,
     case_rate_sample,
+    reaction_export_tables,
 )
 from electron_swarm.io.tables import result_tables, table_kinds, case_descriptions
 from .campaign.identity import WORKFLOW_IMPLEMENTATION_KEY
@@ -94,9 +94,12 @@ def _database_snapshot(path, output):
                 path=path,
                 case_keys=keys,
             )
-            metadata["reaction_rates"] = artifact.metadata
-            tables["reaction_rates_csv"] = artifact.table
-            kinds["reaction_rates_csv"] = RATE_COLUMNS
+            export_metadata, extra_tables, extra_kinds = reaction_export_tables(
+                artifact, output.export
+            )
+            metadata.update(export_metadata)
+            tables.update(extra_tables)
+            kinds.update(extra_kinds)
     return ProductRunArtifact(metadata, tables), kinds
 
 

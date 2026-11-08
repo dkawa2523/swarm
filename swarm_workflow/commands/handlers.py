@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 import sqlite3
 
 from electron_swarm.runner import run
@@ -11,6 +12,7 @@ from electron_swarm.orchestration.preparation import prepare_run
 from swarm_workflow.campaign.document import read_calculation
 from typing import Any
 
+from electron_swarm.chemistry.catalog import PathwayScreen
 from swarm_workflow.campaign.aggregate import aggregate_database
 from swarm_workflow.campaign.sweep import (
     advance_monte_carlo_workflow,
@@ -65,10 +67,18 @@ from swarm_workflow.quality.monte_carlo.policy import (
     decide_monte_carlo_closure,
 )
 from swarm_workflow.tables import build_tables
-from electron_swarm.core.output import OutputConfig
+from electron_swarm.core.output import OutputConfig, RateExportConfig
 from swarm_workflow.reaction_rates import export_reaction_rates
 from swarm_workflow.figures import plot_results
 from swarm_workflow.campaign.store import WorkflowSchemaError
+
+
+def _report_reaction_export(path: str | Path, export: RateExportConfig) -> None:
+    if export.pathways is None:
+        print(f"reaction_rates: {path}")
+        return
+    screening = json.loads(Path(path).read_text(encoding="utf-8"))["reaction_pathways"]
+    print(f"reaction_pathways: {screening['status']}; {path}")
 
 
 def run_command(args: Any, parser: argparse.ArgumentParser) -> None:
@@ -87,8 +97,10 @@ def run_command(args: Any, parser: argparse.ArgumentParser) -> None:
                     f"{status} {summary.cases_written} new cases; database={summary.database_path}"
                 )
                 if document.template.output.export is not None:
-                    print(
-                        f"reaction_rates: {document.template.output.directory / (document.template.output.base_name + '_manifest.json')}"
+                    _report_reaction_export(
+                        document.template.output.directory
+                        / (document.template.output.base_name + "_manifest.json"),
+                        document.template.output.export,
                     )
                 if document.template.output.figures:
                     print(
@@ -109,8 +121,9 @@ def run_command(args: Any, parser: argparse.ArgumentParser) -> None:
                 outcome = result.metadata["outcome"]
                 print(f"{outcome['status']}: {len(result.cases)} solver cases")
                 if document.template.output.export is not None:
-                    print(
-                        f"reaction_rates: {result.metadata['output_paths']['manifest_json']}"
+                    _report_reaction_export(
+                        result.metadata["output_paths"]["manifest_json"],
+                        document.template.output.export,
                     )
                 if document.template.output.figures:
                     print(
@@ -142,8 +155,9 @@ def run_command(args: Any, parser: argparse.ArgumentParser) -> None:
         )
     if description.get("export"):
         export = description["export"]
+        name = export.get("pathways_csv", export["csv"])
         print(
-            f"export: reaction_rates from {export['solver']}; {export['directory']}/{export['csv']}"
+            f"export: {', '.join(export['quantities'])} from {export['solver']}; {export['directory']}/{name}"
         )
     if description.get("figures"):
         print(
@@ -172,9 +186,28 @@ def plot_command(args: Any, parser: argparse.ArgumentParser) -> None:
 
 
 def export_reaction_rates_command(args: Any, parser: argparse.ArgumentParser) -> None:
+    if args.pathway_catalog is None and (
+        args.focus_species is not None or args.minimum_activity_s_inv is not None
+    ):
+        parser.error("pathway screening options require --pathway-catalog")
     try:
+        export = RateExportConfig(args.solver)
+        if args.pathway_catalog is not None:
+            export = RateExportConfig(
+                args.solver,
+                ("reaction_pathways",),
+                PathwayScreen(
+                    args.pathway_catalog,
+                    args.focus_species,
+                    args.minimum_activity_s_inv
+                    if args.minimum_activity_s_inv is not None
+                    else 0.0,
+                ),
+            )
         paths = export_reaction_rates(
-            args.source, OutputConfig(args.output, args.base_name), solver=args.solver
+            args.source,
+            OutputConfig(args.output, args.base_name, export=export),
+            solver=args.solver,
         )
     except (
         ValueError,
@@ -184,7 +217,7 @@ def export_reaction_rates_command(args: Any, parser: argparse.ArgumentParser) ->
         WorkflowSchemaError,
     ) as exc:
         parser.error(str(exc))
-    print(f"reaction_rates: {paths['manifest_json']}")
+    _report_reaction_export(paths["manifest_json"], export)
 
 
 def aggregate_command(args: Any, _parser: argparse.ArgumentParser) -> None:

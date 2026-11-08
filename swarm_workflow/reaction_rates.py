@@ -48,6 +48,7 @@ def workflow_rates(samples, *, solver, metadata, path, case_keys):
         "records_sha256": content_digest([asdict(sample) for sample in samples]),
         "provenance": provenance_hash_manifest(metadata, source=solver),
         "implementations": json.loads(metadata["solver_implementations_json"])[solver],
+        "input_files": json.loads(metadata.get("input_files_json", "{}")),
         "input_evidence": json.loads(metadata.get("input_evidence_json", "{}")),
         "execution_coverage": json.loads(metadata.get("execution_coverage_json", "{}")),
         "mc_sampling_plan": sampling if solver == "monte_carlo" else None,
