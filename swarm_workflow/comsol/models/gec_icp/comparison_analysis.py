@@ -1,16 +1,15 @@
 """Aggregate and plot provenance-bound GEC-ICP saved-solution exports.
 
-The exact common-time rows are the only like-for-like transient comparison.
-Each model's terminal row is retained as a separately labelled end-state
-comparison because the saved solutions may end at different physical times.
+Compare at a shared physical time and report each model's last saved state
+separately. The exporter records time and plasma volume for alignment.
 """
 
 from __future__ import annotations
 
-import argparse
 import math
 from pathlib import Path
 import re
+from tempfile import TemporaryDirectory
 from typing import Mapping, Sequence
 
 from swarm_workflow._io import write_csv, write_json
@@ -79,7 +78,7 @@ def generate_gec_icp_saved_solution_comparison(
     loaded = [
         load_comparison_case(
             case_id,
-            labels.get(case_id, _default_label(case_id)),
+            labels.get(case_id, case_id),
             directory,
             common_time_s=common_time_s,
             stationarity_limits=limits,
@@ -103,43 +102,44 @@ def generate_gec_icp_saved_solution_comparison(
     )
 
     output = Path(output_directory).resolve()
-    output.mkdir(parents=True, exist_ok=True)
-    comparison_csv = output / "icp_comparison_summary.csv"
-    stationarity_csv = output / "icp_stationarity_summary.csv"
+    output.parent.mkdir(parents=True, exist_ok=True)
     comparison_rows = _comparison_rows(
         loaded,
         baseline,
         terminal_time_aligned=terminal_time_aligned,
     )
-    stationarity_rows = _stationarity_rows(loaded)
-    write_csv(comparison_csv, COMPARISON_COLUMNS, comparison_rows)
-    write_csv(stationarity_csv, STATIONARITY_COLUMNS, stationarity_rows)
-    figures = (
-        *render_time_history(output, loaded, common_time_s=common_time_s),
-        *render_common_time_relative_change(
-            output,
+    with TemporaryDirectory(prefix=".icp-comparison-", dir=output.parent) as temporary:
+        staging = Path(temporary) / "comparison"
+        staging.mkdir()
+        comparison_csv = staging / "icp_comparison_summary.csv"
+        stationarity_csv = staging / "icp_stationarity_summary.csv"
+        write_csv(comparison_csv, COMPARISON_COLUMNS, comparison_rows)
+        write_csv(stationarity_csv, STATIONARITY_COLUMNS, _stationarity_rows(loaded))
+        figures = (
+            *render_time_history(staging, loaded, common_time_s=common_time_s),
+            *render_common_time_relative_change(
+                staging, loaded, baseline_case_id=baseline_case_id,
+                common_time_s=common_time_s,
+            ),
+        )
+        manifest_path = staging / "icp_comparison_manifest.json"
+        manifest = _manifest_payload(
             loaded,
-            baseline_case_id=baseline_case_id,
+            baseline,
             common_time_s=common_time_s,
-        ),
-    )
-    manifest_path = output / "icp_comparison_manifest.json"
-    manifest = _manifest_payload(
-        loaded,
-        baseline,
-        common_time_s=common_time_s,
-        terminal_time_aligned=terminal_time_aligned,
-        comparison_csv=comparison_csv,
-        stationarity_csv=stationarity_csv,
-        figures=figures,
-    )
-    write_json(manifest_path, manifest)
+            terminal_time_aligned=terminal_time_aligned,
+            comparison_csv=comparison_csv,
+            stationarity_csv=stationarity_csv,
+            figures=figures,
+        )
+        write_json(manifest_path, manifest)
+        staging.rename(output)
     return GecIcpComparisonAnalysisSummary(
         output_directory=output,
-        comparison_csv=comparison_csv,
-        stationarity_csv=stationarity_csv,
-        figures=tuple(figures),
-        manifest=manifest_path,
+        comparison_csv=output / comparison_csv.name,
+        stationarity_csv=output / stationarity_csv.name,
+        figures=tuple(output / path.name for path in figures),
+        manifest=output / manifest_path.name,
         cases=tuple(loaded),
     )
 
@@ -180,6 +180,10 @@ def _validate_request(
     if output in directories:
         raise GecIcpComparisonAnalysisError(
             "analysis output must be separate from every case export directory"
+        )
+    if output.exists():
+        raise GecIcpComparisonAnalysisError(
+            "comparison output already exists; choose a new output directory"
         )
     if not math.isfinite(common_time_s) or common_time_s < 0.0:
         raise GecIcpComparisonAnalysisError(
@@ -310,15 +314,16 @@ def _manifest_payload(
         )
     outputs = (comparison_csv, stationarity_csv, *figures)
     return {
-        "schema": "swarm.gec_icp_saved_solution_comparison.v1",
+        "schema": "swarm.gec_icp_saved_solution_comparison.v2",
         "status": "completed",
         "baseline_case_id": baseline.case_id,
         "comparison_contract": {
             "common_time": {
                 "time_s": common_time_s,
                 "basis": "exact transient interpolation at one shared physical time",
-                "like_for_like": True,
+                "like_for_like_time": True,
             },
+            "operating_conditions_verified": False,
             "terminal": {
                 "basis": "each model's last saved state",
                 "like_for_like_time": terminal_time_aligned,
@@ -372,65 +377,6 @@ def _manifest_payload(
             for path in outputs
         ],
     }
-
-
-def _default_label(case_id: str) -> str:
-    standard = {
-        "original": "Original COMSOL closure",
-        "two_term": "Two-term",
-        "propagator": "Propagator P1",
-        "composite": "MC + two-term fallback",
-    }
-    return standard.get(case_id, case_id.replace("_", " ").title())
-
-
-def _parse_assignments(values: Sequence[str], name: str) -> dict[str, str]:
-    parsed: dict[str, str] = {}
-    for value in values:
-        key, separator, item = value.partition("=")
-        if not separator or not key or not item or key in parsed:
-            raise GecIcpComparisonAnalysisError(
-                f"{name} entries must be unique ID=VALUE assignments"
-            )
-        parsed[key] = item
-    return parsed
-
-
-def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--case",
-        action="append",
-        required=True,
-        metavar="ID=DIRECTORY",
-        help="completed read-only export case; repeat two to four times",
-    )
-    parser.add_argument(
-        "--label",
-        action="append",
-        default=[],
-        metavar="ID=LABEL",
-    )
-    parser.add_argument("--baseline", default="original")
-    parser.add_argument("--common-time-s", type=float, default=1.0e-3)
-    parser.add_argument("--output-directory", required=True, type=Path)
-    return parser
-
-
-def main() -> None:
-    args = _parser().parse_args()
-    summary = generate_gec_icp_saved_solution_comparison(
-        cases=_parse_assignments(args.case, "case"),
-        output_directory=args.output_directory,
-        baseline_case_id=args.baseline,
-        common_time_s=args.common_time_s,
-        case_labels=_parse_assignments(args.label, "label"),
-    )
-    print(summary.manifest)
-
-
-if __name__ == "__main__":
-    main()
 
 
 __all__ = (

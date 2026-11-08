@@ -122,9 +122,7 @@ def test_prepare_comparison_export_records_immutable_inputs(tmp_path: Path) -> N
     }
     assert manifest["time_selection"]["terminal"] == {"mode": "last_saved_solution"}
     assert "model.save" in manifest["mutation_contract"]
-    assert manifest["expected_outputs"] == [
-        str(output.resolve() / name) for name in EXPECTED_EXPORT_NAMES
-    ]
+    assert manifest["expected_outputs"] == list(EXPECTED_EXPORT_NAMES)
 
 
 @pytest.mark.parametrize(

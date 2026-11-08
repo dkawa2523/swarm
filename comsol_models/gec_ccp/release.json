@@ -160,8 +160,8 @@
     },
     {
       "file": "plots/swarm_closure_overview.png",
-      "size_bytes": 278719,
-      "sha256": "65ec962dcc6124d847828444762101ea2390a1acc0edc3c982777ff6c2a559e7"
+      "size_bytes": 286029,
+      "sha256": "8c23af01b4a07147ed952bb5b2b2ae6bbae9aeee1767ae6a3f847543351ff467"
     },
     {
       "file": "results/gec_ccp_plan.json",

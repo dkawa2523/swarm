@@ -6,11 +6,13 @@ from dataclasses import replace
 import os
 from pathlib import Path
 from types import SimpleNamespace
+from zipfile import ZipFile
 from swarm_workflow.comsol.models.positive_column.results import (
     FIELD_CSV_MARKER,
     copy_comsol_csv,
     read_mapped_results,
     read_positive_column_results,
+    read_saved_argon_context,
 )
 import shutil
 import subprocess
@@ -44,12 +46,52 @@ def test_cli_exports_saved_mph_without_a_bundle_or_solve(tmp_path, monkeypatch):
     path, _ = _write_positive_column_repo(tmp_path)
     raw = yaml.safe_load(path.read_text())
     raw["bundle"]["path"] = "absent-bundle"
-    raw["results"]["fields"] = [{"name": "x", "expression": "x", "unit": "m"}]
+    raw["results"]["fields"] = [
+        {"name": "x", "expression": "x", "unit": "m"},
+        {"name": "gas_pressure", "expression": "p0", "unit": "Pa"},
+        {"name": "applied_voltage", "expression": "V0", "unit": "V"},
+    ]
     path.write_text(yaml.safe_dump(raw), encoding="utf-8")
     model = tmp_path / "saved.mph"
-    model.write_bytes(b"saved solution")
+    with ZipFile(model, "w") as archive:
+        archive.writestr(
+            "dmodel.xml",
+            """<model>
+  <Physics op="ColdPlasma" tag="plas">
+    <PhysicsFeature op="PlasmaEsModel" tag="pes1">
+      <param param="T_src" value="1|1,'userdef'"/>
+      <param param="T" value="1|1,'310[K]'"/>
+      <param param="pA" value="1|1,'p0'"/>
+    </PhysicsFeature>
+    <PhysicsFeature op="MetalContact" tag="mct1">
+      <param param="V0" value="1|1,'V0'"/>
+    </PhysicsFeature>
+    <PhysicsFeature op="Species"><param param="specName" value="1|1,'e'"/></PhysicsFeature>
+    <PhysicsFeature op="Species">
+      <param param="specName" value="1|1,'Ar'"/>
+      <param param="PresetSpeciesData" value="1|1,'Ar'"/>
+      <param param="FromMassConstraint" value="1|1,'1'"/>
+      <param param="M" value="1|1,'0.04[kg/mol]'"/>
+    </PhysicsFeature>
+    <PhysicsFeature op="Species">
+      <param param="specName" value="1|1,'Ars'"/>
+      <param param="PresetSpeciesData" value="1|1,'Ar'"/>
+      <param param="FromMassConstraint" value="1|1,'0'"/>
+    </PhysicsFeature>
+    <PhysicsFeature op="Species">
+      <param param="specName" value="1|1,'Ar_1p'"/>
+      <param param="PresetSpeciesData" value="1|1,'Ar'"/>
+      <param param="FromMassConstraint" value="1|1,'0'"/>
+    </PhysicsFeature>
+  </Physics>
+  <DatasetFeature op="Solution" tag="dset1">
+    <propertyValue name="p:comp" value="comp1"/>
+  </DatasetFeature>
+</model>""",
+        )
+    saved_bytes = model.read_bytes()
     log = tmp_path / "comsol.txt"
-    fields = result_csv("x\n0.1\n")
+    fields = result_csv("x,gas_pressure,applied_voltage\n0.1,13.3,200\n")
     log.write_text(
         f"{FIELD_CSV_MARKER}_BEGIN\n{fields}{FIELD_CSV_MARKER}_END\n",
         encoding="utf-8",
@@ -69,10 +111,25 @@ def test_cli_exports_saved_mph_without_a_bundle_or_solve(tmp_path, monkeypatch):
     main(["export-positive-column", str(path), str(model), "--output", str(output)])
     artifact = read_positive_column_results(output / "positive_column_export.json")
     assert artifact.rows[0]["x"] == pytest.approx(0.1)
-    assert artifact.units == {"x": "m"}
+    assert artifact.units == {"x": "m", "gas_pressure": "Pa", "applied_voltage": "V"}
     assert artifact.metadata["stage"] == "export-positive-column"
     assert "quality_passed" not in artifact.metadata
-    assert model.read_bytes() == b"saved solution"
+    assert artifact.metadata["physical_context"]["gas_temperature_K"] == 310.0
+    assert artifact.metadata["physical_context"]["gas_mixture"] == [
+        {"species": "Ar", "fraction": 1.0, "molar_mass_kg_mol": 0.04}
+    ]
+    assert model.read_bytes() == saved_bytes
+    disabled = tmp_path / "disabled_contact.mph"
+    with ZipFile(model) as source, ZipFile(disabled, "w") as archive:
+        contact = b'<PhysicsFeature op="MetalContact" tag="mct1">'
+        archive.writestr(
+            "dmodel.xml",
+            source.read("dmodel.xml").replace(
+                contact, contact + b"<entityFlags>DISABLED</entityFlags>"
+            ),
+        )
+    mapping = load_comsol_mapping(path, validate_files=False)
+    assert read_saved_argon_context(disabled, mapping, mapping.results) is None
 
 
 @pytest.mark.parametrize(

@@ -176,7 +176,7 @@ def prepare_gec_icp_comparison_export(
                 )
             ],
             "generated_java": str(java_file),
-            "expected_outputs": [str(path) for path in expected],
+            "expected_outputs": list(EXPECTED_EXPORT_NAMES),
             "mutation_contract": (
                 "loadCopy_only; no study.run, clearSolutionData, or model.save"
             ),
@@ -385,7 +385,7 @@ def _update_execution_manifest(
     payload["input_mph"]["post_execution_sha256"] = _sha256_file(plan.input_mph)
     payload["outputs"] = [
         {
-            "path": str(path),
+            "path": path.name,
             "size_bytes": path.stat().st_size,
             "sha256": _sha256_file(path),
         }

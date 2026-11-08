@@ -33,12 +33,14 @@ from swarm_workflow.comsol.models.gec_ccp.plots.workflow import (
 )
 from swarm_workflow.comsol.models.gec_icp import (
     GecIcpBundleError,
+    GecIcpComparisonAnalysisError,
     GecIcpComparisonExportError,
     GecIcpWorkflowError,
     execute_gec_icp_comparison_export,
     execute_gec_icp_run,
     format_gec_icp_plan,
     format_gec_icp_summary,
+    generate_gec_icp_saved_solution_comparison,
     prepare_gec_icp_comparison_export,
     prepare_gec_icp_run,
 )
@@ -373,6 +375,25 @@ def export_gec_icp_command(args: Any, parser: argparse.ArgumentParser) -> None:
     except (GecIcpComparisonExportError, GecIcpContractError, ComsolAdapterError) as exc:
         parser.error(str(exc))
     print(f"exported saved GEC ICP solution: {plan.manifest_path}")
+
+
+def compare_gec_icp_command(args: Any, parser: argparse.ArgumentParser) -> None:
+    cases = {}
+    for entry in args.case:
+        identifier, separator, directory = entry.partition("=")
+        if not separator or not identifier or not directory or identifier in cases:
+            parser.error("--case requires unique ID=DIRECTORY entries")
+        cases[identifier] = directory
+    try:
+        summary = generate_gec_icp_saved_solution_comparison(
+            cases=cases,
+            output_directory=args.output,
+            baseline_case_id=args.baseline,
+            common_time_s=args.time_s,
+        )
+    except GecIcpComparisonAnalysisError as exc:
+        parser.error(str(exc))
+    print(f"GEC ICP saved-solution comparison: {summary.manifest}")
 
 
 def plot_gec_ccp_command(args: Any, parser: argparse.ArgumentParser) -> None:

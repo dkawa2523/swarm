@@ -176,6 +176,19 @@ def test_comparison_separates_common_and_terminal_and_detects_drift(
 ) -> None:
     pytest.importorskip("matplotlib")
     cases = _four_cases(tmp_path)
+    relocated = cases["two_term"].rename(tmp_path / "copied-results")
+    cases["two_term"] = relocated
+    source_manifest = relocated / "comparison_export_manifest.json"
+    source = json.loads(source_manifest.read_text(encoding="utf-8"))
+    source["case_id"] = "saved"
+    source["input_mph"]["path"] = r"X:\producer\configured.mph"
+    source["model_mapping"]["path"] = r"X:\producer\mapping.yaml"
+    source["expected_outputs"] = [
+        rf"X:\producer\results\{name}" for name in EXPECTED_EXPORT_NAMES
+    ]
+    for row, path in zip(source["outputs"], source["expected_outputs"]):
+        row["path"] = path
+    source_manifest.write_text(json.dumps(source), encoding="utf-8")
 
     summary = generate_gec_icp_saved_solution_comparison(
         cases=cases,
@@ -187,7 +200,8 @@ def test_comparison_separates_common_and_terminal_and_detects_drift(
     assert len(summary.figures) == 4
     assert all(path.is_file() and path.stat().st_size > 0 for path in summary.figures)
     manifest = json.loads(summary.manifest.read_text(encoding="utf-8"))
-    assert manifest["comparison_contract"]["common_time"]["like_for_like"] is True
+    assert manifest["comparison_contract"]["common_time"]["like_for_like_time"] is True
+    assert manifest["comparison_contract"]["operating_conditions_verified"] is False
     assert manifest["comparison_contract"]["terminal"]["like_for_like_time"] is False
     assert manifest["assessment"]["baseline_terminal_stationarity_passed"] is False
     assert (

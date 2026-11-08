@@ -1,0 +1,111 @@
+{
+  "date": "2026-11-08",
+  "source_solver": "propagator",
+  "comsol_version": "6.4.0.429",
+  "models": {
+    "gec_ccp": {
+      "workflow": "examples/workflow_argon_gec_ccp_propagator.yaml",
+      "mapping": "comsol_modes/maps/argon_gec_ccp_propagator_function_eedf.yaml",
+      "swarm_points": 54,
+      "medium_grid": [
+        300,
+        48
+      ],
+      "fine_grid": [
+        600,
+        72
+      ],
+      "refinement_fields_Td": [
+        3000.0,
+        3500.0,
+        4000.0
+      ],
+      "target_grid_passed": true,
+      "swarm_database_sha256": "89bc4bdf0a8d330b96c0cecef576a3e28289153747d6118637aca9e921b42f03",
+      "target_refinement_sha256": "e1a29e86a2f5b1ba8883366e23dab831562fa82aeff81c375cb502319336ed2d",
+      "bundle_manifest_sha256": "cadcd9b037a8169385b40c36f274b440b9021a3e838f19d4b7588c5b80b1868d",
+      "comsol_status": "rejected",
+      "declared_closure_accepted": false,
+      "physical_target_accepted": false,
+      "run_status_sha256": "f1bee2eb13dbbde06355f96b680dbe5731158b697ab2a7c9edc9dcd36218d382",
+      "operating_conditions": {
+        "power_W": 1.0,
+        "pressure_Pa": 13.3322,
+        "gas_temperature_K": 300
+      },
+      "failed_audits": [
+        "function_eedf",
+        "native_function_eedf"
+      ],
+      "source_rate_errors": {
+        "excitation": {
+          "maximum_relative_error_significant": 0.20816016024919548,
+          "maximum_relative_error_limit": 0.1,
+          "p95_relative_error_significant": 0.13743382417585803,
+          "p95_relative_error_limit": 0.05
+        },
+        "ionization": {
+          "maximum_relative_error_significant": 0.07513274353433451,
+          "maximum_relative_error_limit": 0.1,
+          "p95_relative_error_significant": 0.061682941130497285,
+          "p95_relative_error_limit": 0.05
+        }
+      },
+      "excitation_at_5_Td": {
+        "raw_cells_m3_s": 7.108620556133124e-19,
+        "stored_swarm_m3_s": 7.108620556133124e-19,
+        "projected_function_eedf_m3_s": 8.977346426987354e-19
+      },
+      "native_binding": {
+        "samples": 2422,
+        "failed_samples": 18,
+        "maximum_candidate_relative_error": 6.943415451792771e-05
+      }
+    },
+    "gec_icp": {
+      "workflow": "examples/workflow_argon_gec_icp_propagator.yaml",
+      "mapping": "comsol_modes/maps/argon_gec_icp_propagator_function_eedf.yaml",
+      "swarm_points": 14,
+      "medium_grid": [
+        300,
+        48
+      ],
+      "fine_grid": [
+        600,
+        72
+      ],
+      "refinement_fields_Td": [
+        1500.0,
+        2500.0,
+        2744.2936035
+      ],
+      "target_grid_passed": true,
+      "swarm_database_sha256": "2a09947b074759db073c20dfa2649e0c870b477d592435a7a716a01269ed4f1c",
+      "target_refinement_sha256": "9024db9da6a3e12c01f5f271ffb72feb6b433d1de67c98ccd35b97ebba2ce394",
+      "bundle_manifest_sha256": "cd199958ab728f0e8f4dfe3694c9f92274f96093c4b27c207610360aca622909",
+      "comsol_status": "passed",
+      "declared_closure_accepted": true,
+      "physical_target_accepted": true,
+      "run_status_sha256": "6a8260f71ef09f729d57baff24edbbc88ac8070765093dbe0aa90cabb9d76902",
+      "operating_conditions": {
+        "power_W": 1500,
+        "frequency_Hz": 13560000,
+        "pressure_Pa": 2.66644,
+        "gas_temperature_K": 300,
+        "final_time_s": 0.01
+      },
+      "saved_times": 26,
+      "final_values": {
+        "absorbed_power_W": 1393.1798574119061,
+        "axisymmetric_volume_m3": 0.005492535578962569,
+        "coil_power_W": 1500.0,
+        "electron_inventory": 191905210989936.03,
+        "electron_weighted_mean_energy_eV": 7.475279478121837,
+        "ion_inventory": 191940872285624.9,
+        "maximum_mean_energy_eV": 8.776565455761729,
+        "metastable_inventory": 3132617039389657.0,
+        "minimum_mean_energy_eV": 3.772678102440508
+      }
+    }
+  }
+}

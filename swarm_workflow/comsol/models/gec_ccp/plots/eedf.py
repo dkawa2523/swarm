@@ -24,9 +24,8 @@ def plot_closure_overview(
     plt: Any,
     *,
     closure_source: str,
-    reaction_model: str | None,
 ) -> list[Path]:
-    """Render the bundle-level transport, rate, and EEDF overview."""
+    """Render the source quantities present in the bundle."""
 
     import numpy as np
 
@@ -35,55 +34,60 @@ def plot_closure_overview(
     eedf = _data._numeric_rows(bundle / "eedf.csv")
     if not transport or not rates or not eedf:
         raise _contracts.GecCcpPlotError("bundle lacks transport, rate, or EEDF data")
+    mean_energy = np.asarray([row.get("mean_energy_eV", np.nan) for row in transport])
+    if not np.all(np.isfinite(mean_energy) & (mean_energy > 0)):
+        raise _contracts.GecCcpPlotError("transport plot requires positive mean energy")
+
     fig, axes = plt.subplots(2, 2, figsize=(12, 8), constrained_layout=True)
-    mean_energy = np.asarray([row["mean_energy_eV"] for row in transport])
-    axes[0, 0].plot(
+    _plot_available_transport(
+        axes[0, 0],
         mean_energy,
-        [row["reduced_mobility_m2_V_s_m3"] for row in transport],
-        color="#1769aa",
-        linewidth=2,
-        label=r"particle $\mu_eN$",
-    )
-    energy_mobility_column = "reduced_electron_energy_mobility_m2_V_s_m3"
-    if not all(energy_mobility_column in row for row in transport):
-        raise _contracts.GecCcpPlotError(
-            "full Swarm closure lacks reduced electron-energy mobility"
-        )
-    axes[0, 0].plot(
-        mean_energy,
-        [row[energy_mobility_column] for row in transport],
-        color="#c04b35",
-        linewidth=2,
-        linestyle="--",
-        label=r"energy $\mu_\varepsilon N$",
+        transport,
+        (
+            ("reduced_mobility_m2_V_s_m3", r"$\mu_e N$", "#1769aa", "-"),
+            (
+                "reduced_electron_energy_mobility_m2_V_s_m3",
+                r"$\mu_\varepsilon N$",
+                "#c04b35",
+                "--",
+            ),
+        ),
     )
     axes[0, 0].set_ylabel(r"Reduced mobility [m$^{-1}$ V$^{-1}$ s$^{-1}$]")
-    axes[0, 0].set_title("Particle and electron-energy mobility")
-    axes[0, 0].legend(frameon=False)
-    diffusion_columns = {
-        "particle_L": "reduced_diffusion_L_m2_s_m3",
-        "particle_T": "reduced_diffusion_T_m2_s_m3",
-        "energy_L": "reduced_electron_energy_diffusion_L_m2_s_m3",
-        "energy_T": "reduced_electron_energy_diffusion_T_m2_s_m3",
-    }
-    if not all(
-        column in row for row in transport for column in diffusion_columns.values()
-    ):
-        raise _contracts.GecCcpPlotError(
-            "full Swarm closure lacks particle/energy L,T diffusion"
-        )
-    diffusion = {
-        name: np.asarray([row[column] for row in transport], dtype=float)
-        for name, column in diffusion_columns.items()
-    }
+    axes[0, 0].set_title("Swarm mobility")
     if closure_source == "two_term":
-        _plot_scalar_diffusion(axes[0, 1], mean_energy, diffusion, np)
+        diffusion_quantities = (
+            ("reduced_diffusion_T_m2_s_m3", r"$D_e N$", "#1769aa", "-"),
+            (
+                "reduced_electron_energy_diffusion_m2_s_m3",
+                r"$D_\varepsilon N$", "#c04b35", "-",
+            ),
+        )
+        diffusion_title = "Swarm diffusion (F0-gradient approximation)"
     else:
-        _plot_tensor_diffusion(axes[0, 1], mean_energy, diffusion)
+        diffusion_quantities = (
+            ("reduced_diffusion_L_m2_s_m3", r"$D_L N$", "#1769aa", "-"),
+            ("reduced_diffusion_T_m2_s_m3", r"$D_T N$", "#1769aa", "--"),
+            (
+                "reduced_electron_energy_diffusion_L_m2_s_m3",
+                r"$D_{\varepsilon L} N$",
+                "#c04b35",
+                "-",
+            ),
+            (
+                "reduced_electron_energy_diffusion_T_m2_s_m3",
+                r"$D_{\varepsilon T} N$",
+                "#c04b35",
+                "--",
+            ),
+        )
+        diffusion_title = "Swarm diffusion evidence"
+    _plot_available_transport(
+        axes[0, 1], mean_energy, transport, diffusion_quantities,
+    )
     axes[0, 1].set_ylabel(r"Reduced diffusion [m$^{-1}$ s$^{-1}$]")
-    axes[0, 1].set_title("Particle and electron-energy diffusion")
-    axes[0, 1].legend(frameon=False, fontsize=8)
-    _plot_rate_overview(axes[1, 0], rates, reaction_model)
+    axes[0, 1].set_title(diffusion_title)
+    _plot_rate_overview(axes[1, 0], rates)
     _plot_eedf_overview(axes[1, 1], eedf, closure_source)
     for axis in axes.flat:
         axis.set_xlabel("Mean energy [eV]" if axis is not axes[1, 1] else "Energy [eV]")
@@ -91,104 +95,70 @@ def plot_closure_overview(
     for axis in (axes[0, 0], axes[0, 1], axes[1, 0]):
         axis.set_xscale("log")
     fig.suptitle(
-        "Argon GEC CCP input closure\n"
-        f"Steady DC {closure_source} tables supplied to the RF mean-energy model",
+        "Argon GEC CCP source tables\n"
+        f"Steady DC {closure_source} coefficients and EEDF",
         fontsize=14,
     )
     return _data._save(fig, output / "swarm_closure_overview", plt)
 
 
-def _plot_scalar_diffusion(
-    axis: Any, mean_energy: Any, diffusion: dict[str, Any], np: Any
-) -> None:
-    if not (
-        np.allclose(
-            diffusion["particle_L"],
-            diffusion["particle_T"],
-            rtol=1.0e-12,
-            atol=0.0,
-        )
-        and np.allclose(
-            diffusion["energy_L"],
-            diffusion["energy_T"],
-            rtol=1.0e-12,
-            atol=0.0,
-        )
-    ):
-        raise _contracts.GecCcpPlotError("two_term scalar transport requires D_L = D_T")
-    axis.plot(
-        mean_energy,
-        diffusion["particle_L"],
-        color="#1769aa",
-        linewidth=2,
-        label=r"particle $D_LN=D_TN$ (scalar)",
-    )
-    axis.plot(
-        mean_energy,
-        diffusion["energy_L"],
-        color="#c04b35",
-        linewidth=2,
-        linestyle="--",
-        label=r"energy $D_{\varepsilon L}N=D_{\varepsilon T}N$ (scalar)",
-    )
-
-
-def _plot_tensor_diffusion(
+def _plot_available_transport(
     axis: Any,
     mean_energy: Any,
-    diffusion: dict[str, Any],
+    rows: list[dict[str, float]],
+    quantities: tuple[tuple[str, str, str, str], ...],
 ) -> None:
-    for name, color, linestyle, label in (
-        ("particle_L", "#1769aa", "-", r"particle $D_LN$"),
-        ("particle_T", "#1769aa", "--", r"particle $D_TN$"),
-        ("energy_L", "#c04b35", "-", r"energy $D_{\varepsilon L}N$"),
-        ("energy_T", "#c04b35", "--", r"energy $D_{\varepsilon T}N$"),
-    ):
-        axis.plot(
-            mean_energy,
-            diffusion[name],
-            color=color,
-            linewidth=2,
-            linestyle=linestyle,
-            label=label,
+    import numpy as np
+
+    unavailable = []
+    for name, label, color, linestyle in quantities:
+        values = np.asarray([row.get(name, np.nan) for row in rows])
+        if np.isfinite(values).any():
+            axis.plot(
+                mean_energy, values, color=color, linewidth=2,
+                linestyle=linestyle, marker=".", label=label,
+            )
+        else:
+            unavailable.append(label)
+    if axis.lines:
+        axis.legend(frameon=False, fontsize=8)
+    else:
+        axis.set_yticks([])
+    if unavailable:
+        axis.text(
+            0.03, 0.05, "Unavailable: " + ", ".join(unavailable),
+            transform=axis.transAxes, fontsize=8, wrap=True,
         )
 
 
-def _plot_rate_overview(
-    axis: Any, rates: list[dict[str, str]], reaction_model: str | None
-) -> None:
-    rate_colors = {
-        "elastic": "#555555",
-        "excitation": "#e69500",
-        "ionization": "#8f3985",
-    }
-    rate_styles = {"elastic": "-", "excitation": "--", "ionization": "-."}
-    for process in ("elastic", "excitation", "ionization"):
+def _plot_rate_overview(axis: Any, rates: list[dict[str, str]]) -> None:
+    for process, color, linestyle in (
+        ("elastic", "#555555", "-"),
+        ("excitation", "#e69500", "--"),
+        ("ionization", "#8f3985", "-."),
+    ):
         selected = [
             row
             for row in rates
             if row.get("process_type") == process
             and _data._positive(row.get("rate_coefficient_m3_s"))
         ]
-        axis.plot(
-            [float(row["mean_energy_eV"]) for row in selected],
-            [float(row["rate_coefficient_m3_s"]) for row in selected],
-            color=rate_colors[process],
-            linestyle=rate_styles[process],
-            linewidth=2,
-            label=process,
-        )
+        if selected:
+            axis.plot(
+                [float(row["mean_energy_eV"]) for row in selected],
+                [float(row["rate_coefficient_m3_s"]) for row in selected],
+                color=color,
+                linestyle=linestyle,
+                linewidth=2,
+                marker=".",
+                label=process,
+            )
     axis.set_yscale("log")
     axis.set_ylabel(r"Rate coefficient [m$^3$ s$^{-1}$]")
-    if reaction_model == "function_eedf":
-        axis.set_title("COMSOL cross-section rates (Swarm rate table: audit)")
-    elif reaction_model == _contracts.HYBRID_FUNCTION_EEDF_REACTION_MODEL:
-        axis.set_title("Elastic Function-EEDF integral; preintegrated inelastic rates")
-    elif reaction_model == "external_rates":
-        axis.set_title("Imported Swarm reaction rates")
-    else:
-        axis.set_title("Swarm reaction-rate table audit")
-    axis.legend(frameon=False)
+    axis.set_title("Swarm reaction rates")
+    if axis.lines:
+        axis.legend(frameon=False)
+        _limit_overview_log_range(axis)
 
 
 def _plot_eedf_overview(
@@ -223,6 +193,16 @@ def _plot_eedf_overview(
     axis.set_ylabel(r"EEDF [eV$^{-1}$]")
     axis.set_title(f"{closure_source} EEDF audit")
     axis.legend(frameon=False)
+    _limit_overview_log_range(axis)
+
+
+def _limit_overview_log_range(axis: Any) -> None:
+    # Keep the main distribution visible when the source includes tiny tails.
+    minimum, peak = axis.dataLim.intervaly
+    display_floor = peak * 1e-16
+    if 0 < minimum < display_floor:
+        axis.set_ylim(display_floor, peak * 1.5)
+        axis.set_title(f"{axis.get_title()} (16-decade view)")
 
 
 def plot_operating_eedf_if_available(

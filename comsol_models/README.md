@@ -17,6 +17,8 @@ CCPの補間関数はEEDFのCSV見出し1行を読み飛ばす警告を出しま
 
 各 `release.json` に配布ファイルのバイト数とSHA-256、運転条件、GUI結果、受入記録をまとめています。
 正柱は局所エネルギー近似でCOMSOLが平均エネルギーを解き、Swarmの輸送係数とTownsend係数を使います。
+導電電流の一様性の受入範囲は正柱の中央80%です。電極近傍には400要素に増やしても
+電流密度の振動が残りました。[正柱の比較結果](../docs/dev/improvement_plan.md#i4と独立照合で確認した結果)
 CCPとICPはSwarmのFunction EEDFと移動度を使い、COMSOLが拡散、エネルギー、RF場と重粒子を扱います。
 受入は表の条件と各モデルの閉包に対する判定です。入力表の範囲と物理的な利用範囲はそれぞれ確認してください。
 
@@ -61,6 +63,7 @@ py -3 -m swarm_workflow.cli run-gec-icp comsol_models/gec_icp/mapping.yaml --dry
 
 `export-positive-column` と `export-gec-icp` は保存解を読み、指定した結果を新しい出力フォルダに保存します。
 `plot-gec-ccp` は `bundle/` と `results/` から図を作れます。描画には `plot` オプション依存関係を使います。
+`compare-gec-icp` は移動先の `results/` から共通時刻の比較と時系列図を作れます。
 
 ```powershell
 py -3 -m pip install ".[plot]"
@@ -68,6 +71,7 @@ py -3 -m swarm_workflow.cli plot-gec-ccp --bundle comsol_models/gec_ccp/bundle -
 ```
 
 組成の時間発展はプラズマモデルが解きます。ここでのICPの時系列はCOMSOLの保存解です。
+配布済みSQLiteは[外部モデルでの係数利用](../docs/coefficient_lookup.md)にも使えます。
 具体的な設定とコマンドは[正柱](../docs/comsol_workflow.md)、[CCP](../docs/comsol_gec_ccp.md)、[ICP](../docs/comsol_gec_icp.md)を参照してください。
 
 ## 過去の計算済みICP

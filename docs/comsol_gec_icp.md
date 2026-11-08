@@ -144,6 +144,20 @@ within the saved time range. The manifest records units, source and output
 hashes. The [configured distribution](../comsol_models/README.md) includes
 these CSVs and a time-history plot for the 0.01 s two-term run.
 
+With the `plot` extra installed, compare two to four export directories.
+Export each case at the same `--time-s` through the same model mapping.
+
+```powershell
+swarm-workflow compare-gec-icp --case original=outputs/icp_original --case two_term=outputs/gec_icp_saved --baseline original --time-s 0.001 --output outputs/icp_comparison
+```
+
+The command reads the exported CSVs and their manifest after relocation.
+It verifies CSV hashes, the shared mapping identity, time and plasma volume.
+The operating conditions of the supplied models are the caller's
+responsibility. Figures and tables distinguish the common-time comparison
+from each model's terminal state and report terminal stationarity separately.
+Use a new output directory for each comparison.
+
 ## Acceptance and historical measurements
 
 Apply plus saved-closure readback and native Function-EEDF evaluation run in
@@ -176,15 +190,15 @@ differences because EEDF and mobility change together. The original saved
 1 ms state fails the current Ar* stationarity limit (11.543% versus 3%), so it
 is not a converged 10 ms reference.
 
-Current inspectable Propagator input evidence:
+On 2026-11-08, the current P1 workflow regenerated the 14 Swarm points and
+passed target-grid refinement at 1500, 2500, and 2744.2936035 Td. COMSOL
+6.4.0.429 accepted the declared closure at 1500 W, 13.56 MHz, 2.66644 Pa,
+and 300 K. It saved all 26 times through 0.01 s. At 0.01 s the electron
+inventory was `1.91905e14`, the electron-weighted mean energy was 7.47528 eV,
+and absorbed power was 1393.180 W.
 
-- `docs/dev/results/propagator_p1_core_qualification.json`
-- `docs/dev/results/propagator_gec_icp_target_qualification.json`
-- `outputs/argon_gec_icp/propagator_tables/mixture_0000/manifest.json`
-- `outputs/argon_gec_icp/propagator_bundle/mixture_0000/manifest.json`
-- `outputs/argon_gec_icp/comsol_propagator_function_eedf/gec_icp_plan.json`
-
-The obsolete pre-refactor Propagator comparison and COMSOL-result directories
-were removed. A licensed run of the final command above must create a fresh
-`run_status.json` before COMSOL convergence or physical-target acceptance is
-claimed; `--dry-run` proves only input and model preflight readiness.
+The maintained [P1 core](dev/results/propagator_p1_core_qualification.json)
+and [target-grid evidence](dev/results/propagator_gec_icp_target_qualification.json)
+describe their recorded inputs. Regenerate the target qualification when
+regenerating its bound database. See the [current plan](dev/improvement_plan.md)
+for the release validation scope.

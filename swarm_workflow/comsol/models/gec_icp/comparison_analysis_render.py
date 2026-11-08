@@ -160,7 +160,7 @@ def render_common_time_relative_change(
     ax.spines[["top", "right"]].set_visible(False)
     ax.legend(loc="upper right", frameon=False, ncol=min(len(candidates), 3))
     fig.suptitle(
-        f"Like-for-like comparison at {common_time_s * 1.0e3:g} ms",
+        f"Saved solutions at {common_time_s * 1.0e3:g} ms",
         x=0.075,
         y=0.98,
         ha="left",

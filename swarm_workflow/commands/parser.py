@@ -308,6 +308,16 @@ def _add_comsol_model_commands(subparsers: argparse._SubParsersAction) -> None:
     saved_icp.add_argument("--comsol", type=Path, help="COMSOL batch executable")
     saved_icp.set_defaults(handler=handlers.export_gec_icp_command)
 
+    compare_icp = subparsers.add_parser(
+        "compare-gec-icp",
+        help="Compare and plot two to four exported ICP solutions at a shared time",
+    )
+    compare_icp.add_argument("--case", action="append", required=True, metavar="ID=DIRECTORY")
+    compare_icp.add_argument("--baseline", required=True, help="case ID used as reference")
+    compare_icp.add_argument("--time-s", type=float, required=True, help="common export time in seconds")
+    compare_icp.add_argument("--output", type=Path, required=True, help="new comparison output directory")
+    compare_icp.set_defaults(handler=handlers.compare_gec_icp_command)
+
     plot_gec = subparsers.add_parser(
         "plot-gec-ccp",
         help="Plot GEC CCP Swarm inputs and available COMSOL comparisons",

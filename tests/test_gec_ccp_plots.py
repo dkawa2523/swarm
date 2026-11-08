@@ -11,6 +11,7 @@ from swarm_workflow.quality.policy import QualityThresholds, quality_thresholds_
 from swarm_workflow.comsol.models.gec_ccp.plots.eedf import (
     _function_eedf_slice,
     _weighted_quantiles,
+    plot_closure_overview,
 )
 from swarm_workflow.comsol.models.gec_ccp.plots.data import (
     _comsol_field_matrix,
@@ -32,6 +33,41 @@ from swarm_workflow.comsol.models.gec_ccp.plots.spatial import (
     _plot_domain_2d_comparison,
 )
 from swarm_workflow.comsol.input.function_eedf import ComsolFunctionEedfGrid
+
+
+def test_closure_overview_marks_unavailable_p1_transport(tmp_path, monkeypatch):
+    plt = pytest.importorskip("matplotlib.pyplot")
+    from swarm_workflow.comsol.models.gec_ccp.plots import data
+
+    (tmp_path / "transport_vs_mean_energy.csv").write_text(
+        "mean_energy_eV,reduced_mobility_m2_V_s_m3\n1,1e24\n2,2e24\n"
+    )
+    (tmp_path / "rates_vs_mean_energy.csv").write_text(
+        "mean_energy_eV,process_type,rate_coefficient_m3_s\n1,elastic,1e-14\n"
+    )
+    (tmp_path / "eedf.csv").write_text(
+        "E_over_N_Td,electron_energy_eV,eedf\n10,1,0.3\n10,2,0.2\n10,3,1e-200\n"
+    )
+
+    def check_figure(fig, stem, pyplot):
+        try:
+            mobility, diffusion = fig.axes[:2]
+            assert len(mobility.lines) == 1
+            assert mobility.lines[0].get_ydata() == pytest.approx([1e24, 2e24])
+            assert "Unavailable" in mobility.texts[0].get_text()
+            assert not diffusion.lines
+            assert "Unavailable" in diffusion.texts[0].get_text()
+            eedf = fig.axes[-1]
+            assert eedf.lines[0].get_ydata()[-1] == 1e-200
+            assert eedf.get_ylim()[0] == pytest.approx(3e-17, abs=0)
+            return [stem.with_suffix(".png")]
+        finally:
+            pyplot.close(fig)
+
+    monkeypatch.setattr(data, "_save", check_figure)
+    assert plot_closure_overview(
+        tmp_path, tmp_path, plt, closure_source="propagator"
+    ) == [tmp_path / "swarm_closure_overview.png"]
 
 
 def test_waveform_metrics_integrate_periodic_endpoints_on_each_native_grid(

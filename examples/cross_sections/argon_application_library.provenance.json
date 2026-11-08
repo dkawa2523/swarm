@@ -2,11 +2,13 @@
   "schema": "swarm.cross_section_provenance.v1",
   "dataset": "Repository argon application cross-section library",
   "source": {
-    "status": "legacy_repository_asset_with_unrecorded_external_origin",
-    "publisher": null,
-    "url": null,
-    "version": null,
-    "note": "The original external citation and version were not recorded when this table entered the repository; this artifact does not invent them."
+    "status": "matched_application_library_asset",
+    "publisher": "COMSOL",
+    "url": "https://doc.comsol.com/6.4/doc/com.comsol.help.models.plasma.boltzmann_argon/boltzmann_argon.html",
+    "version": "6.4.0.429",
+    "asset": "Plasma_Module/Two-Term_Boltzmann_Equation/Ar_xsecs.txt",
+    "sha256": "62c9070c2c3ec735a3776abfe741c90c9d1afa0e206478b96b66988e2e5fd15f",
+    "note": "The repository Model/Ar_xsecs.txt matches the installed application file byte for byte. The COMSOL documentation cites the LXCat Phelps database retrieved in 2017. The exact upstream snapshot is unspecified."
   },
   "interpretation": {
     "csv_elastic_role": "elastic_momentum_transfer",
@@ -26,5 +28,5 @@
     "bytes": 6713,
     "process_rows": 132
   },
-  "scope_note": "This maintained application table is suitable for the repository's declared ordinary-integral-XS closures. It is not raw DCS evidence and its unrecorded external origin limits independent physical provenance claims."
+  "scope_note": "The 132 energy and cross-section pairs match the three ground-state processes in the application file. The CSV specifies a neutral mass of 39.948 amu. Angular use is limited to the declared ordinary-integral-cross-section closures."
 }

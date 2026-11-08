@@ -261,9 +261,16 @@ swarm-workflow compare-positive-column external\positive_column_run_summary.json
 
 The comparison requires unit-bearing result summaries with verified gas
 context. For example, two accepted runs can compare mesh resolutions or
-formulations. The standalone export supports reading any mapped saved fields.
-Using it for a physics comparison still requires independent gas-context
-evidence for the saved model.
+formulations. Standalone exports of the supported pure-Ar positive-column
+model can also be compared. The export reads the constant gas temperature
+and Ar molar mass from the saved model when the configured dataset, plasma
+feature, and pressure/voltage expressions match its actual bindings. An
+unrecognized gas configuration supports field export only. The saved-model
+argon molar mass is reported independently of the Swarm input mass.
+For the distributed Swarm case select `dset1`. For the bundled COMSOL
+Boltzmann reference `Model/positive_column_1d_boltzmann.mph`, select `dset4`
+and keep fields present in both models. Use `p0` and `V0` as the expressions
+for `gas_pressure` and `applied_voltage` in these two files.
 
 If a result contains multiple saved solutions, pass `--external-solution N`
 and `--reference-solution M` using the original COMSOL solution indices.

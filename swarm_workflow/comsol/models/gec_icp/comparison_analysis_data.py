@@ -6,7 +6,7 @@ import csv
 import hashlib
 import json
 import math
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Mapping, Sequence
 
 from .comparison_analysis_contracts import (
@@ -99,11 +99,11 @@ def load_comparison_case(
         case_id=case_id,
         label=label,
         export_directory=directory,
-        input_mph=Path(input_record["path"]).resolve(),
+        input_mph=input_record["path"],
         input_mph_sha256=str(input_record["sha256"]),
         source_manifest=manifest_path,
         source_manifest_sha256=sha256_file(manifest_path),
-        model_mapping=Path(mapping_record["path"]).resolve(),
+        model_mapping=mapping_record["path"],
         model_mapping_sha256=str(mapping_record["sha256"]),
         common=common,
         terminal=terminal,
@@ -139,7 +139,6 @@ def _load_and_validate_manifest(
         "schema_version": 1,
         "stage": "execute-gec-icp-comparison-export",
         "status": "completed",
-        "case_id": case_id,
         "read_only": True,
     }
     for key, expected in required.items():
@@ -147,19 +146,20 @@ def _load_and_validate_manifest(
             raise GecIcpComparisonAnalysisError(
                 f"{case_id}: manifest {key!r} is not {expected!r}"
             )
+    if not isinstance(payload.get("case_id"), str) or not payload["case_id"]:
+        raise GecIcpComparisonAnalysisError(f"{case_id}: missing export case identity")
 
     input_record = payload.get("input_mph")
     if not isinstance(input_record, dict):
         raise GecIcpComparisonAnalysisError(
             f"{case_id}: manifest lacks input MPH provenance"
         )
-    source = Path(str(input_record.get("path", ""))).resolve()
     recorded_hash = input_record.get("sha256")
     if (
-        not source.is_file()
+        not isinstance(input_record.get("path"), str)
+        or not input_record["path"]
         or not _valid_sha256(recorded_hash)
         or input_record.get("post_execution_sha256") != recorded_hash
-        or sha256_file(source) != recorded_hash
     ):
         raise GecIcpComparisonAnalysisError(
             f"{case_id}: input MPH provenance is not closed"
@@ -170,12 +170,11 @@ def _load_and_validate_manifest(
         raise GecIcpComparisonAnalysisError(
             f"{case_id}: manifest lacks model mapping provenance"
         )
-    mapping_path = Path(str(mapping_record.get("path", ""))).resolve()
     mapping_hash = mapping_record.get("sha256")
     if (
-        not mapping_path.is_file()
+        not isinstance(mapping_record.get("path"), str)
+        or not mapping_record["path"]
         or not _valid_sha256(mapping_hash)
-        or sha256_file(mapping_path) != mapping_hash
     ):
         raise GecIcpComparisonAnalysisError(
             f"{case_id}: model mapping provenance is not closed"
@@ -186,7 +185,7 @@ def _load_and_validate_manifest(
         raise GecIcpComparisonAnalysisError(
             f"{case_id}: manifest expected_outputs must be a list"
         )
-    expected_names = [Path(str(value)).name for value in expected_outputs]
+    expected_names = [PureWindowsPath(str(value)).name for value in expected_outputs]
     if len(expected_names) != len(set(expected_names)) or set(expected_names) != set(
         EXPECTED_EXPORT_NAMES
     ):
@@ -205,7 +204,7 @@ def _load_and_validate_manifest(
             raise GecIcpComparisonAnalysisError(
                 f"{case_id}: malformed output provenance record"
             )
-        name = Path(str(record.get("path", ""))).name
+        name = PureWindowsPath(str(record.get("path", ""))).name
         if name in by_name:
             raise GecIcpComparisonAnalysisError(
                 f"{case_id}: duplicate output provenance for {name}"

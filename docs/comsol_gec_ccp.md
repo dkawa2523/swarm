@@ -175,6 +175,11 @@ The run directory contains:
 - `conservation_audit.json` and any applicable transport/support audits;
 - `gec_ccp_run_status.json`, the final acceptance record.
 
+`plot-gec-ccp` displays the Swarm source tables and marks unavailable transport
+quantities. The rate and EEDF overview displays up to 16 decades below the
+peak when the source includes smaller positive values. The CSVs retain those
+values.
+
 The canonical retained run consists of that result directory, its output MPH,
 and the four matching apply, Function-EEDF audit, external-run, and export log
 directories. Timestamped failed attempts and superseded preflight material are
@@ -187,6 +192,14 @@ applicable numerical and physics gate passed. Its terminal record then contains
 to `physical_target_accepted: true` only when the mapping declares a physical
 target and supplies every required physical closure. A successful COMSOL
 process exit alone is insufficient for either decision.
+
+On 2026-11-08, all 54 P1 Swarm points and the three high-field grid-refinement
+checks passed. COMSOL 6.4.0.429 completed the 1 W periodic solve and export.
+Acceptance rejected the P1 Function EEDF. The projected excitation coefficient
+at 5 Td was `8.977e-19 m³/s` versus `7.109e-19 m³/s` from the source cells.
+Native Function values also failed 18 of 2422 strict checks. The two-term
+configured model has passed its declared closure checks. See the
+[current P1 evidence](dev/results/argon_p1_comsol_validation_20261108.json).
 
 A `diagnostic_control` run has a separate terminal status and is never
 promoted to `physical_target_accepted: true`. Its purpose is to verify the

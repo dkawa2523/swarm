@@ -1,6 +1,14 @@
-"""Canonical workflow-table construction API."""
+"""Canonical workflow tables and simulator-neutral coefficient lookup."""
 
 from typing import TYPE_CHECKING, Any
+
+from .lookup import (
+    CoefficientLookupError,
+    CoefficientSeries,
+    CoefficientTables,
+    Reaction,
+    load_coefficients,
+)
 
 if TYPE_CHECKING:
     from .anchor_fallback import (
@@ -10,9 +18,14 @@ if TYPE_CHECKING:
     from .builder import build_tables as build_tables
 
 __all__ = [
+    "CoefficientLookupError",
+    "CoefficientSeries",
+    "CoefficientTables",
     "CompositeTableSummary",
+    "Reaction",
     "build_tables",
     "compose_mc_anchor_fallback_tables",
+    "load_coefficients",
 ]
 
 

@@ -9,14 +9,17 @@ from io import StringIO
 import json
 import math
 from pathlib import Path
+import re
 from tempfile import NamedTemporaryFile
 from typing import Any, TYPE_CHECKING
+from xml.etree import ElementTree
+from zipfile import BadZipFile, ZipFile
 
 from .contracts import PositiveColumnWorkflowError
 from .result_units import canonical_unit
 
 if TYPE_CHECKING:
-    from .config import ResultOutput
+    from .config import ComsolModelMapping, ResultOutput
 
 RESULT_SCHEMA = "swarm.positive_column_result.v1"
 FIELD_CSV_MARKER = "SWARM_POSITIVE_COLUMN_FIELDS_CSV"
@@ -38,6 +41,86 @@ class PositiveColumnResults:
     rows: tuple[dict[str, Any], ...]
     units: dict[str, str]
     metadata: dict[str, Any]
+
+
+def read_saved_argon_context(
+    model: Path, mapping: ComsolModelMapping, selection: ResultOutput
+) -> dict[str, Any] | None:
+    """Recognize a saved positive-column model with constant pure-Ar gas data."""
+    try:
+        with ZipFile(model) as archive:
+            root = ElementTree.fromstring(archive.read("dmodel.xml"))
+    except (BadZipFile, KeyError, ElementTree.ParseError):
+        return None
+    physics = [
+        node for node in root.iter("Physics")
+        if node.get("op") == "ColdPlasma" and node.get("tag") == mapping.model.physics
+    ]
+    datasets = [
+        node for node in root.iter("DatasetFeature")
+        if node.get("op") == "Solution" and node.get("tag") == selection.dataset
+    ]
+    if len(physics) != 1 or len(datasets) != 1:
+        return None
+    component = datasets[0].find("propertyValue[@name='p:comp']")
+    if component is None or component.get("value") != mapping.model.component:
+        return None
+
+    features = list(physics[0].iter("PhysicsFeature"))
+    gas = [node for node in features if node.get("op") == "PlasmaEsModel"]
+    contacts = [
+        node for node in features
+        if node.get("tag") == mapping.run.voltage_feature and node.get("op") == "MetalContact"
+    ]
+    if len(gas) != 1 or gas[0].get("tag") != mapping.closure.feature or len(contacts) != 1:
+        return None
+
+    def parameter(node: ElementTree.Element, name: str) -> str:
+        entries = [entry for entry in node.findall("param") if entry.get("param") == name]
+        encoded = entries[0].get("value", "") if len(entries) == 1 else ""
+        value = re.fullmatch(r"1\|1,'([^']+)'", encoded)
+        return value[1] if value is not None else ""
+
+    species = [node for node in features if node.get("op") == "Species"]
+    names = {parameter(node, "specName"): node for node in species}
+    if len(species) != 4 or set(names) != {"e", "Ar", "Ars", "Ar_1p"}:
+        return None
+    if any(
+        "DISABLED" in node.findtext("entityFlags", default="")
+        for node in (physics[0], datasets[0], gas[0], contacts[0], *species)
+    ):
+        return None
+    for name in ("Ar", "Ars", "Ar_1p"):
+        if (
+            parameter(names[name], "PresetSpeciesData") != "Ar"
+            or parameter(names[name], "FromMassConstraint") != ("1" if name == "Ar" else "0")
+        ):
+            return None
+
+    fields = {item.name: item.expression.strip() for item in selection.fields}
+    pressure = parameter(gas[0], "pA")
+    voltage = parameter(contacts[0], mapping.run.voltage_property)
+    if (
+        parameter(gas[0], "T_src") != "userdef"
+        or not pressure or fields.get("gas_pressure") != pressure
+        or not voltage or fields.get("applied_voltage") != voltage
+    ):
+        return None
+    temperature_expression = parameter(gas[0], "T")
+    mass_expression = parameter(names["Ar"], "M")
+    if not temperature_expression.endswith("[K]") or not mass_expression.endswith("[kg/mol]"):
+        return None
+    try:
+        temperature = float(temperature_expression.removesuffix("[K]"))
+        mass = float(mass_expression.removesuffix("[kg/mol]"))
+    except ValueError:
+        return None
+    if not all(math.isfinite(value) and value > 0 for value in (temperature, mass)):
+        return None
+    return {
+        "gas_temperature_K": temperature,
+        "gas_mixture": [{"species": "Ar", "fraction": 1.0, "molar_mass_kg_mol": mass}],
+    }
 
 
 def copy_comsol_csv(stdout: Path, output: Path, *, marker: str) -> bool:

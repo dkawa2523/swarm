@@ -49,7 +49,13 @@ from .contracts import (
 )
 from . import bundle as _bundle
 from . import audit as _audit
-from .results import FIELD_CSV_MARKER, RESULT_SCHEMA, copy_comsol_csv, read_mapped_results
+from .results import (
+    FIELD_CSV_MARKER,
+    RESULT_SCHEMA,
+    copy_comsol_csv,
+    read_mapped_results,
+    read_saved_argon_context,
+)
 from .result_units import canonical_unit
 
 
@@ -122,6 +128,7 @@ def export_positive_column_solution(
         study=mapping.model.study,
     )
     field_units = {field.name: field.unit for field in selection.fields}
+    physical_context = read_saved_argon_context(model, mapping, selection)
     with TemporaryDirectory(dir=output) as temporary:
         csv_path = Path(temporary) / RESULTS_CSV
         if not copy_comsol_csv(
@@ -139,7 +146,7 @@ def export_positive_column_solution(
             raise PositiveColumnWorkflowError("saved MPH changed during export")
         csv_path.replace(output / RESULTS_CSV)
     summary = output / "positive_column_export.json"
-    write_json(summary, {
+    payload = {
         "artifact_schema": RESULT_SCHEMA,
         "status": "completed",
         "stage": "export-positive-column",
@@ -152,7 +159,12 @@ def export_positive_column_solution(
             "field_units": field_units,
         },
         "comsol": {"version": execution.comsol_version, "build": execution.comsol_build},
-    })
+    }
+    if physical_context is not None:
+        payload["physical_context"] = physical_context
+        payload["physical_context_basis"] = "saved_comsol_argon_species_and_conditions"
+        payload["voltage_parameter"] = mapping.run.voltage_parameter
+    write_json(summary, payload)
     return summary
 
 

@@ -31,6 +31,8 @@ Optional `output.export: {solver: multi_term, quantities: [reaction_rates]}`
 adds simulator-neutral DC coefficient points with physical context and MC
 replica uncertainty, independently of transport or COMSOL requirements.
 Use `swarm-workflow export-reaction-rates` to produce the same data from saved results.
+For a fixed gas state, [read and interpolate qualified coefficients](docs/coefficient_lookup.md)
+for use in a Global model or other plasma simulator.
 With `pip install 'electron-swarm[plot]'`, add
 `output.figures: [eedf, transport, reaction_rates]` to the same YAML for
 PNG/SVG and their numerical data. Optional `energy_angle` and `rf_phase`

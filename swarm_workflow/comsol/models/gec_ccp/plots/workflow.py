@@ -91,7 +91,6 @@ def plot_gec_ccp_results(
             output,
             plt,
             closure_source=closure_source,
-            reaction_model=reaction_model,
         )
     )
     if comsol_results_dir is None:

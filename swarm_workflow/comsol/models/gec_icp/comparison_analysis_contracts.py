@@ -76,11 +76,11 @@ class GecIcpComparisonCaseData:
     case_id: str
     label: str
     export_directory: Path
-    input_mph: Path
+    input_mph: str
     input_mph_sha256: str
     source_manifest: Path
     source_manifest_sha256: str
-    model_mapping: Path
+    model_mapping: str
     model_mapping_sha256: str
     common: GecIcpIntegratedState
     terminal: GecIcpIntegratedState
