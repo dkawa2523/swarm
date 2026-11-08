@@ -188,8 +188,11 @@ does not run a study. CSV rows retain `dataset`, `solution_index`, `point_index`
 requested fields. Stationary results have an empty `time_s`; transient times
 are evaluated in seconds. More than one outer solution or inner parameter is
 unsupported and fails explicitly. The summary binds the selection, field
-units, and CSV hash. Export must create a new file; an earlier CSV or stdout
-cannot satisfy it.
+units, and CSV hash. COMSOL reports an empty outer-index array for an ordinary
+unswept solution. The exporter uses the containing solution in that case.
+It reads the complete CSV block from the current COMSOL process and publishes
+it atomically in the configured output directory. This works with the default
+COMSOL Java file-access restrictions.
 
 The exporter reads back the evaluation's `unit` property after `getData()`
 and rejects a change from the requested unit (ignoring whitespace). Complex
@@ -207,10 +210,11 @@ to obtain canonical `.rows`, `.units`, and original `.metadata` without COMSOL.
 
 The API shape and solution metadata follow the official
 [Eval reference](https://doc.comsol.com/6.3/doc/com.comsol.help.comsol/comsol_api_results.52.047.html)
-and [SolutionInfo API](https://doc.comsol.com/6.3/doc/com.comsol.help.comsol/api/com/comsol/model/SolutionInfo.html).
-Software tests execute a two-solution/three-point fixture, and generated Java
-compiles against the installed 6.4 API. Licensed model execution remains a
-separate acceptance step.
+and [SolutionInfo API](https://doc.comsol.com/6.4/doc/com.comsol.help.comsol/api/com/comsol/model/SolutionInfo.html).
+Software tests execute a two-solution/three-point fixture. In licensed COMSOL
+6.4.0.429 the exporter read 801 points at the last saved time of the 200 V case.
+The physical audit rejected that run because the bounded table ended at 500 Td
+and the saved solution reached 3887.69 Td.
 
 Each new execution replaces any prior completed summary with `running` before
 preflight. A preflight rejection writes `blocked`; a later stage failure writes
@@ -221,14 +225,12 @@ run cannot be mistaken for the latest request.
 
 The verifier intentionally separates three questions:
 
-1. **Written-property audit:** read back all seven property arrays and compare
-   them with the source bundle.
-2. **Formulation audit:** confirm LEA/LFA and the corresponding active and
-   inactive sets.
-3. **Spatial numerical-consistency audit:** for LEA, compare the stable
-   exported spatial variables for reduced mobility, longitudinal reduced
-   diffusion, and the `eir2`/`eir4` Townsend coefficients with their table
-   evaluations at every spatial point.
+1. Read the seven stored lookup tables using the COMSOL parameter type and
+   compare them with the source bundle.
+2. Confirm LEA/LFA and the corresponding active and inactive lookup tables.
+3. For LEA, compare reduced mobility, longitudinal reduced diffusion, and the
+   `eir2`/`eir4` Townsend coefficients with their table evaluations at every
+   exported spatial point.
 
 Mean energy is not compared with the E/N lookup in the LEA spatial contract;
 it is a solved dependent variable. Electron-energy mobility and diffusion are

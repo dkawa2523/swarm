@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-from pathlib import Path
 from typing import Iterable
 
 from ...java import java_path, java_string
@@ -14,6 +13,7 @@ from .config import (
     FunctionMapping,
     ReactionLookupMapping,
 )
+from .results import FIELD_CSV_MARKER, IDENTITY_COLUMNS
 
 
 DEFAULT_CLASS_NAME = "SwarmComsolApply"
@@ -390,7 +390,6 @@ def generate_field_export_java_source(
     mapping: ComsolModelMapping,
     *,
     class_name: str,
-    output_csv: Path,
 ) -> str:
     """Export selected saved solutions without running a COMSOL study."""
     _validate_java_class_name(class_name)
@@ -399,16 +398,10 @@ def generate_field_export_java_source(
         raise ValueError("field export requires mapping results")
     expressions = ", ".join(java_string(field.expression) for field in results.fields)
     units = ", ".join(java_string(field.unit) for field in results.fields)
-    header = (
-        "dataset,solution_index,point_index,time_s,parameter_name,parameter_unit,parameter_value,"
-        + ",".join(field.name for field in results.fields)
-    )
+    header = ",".join(IDENTITY_COLUMNS + tuple(field.name for field in results.fields))
     first = "0" if results.solutions == "all" else "solutionNumbers.length - 1"
     return f"""import com.comsol.model.*;
 import com.comsol.model.util.*;
-import java.nio.file.*;
-import java.nio.charset.StandardCharsets;
-import java.io.BufferedWriter;
 import java.util.Arrays;
 
 public class {class_name} {{
@@ -422,10 +415,11 @@ public class {class_name} {{
     String solution = model.result().dataset(dataset).getString("solution");
     SolutionInfo info = model.sol(solution).getSolutioninfo();
     int[] outer = info.getOuterSolnum();
-    if (outer.length != 1 || outer[0] != 1) {{
+    if (outer.length > 1 || (outer.length == 1 && outer[0] != 1)) {{
       throw new IllegalStateException("positive-column export does not support outer parameter sweeps");
     }}
-    int[] solutionNumbers = info.getSolnum(1, true);
+    // With no outer sweep COMSOL reports an empty outer index array.
+    int[] solutionNumbers = info.getSolnum(1, outer.length == 1);
     String[] parameterNames = model.sol(solution).getPNames();
     if (parameterNames.length > 1) {{
       throw new IllegalStateException("positive-column export supports at most one inner solution parameter");
@@ -482,30 +476,21 @@ public class {class_name} {{
         }}
       }}
     }}
-    Path output = Paths.get({java_string(java_path(output_csv))});
-    Files.createDirectories(output.toAbsolutePath().getParent());
-    Path temporary = Files.createTempFile(output.toAbsolutePath().getParent(), ".fields-", ".csv");
-    try {{
-      try (BufferedWriter writer = Files.newBufferedWriter(temporary, StandardCharsets.UTF_8)) {{
-        writer.write({java_string(header)});
-        writer.newLine();
-        for (int s = {first}; s < solutionNumbers.length; s++) {{
-          for (int point = 0; point < points; point++) {{
-            String time = transientSolution ? Double.toString(values[fieldCount][s][point]) : "";
-            String parameter = parameterName.isEmpty() ? "" : Double.toString(parameterValues[s]);
-            writer.write(csv(dataset) + "," + solutionNumbers[s] + "," + point + "," + time
-                + "," + csv(parameterName) + "," + csv(parameterUnit) + "," + parameter);
-            for (int field = 0; field < fieldCount; field++) {{
-              writer.write("," + Double.toString(values[field][s][point]));
-            }}
-            writer.newLine();
-          }}
+    System.out.println("{FIELD_CSV_MARKER}_BEGIN");
+    System.out.println({java_string(header)});
+    for (int s = {first}; s < solutionNumbers.length; s++) {{
+      for (int point = 0; point < points; point++) {{
+        String time = transientSolution ? Double.toString(values[fieldCount][s][point]) : "";
+        String parameter = parameterName.isEmpty() ? "" : Double.toString(parameterValues[s]);
+        StringBuilder row = new StringBuilder(csv(dataset) + "," + solutionNumbers[s] + "," + point + "," + time
+            + "," + csv(parameterName) + "," + csv(parameterUnit) + "," + parameter);
+        for (int field = 0; field < fieldCount; field++) {{
+          row.append(',').append(values[field][s][point]);
         }}
+        System.out.println(row);
       }}
-      Files.move(temporary, output, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-    }} finally {{
-      Files.deleteIfExists(temporary);
     }}
+    System.out.println("{FIELD_CSV_MARKER}_END");
   }}
 }}
 """

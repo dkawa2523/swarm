@@ -15,12 +15,31 @@ git lfs fsck
 MPHの実体と入力CSVを取得するため、GitHubのソースZIPではなく上の手順を使う。
 CSV/JSON/YAMLのバイト列は改行変換から保護し、記録済みSHA-256を保つ。
 
-
 1件ずつ取得する場合は、このページのMPHリンクを使う。リンクはGit LFSの実体を返す
 ダウンロード先に固定している。`raw.githubusercontent.com` のURLから取得したものはMPHの拡張子でも
 数百バイトの参照テキストの場合がある。先頭が
 `version https://git-lfs.github.com/spec/v1`ならモデル本体ではない。
 例えばGEC-CCPのMPH実体は **24,506,900バイト**。Rawから返る参照は133バイト。
+
+### GUIでの再計算確認
+
+2026-11-08に配布リンクから7件を取り直し、SHA-256と内部CRCを確認した。
+WindowsのCOMSOL 6.4.0.429で各MPHを開き、下記の既存スタディを選んで **Compute** を実行した。
+時間はCOMSOLのメッセージ欄に表示された計算時間。
+
+| MPH | 実行したスタディ | GUIの結果 |
+| --- | --- | --- |
+| argon_gec_icp_two_term_function_eedf.mph | Study 1 | 64秒、0.01 sの電子密度 |
+| argon_gec_icp_monte_carlo_function_eedf.mph | Study 1 | 74秒、0.01 sの電子密度 |
+| argon_gec_ccp.mph | Time Periodic Study | 236秒、周期平均電子密度 |
+| argon_gec_icp.mph | Study 1 | 43秒、0.001 sの電子密度 |
+| positive_column_1d.mph | Study 1 | 4秒、電子密度 |
+| positive_column_1d_boltzmann.mph | Computed EEDF | 346秒、EEDF |
+| boltzmann_argon.mph | 0.76Td w/N=0 | 1秒、EEDF |
+
+設定済みICPの2件はEEDFを内包しており、保存時の設定で再計算した。補間表の先頭にあるCSV見出し
+1行をCOMSOLが読み飛ばす警告が出た。このPCでは元のCSVパスも有効だった。
+CCPはCOMSOLの元モデルに含まれる入力で実行した。MPHは配布時のバイト列のまま保存している。
 
 ### GUIで開くと停止・クラッシュする場合
 
@@ -56,7 +75,6 @@ GitHubのZIPにLFS実体が含まれるかはリポジトリ設定に依存す�
 **これらは0.12.0で再設定・再計算したモデルではない。** 当時の受入結果と、現在の互換性・物理受入は分けて記録している。
 MPHにはインポート済みEEDFと解が保存されている。元の絶対パス表示は残しているため、
 外部ファイルを再インポートする際は同梱の`bundle/`へ参照先を指定し直す。
-保存済みモデルの別環境での起動・再計算は、今回のライセンス期限切れのため未確認。
 同梱のformat-v1 bundleは当時の証跡であり、現行アダプタに入力しない。
 
 正柱の旧`Model/work/positive_column_1d_swarm_template.mph`は参照CSVが存在しないため、
@@ -70,21 +88,22 @@ format-v2 COMSOL bundle、単一Swarm YAMLとモデル別マッピングがあ�
 
 | ディレクトリ | 点数 | E/N [Td] | 現在の状態 |
 | --- | --- | --- | --- |
-| [positive_column](positive_column/) | 26 | 0.0444–500 | オフライン準備通過、MPHへの反映未完了 |
+| [positive_column](positive_column/) | 26 | 0.0444–500 | 反映・読み戻し・解の出力を確認。200 Vは範囲外で受入停止 |
 | [gec_ccp](gec_ccp/) | 47 | 0.05–500 | bundle生成済み、アダプタの入力ハッシュ連鎖検査で停止 |
 | [gec_icp](gec_icp/) | 10 | 1–300 | 元の作業場所で準備通過。別フォルダでは断面積のパス依存ハッシュで停止 |
 
-**これらのディレクトリには設定済みMPHはない。** COMSOLの起動が
-`The license has expired / License error: -10`で停止した。
-生成Javaのコンパイル成功はMPHへの反映成功を意味しない。
-保存済みモデルをZIP/XML編集で書き換える処理は行っていない。
+**0.12.0の入力を使った受入済みMPHは未配布。**
+`preparation.json`のライセンス期限切れは入力を準備した時点の記録。
+更新後の正柱では、293.15 K、13.3322 Pa、200 Vの作業コピーで反映と188点の読み戻し、
+終端解のCSV出力801行を確認した。終端のE/Nは0.04862–3887.69 Tdで、
+入力表の上限500 Tdを超えるため、アダプタは受入を拒否した。
 
 これらは範囲を限定した入力例であり、従来のモデルの全運転範囲を資格付けするデータではない。
 元の広範囲計算は未収束で停止し、追跡したICPでは1000 Tdで600反復の上限に達した。
 未収束値の採用や古いデータへの置換は行っていない。範囲外の物理利用を認めるものではない。
 粒子・組成の時間発展、RF場と空間方程式は引き続きCOMSOLが所有する。
 
-有効なライセンスと必要な入力検査の修正後、モデル別に実行する。
+必要な入力検査の修正と対象条件を覆う表の準備後、モデル別に実行する。
 出力は`outputs/configured_models/<model>/`に書かれ、上の過去のMPHを上書きしない。
 生成Javaの絶対パスは元の準備時点の記録なので、別の場所では`--dry-run`で再生成する。
 

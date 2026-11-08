@@ -5,7 +5,11 @@ import io
 from dataclasses import replace
 import os
 from pathlib import Path
-from swarm_workflow.comsol.models.positive_column.results import read_mapped_results
+from swarm_workflow.comsol.models.positive_column.results import (
+    FIELD_CSV_MARKER,
+    copy_comsol_csv,
+    read_mapped_results,
+)
 import shutil
 import subprocess
 
@@ -140,8 +144,10 @@ def java_api(tmp_path_factory):
     sources = {
         "com/comsol/model/SolutionInfo.java": """package com.comsol.model;
 public class SolutionInfo {
-  public int[] getOuterSolnum() { return Boolean.getBoolean("outer") ? new int[]{1,2} : new int[]{1}; }
-  public int[] getSolnum(int outer, boolean strict) { return new int[]{1,2}; }
+  public int[] getOuterSolnum() { return Boolean.getBoolean("outer") ? new int[]{1,2} : new int[0]; }
+  public int[] getSolnum(int outer, boolean strict) {
+    return outer == 1 && !strict ? new int[]{1,2} : new int[0];
+  }
   public String getUnit(String name) { return "s"; }
 }""",
         "com/comsol/model/util/ModelUtil.java": """package com.comsol.model.util;
@@ -235,9 +241,7 @@ def test_generated_export_writes_selected_solutions_and_times(
     output = tmp_path / "fields.csv"
     source = tmp_path / "FieldExport.java"
     source.write_text(
-        generate_field_export_java_source(
-            mapping, class_name="FieldExport", output_csv=output
-        )
+        generate_field_export_java_source(mapping, class_name="FieldExport")
     )
     compile_result = subprocess.run(
         [
@@ -261,6 +265,9 @@ def test_generated_export_writes_selected_solutions_and_times(
         [java, "-cp", classpath, "FieldExport"], capture_output=True, text=True
     )
     assert executed.returncode == 0, executed.stderr
+    stdout = tmp_path / "stdout.txt"
+    stdout.write_text(executed.stdout, encoding="utf-8")
+    assert copy_comsol_csv(stdout, output, marker=FIELD_CSV_MARKER)
     with output.open(newline="") as handle:
         rows = list(csv.DictReader(handle))
     assert len(rows) == 3 * len(expected_solutions)
@@ -286,4 +293,6 @@ def test_generated_export_writes_selected_solutions_and_times(
             text=True,
         )
         assert failed.returncode != 0 and reason in failed.stderr
+        stdout.write_text(failed.stdout, encoding="utf-8")
+        assert not copy_comsol_csv(stdout, output, marker=FIELD_CSV_MARKER)
         assert output.read_bytes() == original

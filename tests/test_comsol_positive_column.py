@@ -10,10 +10,14 @@ from swarm_workflow.comsol.models.positive_column.audit import (
 )
 
 import csv
+from io import StringIO
 import json
 from hashlib import sha256
 from pathlib import Path
-from swarm_workflow.comsol.models.positive_column.results import read_mapped_results
+from swarm_workflow.comsol.models.positive_column.results import (
+    FIELD_CSV_MARKER,
+    read_mapped_results,
+)
 from types import SimpleNamespace
 
 import pytest
@@ -467,37 +471,33 @@ def test_execute_positive_column_run_invokes_steps_in_order(
     ):
         assert study == "std1"
         calls.append(operation)
+        log_dir = tmp_path / "logs" / operation
+        log_dir.mkdir(parents=True, exist_ok=True)
+        stdout = log_dir / "stdout.txt"
+        payload = f"{FIELD_CSV_MARKER}_BEGIN\n"
         if operation == "positive_column_export" and produce_csv:
-            result = (
-                tmp_path
-                / "outputs"
-                / "comsol_positive_column"
-                / "positive_column_results.csv"
+            csv_text = result_csv(
+                "x,electron_density,E_over_N,mean_electron_energy,"
+                "reduced_mobility,reduced_diffusion_L,"
+                "excitation_townsend,ionization_townsend,"
+                "applied_voltage,gas_pressure,electric_potential,electron_current_density,ion_current_density,total_current_density,excitation_source,ionization_source\n"
+                "0,1,4e-20,4,10.6666666666667,20.6666666666667,"
+                "1.333333333333e-21,"
+                "1.333333333333e-22,200,100,0,-1,1,0,1,1\n"
             )
-            result.parent.mkdir(parents=True, exist_ok=True)
-            result.write_text(
-                result_csv(
-                    "x,electron_density,E_over_N,mean_electron_energy,"
-                    "reduced_mobility,reduced_diffusion_L,"
-                    "excitation_townsend,ionization_townsend,"
-                    "applied_voltage,gas_pressure,electric_potential,electron_current_density,ion_current_density,total_current_density,excitation_source,ionization_source\n"
-                    "0,1,4e-20,4,10.6666666666667,20.6666666666667,"
-                    "1.333333333333e-21,"
-                    "1.333333333333e-22,200,100,0,-1,1,0,1,1\n"
-                ),
-                encoding="utf-8",
-            )
-        if operation == "positive_column_export" and produce_csv and scaled_units:
-            with result.open(newline="") as handle:
-                rows = list(csv.DictReader(handle))
-            for row in rows:
-                for name, (_, factor) in scales.items():
-                    row[name] = float(row[name]) * factor
-            with result.open("w", newline="") as handle:
-                writer = csv.DictWriter(handle, list(rows[0]))
+            if scaled_units:
+                rows = list(csv.DictReader(StringIO(csv_text)))
+                for row in rows:
+                    for name, (_, factor) in scales.items():
+                        row[name] = float(row[name]) * factor
+                buffer = StringIO(newline="")
+                writer = csv.DictWriter(buffer, list(rows[0]))
                 writer.writeheader()
                 writer.writerows(rows)
-        return SimpleNamespace(log_dir=tmp_path / "logs" / "export")
+                csv_text = buffer.getvalue()
+            payload += f"{csv_text}{FIELD_CSV_MARKER}_END\n"
+        stdout.write_text(payload, encoding="utf-8")
+        return SimpleNamespace(log_dir=log_dir, stdout_paths=(stdout,))
 
     monkeypatch.setattr(
         "swarm_workflow.comsol.models.positive_column.workflow.execute_apply_comsol",

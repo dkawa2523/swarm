@@ -9,6 +9,7 @@ from io import StringIO
 import json
 import math
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Any, TYPE_CHECKING
 
 from .contracts import PositiveColumnWorkflowError
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
     from .config import ResultOutput
 
 RESULT_SCHEMA = "swarm.positive_column_result.v1"
+FIELD_CSV_MARKER = "SWARM_POSITIVE_COLUMN_FIELDS_CSV"
 IDENTITY_COLUMNS = (
     "dataset",
     "solution_index",
@@ -36,6 +38,33 @@ class PositiveColumnResults:
     rows: tuple[dict[str, Any], ...]
     units: dict[str, str]
     metadata: dict[str, Any]
+
+
+def copy_comsol_csv(stdout: Path, output: Path, *, marker: str) -> bool:
+    """Publish a complete CSV block from one COMSOL execution."""
+    if not stdout.is_file():
+        return False
+    begin = f"{marker}_BEGIN".encode("ascii")
+    end = f"{marker}_END".encode("ascii")
+    temporary = None
+    try:
+        with stdout.open("rb") as source:
+            if not any(line.rstrip(b"\r\n") == begin for line in source):
+                return False
+            output.parent.mkdir(parents=True, exist_ok=True)
+            with NamedTemporaryFile(dir=output.parent, prefix=".csv-", delete=False) as stream:
+                temporary = Path(stream.name)
+                for line in source:
+                    if line.rstrip(b"\r\n") == end:
+                        break
+                    stream.write(line)
+                else:
+                    return False
+        temporary.replace(output)
+        return True
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def read_mapped_results(

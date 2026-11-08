@@ -46,7 +46,7 @@ from .contracts import (
 )
 from . import bundle as _bundle
 from . import audit as _audit
-from .results import read_mapped_results
+from .results import FIELD_CSV_MARKER, copy_comsol_csv, read_mapped_results
 from .result_units import canonical_unit
 
 
@@ -202,9 +202,7 @@ def prepare_positive_column_run(
             encoding="utf-8",
         )
         result_java.write_text(
-            generate_field_export_java_source(
-                mapping, class_name=RESULT_EXPORT_CLASS, output_csv=result_csv
-            ),
+            generate_field_export_java_source(mapping, class_name=RESULT_EXPORT_CLASS),
             encoding="utf-8",
         )
     return plan
@@ -282,7 +280,9 @@ def execute_positive_column_run(
             comsol_executable=comsol_executable,
             study=plan.mapping.model.study,
         )
-        if not plan.result_csv_path.exists():
+        if not copy_comsol_csv(
+            export_summary.stdout_paths[-1], plan.result_csv_path, marker=FIELD_CSV_MARKER
+        ):
             raise PositiveColumnWorkflowError(
                 f"positive-column result CSV was not produced: {plan.result_csv_path}; "
                 f"see log_dir: {export_summary.log_dir}"

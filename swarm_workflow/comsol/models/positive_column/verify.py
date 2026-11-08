@@ -22,6 +22,7 @@ from .java import java_path, java_string
 from .lookup import ReactionIdentity, LookupValidationError, read_lookup
 from .bundle import validate_positive_column_bundle
 from .contracts import PositiveColumnWorkflowError
+from .results import copy_comsol_csv
 
 
 EXPECTED_CSV = "function_values_expected.csv"
@@ -161,7 +162,9 @@ def execute_verify_comsol_functions(
         study=plan.mapping.model.study,
     )
     if not plan.comsol_csv.exists():
-        _extract_comsol_csv_from_stdout(execution.stdout_paths[-1], plan.comsol_csv)
+        copy_comsol_csv(
+            execution.stdout_paths[-1], plan.comsol_csv, marker="SWARM_COMSOL_VERIFY_CSV"
+        )
     if not plan.comsol_csv.exists():
         raise ComsolVerifyError(
             "COMSOL verification did not produce "
@@ -528,24 +531,10 @@ def _closure_item_summary(
     return summaries
 
 
-def _extract_comsol_csv_from_stdout(stdout_path: Path, output_csv: Path) -> None:
-    if not stdout_path.exists():
-        return
-    lines = stdout_path.read_text(encoding="utf-8", errors="replace").splitlines()
-    try:
-        start = lines.index("SWARM_COMSOL_VERIFY_CSV_BEGIN") + 1
-        end = lines.index("SWARM_COMSOL_VERIFY_CSV_END", start)
-    except ValueError:
-        return
-    output_csv.parent.mkdir(parents=True, exist_ok=True)
-    output_csv.write_text("\n".join(lines[start:end]) + "\n", encoding="utf-8")
-
-
 def generate_verify_java_source(plan: VerifyComsolPlan) -> str:
     lines = [
         "import com.comsol.model.*;",
         "import com.comsol.model.util.*;",
-        "import java.io.*;",
         "",
         f"public class {VERIFY_CLASS_NAME} {{",
         "  public static void main(String[] args) throws Exception {",
@@ -557,7 +546,7 @@ def generate_verify_java_source(plan: VerifyComsolPlan) -> str:
         '    System.out.println("SWARM_COMSOL_VERIFY_CSV_BEGIN");',
         '    System.out.println("function_name,function_tag,argument,comsol_value");',
     ]
-    for index, point in enumerate(plan.points):
+    for point in plan.points:
         lines.extend(
             [
                 f"    model.func({java_string(point.function_tag)});",
@@ -638,10 +627,9 @@ def generate_verify_java_source(plan: VerifyComsolPlan) -> str:
             "  private static double featureTableValue(Model model, String component,",
             "      String physics, String feature, String xProperty, String yProperty,",
             "      int index, int expectedLength, double expectedArgument) {",
-            "    double[] xs = model.component(component).physics(physics).feature(feature)",
-            "        .getDoubleArray(xProperty);",
-            "    double[] ys = model.component(component).physics(physics).feature(feature)",
-            "        .getDoubleArray(yProperty);",
+            "    ParameterEntity node = model.component(component).physics(physics).feature(feature);",
+            "    double[] xs = numericColumn(node, xProperty);",
+            "    double[] ys = numericColumn(node, yProperty);",
             "    if (xs.length != ys.length || xs.length != expectedLength) {",
             '      throw new RuntimeException("feature table length mismatch: "',
             '          + feature + "." + xProperty + "/" + yProperty);',
@@ -651,11 +639,25 @@ def generate_verify_java_source(plan: VerifyComsolPlan) -> str:
             '          + feature + "." + yProperty + " index=" + index);',
             "    }",
             "    double tolerance = Math.max(1e-15, Math.abs(expectedArgument) * 1e-12);",
-            "    if (Math.abs(xs[index] - expectedArgument) > tolerance) {",
+            "    if (!Double.isFinite(xs[index]) || Math.abs(xs[index] - expectedArgument) > tolerance) {",
             '      throw new RuntimeException("feature table argument mismatch: "',
             '          + feature + "." + xProperty + " index=" + index);',
             "    }",
             "    return ys[index];",
+            "  }",
+            "",
+            "  private static double[] numericColumn(ParameterEntity node, String property) {",
+            "    String type = node.getValueType(property);",
+            '    if ("DoubleArray".equals(type)) return node.getDoubleArray(property);',
+            '    if (!"StringArray".equals(type)) {',
+            '      throw new IllegalArgumentException("Unsupported lookup column type for " + property + ": " + type);',
+            "    }",
+            "    String[] entries = node.getStringArray(property);",
+            "    double[] values = new double[entries.length];",
+            "    for (int i = 0; i < entries.length; i++) {",
+            "      values[i] = Double.parseDouble(entries[i]);",
+            "    }",
+            "    return values;",
             "  }",
             "",
             "  private static void writeValue(String name, "

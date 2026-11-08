@@ -95,7 +95,10 @@ def test_verify_java_source_evaluates_mapped_function_tags(tmp_path: Path) -> No
     assert 'model.func("sw_muN")' in source
     assert 'tableValue(model, "sw_muN", 1e-20)' in source
     assert "featureTableValue(model" in source
-    assert ".getDoubleArray(xProperty)" in source
+    assert "node.getValueType(property)" in source
+    assert "node.getDoubleArray(property)" in source
+    assert "node.getStringArray(property)" in source
+    assert "Double.parseDouble(entries[i])" in source
     assert '"deNXdata"' in source
     assert '"mueNYdata"' in source
     assert '"denNYdata"' in source
