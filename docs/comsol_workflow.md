@@ -325,6 +325,23 @@ regions be identified as sheaths without additional diagnostics.
 Current statistics use each result's native full domain; curve errors use
 the shared comparison interval stated in the summary.
 
+`compare-positive-column` also compares `ion_current_density` and
+`displacement_current_density` when both exports contain those fields. Use
+the actual electric displacement of the selected model. For the fixed
+pure-Ar example, `epsilon0_const*d(-Vx,t)` gives the vacuum-permittivity
+contribution from the saved solution derivative. Keep this field separate
+from the conductive sum. [COMSOL differentiation operators](https://doc.comsol.com/6.4/doc/com.comsol.help.comsol/comsol_ref_definitions.21.039.html)
+
+At 200 V, 13.3322 Pa, and 1 s, the 400-element external case had peak
+absolute electron and ion currents of 60.5 and 0.73 A/m². The displacement
+contribution peaked at `1.46e-19 A/m²`. The sharp variation was concentrated
+in the electron current. Saved-model readback also confirmed different
+reaction closures. The external case uses Swarm Townsend tables for
+ground-state excitation and ionization. Its other electron-impact reactions
+still use the model's Maxwellian EEDF selection. The reference uses the
+COMSOL Boltzmann EEDF and cross-section-derived Townsend coefficients.
+[COMSOL positive-column reference](https://doc.comsol.com/6.4/doc/com.comsol.help.models.plasma.positive_column_1d_boltzmann/positive_column_1d_boltzmann.html)
+
 ## Acceptance criteria
 
 - clean compile and class provenance, with no stale-class fallback;

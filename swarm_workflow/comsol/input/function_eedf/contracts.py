@@ -106,8 +106,9 @@ class ComsolFunctionEedfGrid:
     shape_total_variation_error_max: float = 0.0
     rate_scaled_error_max: float | None = None
     rate_kernel_count: int = 0
-    mean_axis_shape_total_variation_error_max: float = 0.0
+    mean_axis_shape_total_variation_error_max: float | None = None
     mean_axis_rate_scaled_error_max: float | None = None
+    source_rate_residual_max: float | None = None
 
 
 @dataclass(frozen=True, slots=True)

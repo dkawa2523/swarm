@@ -222,7 +222,7 @@ def audit_gec_ccp_function_eedf_run(plan: GecCcpPlan) -> Path:
         rate_indices,
         rate_arguments=rate_arguments,
     )
-    source_rate_consistency = _audit_function_eedf_source_rates(
+    source_rate_consistency = plan.source_rate_consistency or _audit_function_eedf_source_rates(
         mapping,
         function_grid,
         cross_section_tables,

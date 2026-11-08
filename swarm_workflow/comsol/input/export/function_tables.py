@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from swarm_workflow.tables.contracts import PROPAGATOR_SOLVER
+
 from .c1_tables import _write_c1_function_eedf_tables
 from .function_source import _read_function_eedf_source
 
@@ -36,4 +38,7 @@ def _write_eedf_mean_energy_function_table(
         grouped=grouped,
         source_support=source_support,
         rate_kernel_path=rate_kernel_path,
+        source_rate_path=output_dir / "rates_vs_en.csv"
+        if source_kind == PROPAGATOR_SOLVER
+        else None,
     )

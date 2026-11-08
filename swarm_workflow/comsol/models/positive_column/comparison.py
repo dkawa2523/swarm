@@ -18,7 +18,9 @@ PROFILE_COLUMNS = (
     "electric_potential",
     "E_over_N",
     "electron_current_density",
+    "ion_current_density",
     "total_current_density",
+    "displacement_current_density",
     "excitation_source",
     "ionization_source",
 )

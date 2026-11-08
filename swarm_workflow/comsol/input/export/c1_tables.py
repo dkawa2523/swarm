@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import csv
 from pathlib import Path
 from typing import Any
+
+import numpy as np
 
 from swarm_workflow._io import write_csv as _write_csv
 from swarm_workflow.comsol.input.function_eedf import (
@@ -13,12 +16,17 @@ from swarm_workflow.comsol.input.function_eedf import (
     RATE_SCALED_ERROR_TOLERANCE,
     SHAPE_TOTAL_VARIATION_TOLERANCE,
     C1FunctionEedf,
+    CollisionRateKernel,
     ComsolEedfImportContract,
     ComsolFunctionEedfGrid,
     FunctionEedfError,
     build_c1_function_eedf,
     project_c1_function_eedf_to_comsol_grid,
     read_collision_rate_kernels,
+)
+from swarm_workflow.comsol.input.function_eedf.rate_projection import (
+    SOURCE_RATE_MATCH_TOLERANCE,
+    SOURCE_RATE_SIGNIFICANCE_FRACTION,
 )
 
 from .contracts import (
@@ -36,6 +44,7 @@ def _write_c1_function_eedf_tables(
     grouped: dict[float, list[tuple[float, float, float]]],
     source_support: dict[str, Any],
     rate_kernel_path: Path | None = None,
+    source_rate_path: Path | None = None,
 ) -> dict[str, dict[str, Any]]:
     try:
         representation = build_c1_function_eedf(grouped)
@@ -87,6 +96,13 @@ def _write_c1_function_eedf_tables(
         projected = project_c1_function_eedf_to_comsol_grid(
             representation,
             rate_kernels=rate_kernels,
+            source_rates=(
+                _read_source_rate_targets(
+                    source_rate_path, representation.mean_energies_eV, rate_kernels
+                )
+                if source_rate_path is not None
+                else None
+            ),
         )
     except FunctionEedfError as exc:
         raise ComsolExportError(
@@ -134,6 +150,7 @@ def _write_c1_function_eedf_tables(
         representation=representation,
         source=source,
         source_support=source_support,
+        source_rate_path=source_rate_path,
     )
 
     artifacts = {
@@ -149,6 +166,50 @@ def _write_c1_function_eedf_tables(
     }
 
     return artifacts
+
+
+def _read_source_rate_targets(
+    path: Path, means: np.ndarray, kernels: tuple[CollisionRateKernel, ...]
+) -> np.ndarray:
+    """Join the immutable coefficient rows to EEDF anchors by reaction and mean."""
+    if not kernels:
+        raise FunctionEedfError(
+            "source-rate projection requires collision-rate kernels"
+        )
+    keys = [
+        (item.species, item.process, item.process_type, item.threshold_eV)
+        for item in kernels
+    ]
+    if len(set(keys)) != len(keys):
+        raise FunctionEedfError(
+            "collision kernels must identify each source reaction once"
+        )
+    records: dict[tuple[float, tuple[str, str, str, float]], float] = {}
+    try:
+        with path.open(encoding="utf-8", newline="") as stream:
+            for row in csv.DictReader(stream):
+                reaction = (
+                    row["species"],
+                    row["process"],
+                    row["process_type"],
+                    float(row["threshold_eV"]),
+                )
+                key = (float(row["mean_energy_eV"]), reaction)
+                if key in records:
+                    raise FunctionEedfError(
+                        f"duplicate source rate at {key[0]:g} eV for {reaction}"
+                    )
+                records[key] = float(row["rate_coefficient_m3_s"])
+    except (OSError, KeyError, TypeError, ValueError, csv.Error) as exc:
+        raise FunctionEedfError(
+            f"invalid source reaction coefficients in {path.name}: {exc}"
+        ) from exc
+    expected = {(float(mean), key) for mean in means for key in keys}
+    if set(records) != expected:
+        raise FunctionEedfError(
+            "source reaction coefficients and EEDF anchors do not share the same reaction grid"
+        )
+    return np.asarray([[records[(float(mean), key)] for key in keys] for mean in means])
 
 
 def _c1_evidence_metadata(
@@ -201,14 +262,15 @@ def _active_c1_metadata(
     representation: C1FunctionEedf,
     source: Path,
     source_support: dict[str, Any],
+    source_rate_path: Path | None,
 ) -> dict[str, Any]:
-    return {
+    metadata = {
         "argument": "electron_energy_eV,mean_energy_eV",
         "argument_order": ["electron_energy_eV", "mean_energy_eV"],
         "artifact_role": "canonical_comsol_function_eedf_input",
         "canonical_comsol_input": True,
         "columns": list(active_columns),
-        "definition": "physical f0(E,m) on independently adaptive energy and mean-energy axes; every solver anchor is retained and nonnegative row projection preserves normalization and mean energy",
+        "definition": "physical f0(E,m) with nonnegative normalized rows at the stated mean energies",
         "format": import_contract.format,
         "representation": import_contract.representation,
         "source_artifact": source.name,
@@ -246,34 +308,48 @@ def _active_c1_metadata(
         "shape_total_variation_tolerance": SHAPE_TOTAL_VARIATION_TOLERANCE,
         "rate_scaled_error_max": projected.rate_scaled_error_max,
         "rate_scaled_error_tolerance": (
-            RATE_SCALED_ERROR_TOLERANCE if projected.rate_kernel_count else None
+            RATE_SCALED_ERROR_TOLERANCE
+            if projected.rate_scaled_error_max is not None
+            else None
         ),
         "rate_importance_fraction": (
-            RATE_IMPORTANCE_FRACTION if projected.rate_kernel_count else None
+            RATE_IMPORTANCE_FRACTION
+            if projected.rate_scaled_error_max is not None
+            else None
         ),
         "rate_error_norm": (
             "abs(projected-reference)/max(reference,global_kernel_peak*importance_fraction); values_unmodified"
-            if projected.rate_kernel_count
+            if projected.rate_scaled_error_max is not None
             else None
         ),
         "rate_kernel_count": projected.rate_kernel_count,
         "adaptive_energy_axis": True,
         "adaptive_mean_energy_axis": True,
-        "mean_energy_axis": "error_controlled_c1_materialization_with_solver_anchors",
+        "mean_energy_axis": (
+            "error_controlled_c1_materialization_with_solver_anchors"
+            if source_rate_path is None
+            else "adaptive_shape_with_source_rate_correction"
+        ),
         "solver_anchor_mean_energy_count": len(representation.mean_energies_eV),
         "materialized_mean_nodes_include_all_solver_anchors": True,
         "mean_axis_shape_total_variation_error_max": (
             projected.mean_axis_shape_total_variation_error_max
         ),
-        "mean_axis_shape_total_variation_tolerance": (SHAPE_TOTAL_VARIATION_TOLERANCE),
+        "mean_axis_shape_total_variation_tolerance": (
+            SHAPE_TOTAL_VARIATION_TOLERANCE if source_rate_path is None else None
+        ),
         "mean_axis_rate_scaled_error_max": (projected.mean_axis_rate_scaled_error_max),
         "mean_axis_rate_scaled_error_tolerance": (
-            RATE_SCALED_ERROR_TOLERANCE if projected.rate_kernel_count else None
+            RATE_SCALED_ERROR_TOLERANCE
+            if projected.mean_axis_rate_scaled_error_max is not None
+            else None
         ),
         "mean_axis_rate_importance_fraction": (
-            MEAN_AXIS_RATE_IMPORTANCE_FRACTION if projected.rate_kernel_count else None
+            MEAN_AXIS_RATE_IMPORTANCE_FRACTION
+            if projected.mean_axis_rate_scaled_error_max is not None
+            else None
         ),
-        "interpolation_contract": "tensor_product_linear on error-controlled axes; every materialized mean row has unit normalization and first moment equal to its mean, so linear mean interpolation preserves both moments",
+        "interpolation_contract": "linear on the physical axes; normalization and first moment are preserved between tabulated rows",
         "source_support": source_support,
         "mean_energy_support_policy": (
             "no_clamp_no_synthetic_extension; values outside the tabulated "
@@ -287,3 +363,13 @@ def _active_c1_metadata(
         "sha256": _sha256_file(output_dir / active_name),
         "comsol_import": import_contract.import_settings(),
     }
+    if source_rate_path is not None:
+        metadata["source_rate_projection"] = {
+            "table": source_rate_path.name,
+            "sha256": _sha256_file(source_rate_path),
+            "scaled_residual_max": projected.source_rate_residual_max,
+            "tolerance": SOURCE_RATE_MATCH_TOLERANCE,
+            "significance_fraction": SOURCE_RATE_SIGNIFICANCE_FRACTION,
+            "between_anchors": "shape_based_rates_times_linearly_interpolated_anchor_correction",
+        }
+    return metadata

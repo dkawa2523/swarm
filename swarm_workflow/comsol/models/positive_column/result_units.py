@@ -25,6 +25,7 @@ QUANTITIES = {
     "total_current_density": ResultQuantity(
         "A/m^2", "Electron + Ar-ion conductive current density"
     ),
+    "displacement_current_density": ResultQuantity("A/m^2", "Displacement current density"),
     "excitation_source": ResultQuantity("1/(m^3*s)", "Excitation source", True),
     "ionization_source": ResultQuantity("1/(m^3*s)", "Ionization source", True),
     "reduced_mobility": ResultQuantity("1/(V*m*s)", "Reduced mobility"),

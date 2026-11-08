@@ -242,6 +242,11 @@ def _piecewise_linear_weighted_integral(
     values: np.ndarray,
     power: float,
 ) -> float:
+    return float(linear_moment_weights(energies, power) @ values)
+
+
+def linear_moment_weights(energies: np.ndarray, power: float) -> np.ndarray:
+    """Integrate the nodal linear basis against E**power."""
     left = energies[:-1]
     right = energies[1:]
     width = right - left
@@ -282,7 +287,10 @@ def _piecewise_linear_weighted_integral(
         raised = (np.power(b, power + 2.0) - np.power(a, power + 2.0)) / (power + 2.0)
         right_weight[regular] = (raised - a * base) / w
         left_weight[regular] = base - right_weight[regular]
-    return float(np.dot(left_weight, values[:-1]) + np.dot(right_weight, values[1:]))
+    weights = np.zeros_like(energies)
+    weights[:-1] += left_weight
+    weights[1:] += right_weight
+    return weights
 
 
 def _evaluate_shape(

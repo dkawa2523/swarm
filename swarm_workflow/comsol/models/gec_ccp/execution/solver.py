@@ -19,7 +19,7 @@ from swarm_workflow.comsol.runtime import (
     execute_generated_comsol_java,
 )
 
-from ..contracts import GecCcpMapping, GecCcpWorkflowError
+from ..contracts import GecCcpMapping, GecCcpQualityError, GecCcpWorkflowError
 from .context import PreparedExecution, SolverExecution
 from .inputs import validate_gec_plan_inputs
 from .status import status_contract_metadata
@@ -89,34 +89,43 @@ def run_solver_steps(
     executions: list[ComsolExecutionSummary] = []
     native_eedf_audit_path: Path | None = None
     native_eedf_status = "not_applicable"
+
+    def record_status(**decision: object) -> None:
+        write_json(
+            prepared.status_path,
+            {
+                "stage": "run-gec-ccp",
+                "completed_operations": [item.operation for item in executions],
+                "plan": str(plan.plan_json),
+                "plan_sha256": prepared.plan_sha256,
+                **status_contract_metadata(
+                    plan.mapping, gradient_response=prepared.gradient_response
+                ),
+                **prepared.input_provenance,
+                **decision,
+            },
+        )
+
     try:
         for operation, java_file, executed_study in steps:
             if operation in {"apply", "gec_external_run"}:
                 try:
                     validate_gec_plan_inputs(plan)
                 except GecCcpWorkflowError as exc:
-                    write_json(
-                        prepared.status_path,
-                        {
-                            "stage": "run-gec-ccp",
-                            "status": "blocked",
-                            "blocker_code": "plan_input_provenance_mismatch",
-                            "reason": str(exc),
-                            "completed_operations": [
-                                item.operation for item in executions
-                            ],
-                            "solve_status": "external_not_started",
-                            "quality_status": "not_evaluated",
-                            "plan": str(plan.plan_json),
-                            "plan_sha256": prepared.plan_sha256,
-                            **status_contract_metadata(
-                                plan.mapping,
-                                gradient_response=prepared.gradient_response,
-                            ),
-                            **prepared.input_provenance,
-                        },
+                    record_status(
+                        status="blocked",
+                        blocker_code="plan_input_provenance_mismatch",
+                        reason=str(exc),
+                        solve_status="external_not_started",
+                        quality_status="not_evaluated",
                     )
                     raise
+            if operation == "gec_external_run":
+                record_status(
+                    status="running",
+                    solve_status="running",
+                    quality_status="not_evaluated",
+                )
             execution = execute_generated_comsol_java(
                 _comsol_run_context(plan.mapping),
                 java_file,
@@ -151,59 +160,43 @@ def run_solver_steps(
                     )
                     write_json(native_eedf_audit_path, native_result)
                 except (ComsolEedfAuditError, OSError) as exc:
-                    write_json(
-                        prepared.status_path,
-                        {
-                            "stage": "run-gec-ccp",
-                            "status": "blocked",
-                            "blocker_code": (
-                                "native_function_eedf_binding_audit_incomplete"
-                            ),
-                            "reason": str(exc),
-                            "solve_status": "external_not_started",
-                            "quality_status": "not_evaluated",
-                            "completed_operations": [
-                                item.operation for item in executions
-                            ],
-                            "plan": str(plan.plan_json),
-                            "plan_sha256": prepared.plan_sha256,
-                            **status_contract_metadata(
-                                plan.mapping,
-                                gradient_response=prepared.gradient_response,
-                            ),
-                            **prepared.input_provenance,
-                        },
+                    record_status(
+                        status="blocked",
+                        blocker_code="native_function_eedf_binding_audit_incomplete",
+                        reason=str(exc),
+                        solve_status="external_not_started",
+                        quality_status="not_evaluated",
                     )
                     raise GecCcpWorkflowError(
                         "native COMSOL Function-EEDF binding audit is incomplete"
                     ) from exc
+                if native_eedf_status == "failed":
+                    reason = f"native_function_eedf rejected before the solve. See {native_eedf_audit_path}"
+                    record_status(
+                        status="rejected",
+                        rejection_code="native_function_eedf_binding_failed",
+                        reason=reason,
+                        solve_status="external_not_started",
+                        quality_status="failed",
+                        quality_accepted=False,
+                        quality_accepted_for_declared_closure=False,
+                        native_function_eedf_quality_status=native_eedf_status,
+                        native_function_eedf_audit=str(native_eedf_audit_path),
+                    )
+                    raise GecCcpQualityError(reason)
     except ComsolAdapterError as exc:
-        write_json(
-            prepared.status_path,
-            {
-                "stage": "run-gec-ccp",
-                "status": "blocked",
-                "blocker_code": _comsol_blocker_code(exc),
-                "reason": str(exc),
-                "completed_operations": [item.operation for item in executions],
-                "solve_status": "blocked",
-                "quality_status": "not_evaluated",
-                "native_function_eedf_quality_status": native_eedf_status,
-                "native_function_eedf_audit": (
-                    str(native_eedf_audit_path)
-                    if native_eedf_audit_path is not None
-                    else None
-                ),
-                "coefficient_sweep": False,
-                "model_contract": asdict(plan.contract),
-                "plan": str(plan.plan_json),
-                "plan_sha256": prepared.plan_sha256,
-                **status_contract_metadata(
-                    plan.mapping,
-                    gradient_response=prepared.gradient_response,
-                ),
-                **prepared.input_provenance,
-            },
+        record_status(
+            status="blocked",
+            blocker_code=_comsol_blocker_code(exc),
+            reason=str(exc),
+            solve_status="blocked",
+            quality_status="not_evaluated",
+            native_function_eedf_quality_status=native_eedf_status,
+            native_function_eedf_audit=(
+                str(native_eedf_audit_path) if native_eedf_audit_path else None
+            ),
+            coefficient_sweep=False,
+            model_contract=asdict(plan.contract),
         )
         raise
     return SolverExecution(

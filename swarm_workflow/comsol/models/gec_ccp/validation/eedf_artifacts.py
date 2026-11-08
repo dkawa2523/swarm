@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
-from swarm_workflow.comsol.input.function_eedf import ComsolEedfImportContract
+from swarm_workflow.tables.contracts import PROPAGATOR_SOLVER
 
+from ..closure import _function_eedf_rate_reactions
 from ..contracts import GecCcpMapping, GecCcpWorkflowError
-from ..data import _float_or_none
 from .bundle_context import BundleUsage, ManifestEvidence, TableEvidence
 from .eedf import (
     _audit_upstream_eedf_artifact as _audit_eedf_artifact,
-    _native_function_eedf_moment_audit as _audit_native_eedf_moments,
+    _audit_function_eedf_source_rates,
     _read_function_eedf as _load_function_eedf_for_preflight,
+    read_mph_reaction_cross_sections,
 )
 
 
@@ -97,119 +97,61 @@ def validate_active_function_eedf(
             raise GecCcpWorkflowError(
                 "Function-EEDF table is not the canonical COMSOL input"
             )
-        expected_columns = [
-            "electron_energy_eV",
-            "mean_energy_eV",
-            "eepf_eV_m32",
-        ]
-        expected_import = ComsolEedfImportContract().import_settings()
+        grid = _load_function_eedf_for_preflight(function_path, entry)
+        expected_shape = list(grid.values_eV_m32.shape)
+        projected_audit = {
+            "integration": "exact_piecewise_linear_energy_segments",
+            "rows": expected_shape[0],
+            "normalization_error_max": grid.normalization_error_max,
+            "mean_energy_relative_error_max": grid.mean_energy_relative_error_max,
+            "nonnegative_minimum": grid.minimum_value,
+        }
         if (
-            entry.get("canonical_comsol_input") is not True
-            or entry.get("format") != "csv"
-            or entry.get("representation")
-            != "physical_2d_adaptive_moment_rate_projected"
-            or entry.get("argument_order") != ["electron_energy_eV", "mean_energy_eV"]
-            or entry.get("columns") != expected_columns
-            or entry.get("grid_axis_order") != ["electron_energy_eV", "mean_energy_eV"]
-            or entry.get("row_order") != "mean_energy_major_then_electron_energy"
+            max(grid.normalization_error_max, grid.mean_energy_relative_error_max)
+            > 1e-8
         ):
             raise GecCcpWorkflowError(
-                "Function-EEDF active artifact must be the canonical physical "
-                "adaptive linear moment/rate projection"
+                "Function-EEDF normalization or mean-energy error exceeds 1e-8"
             )
-        comsol_import = entry.get("comsol_import")
-        if not isinstance(comsol_import, dict) or any(
-            comsol_import.get(name) != value for name, value in expected_import.items()
-        ):
-            raise GecCcpWorkflowError(
-                "Function-EEDF manifest does not match the canonical "
-                "two-argument COMSOL Interpolation contract"
-            )
-        grid = _load_function_eedf_for_preflight(function_path)
-        if ComsolEedfImportContract.from_path(function_path).structure != "spreadsheet":
-            raise GecCcpWorkflowError(
-                "Function-EEDF file serialization differs from its import contract"
-            )
-        expected_shape = [
-            len(grid.mean_energies_eV),
-            len(grid.electron_energies_eV),
-        ]
-        if (
-            entry.get("grid_shape") != expected_shape
-            or entry.get("mean_energy_grid_points") != expected_shape[0]
-            or entry.get("energy_grid_points") != expected_shape[1]
-        ):
-            raise GecCcpWorkflowError(
-                "Function-EEDF manifest grid dimensions disagree with the "
-                "active structured grid"
-            )
-        projected_audit = _audit_native_eedf_moments(grid)
-        norm_error = _float_or_none(entry.get("projected_normalization_error_max"))
-        mean_error = _float_or_none(
-            entry.get("projected_mean_energy_relative_error_max")
-        )
-        minimum = _float_or_none(entry.get("projected_nonnegative_minimum"))
-        if (
-            norm_error is None
-            or norm_error > 1.0e-8
-            or projected_audit["normalization_error_max"] > 1.0e-8
-        ):
-            raise GecCcpWorkflowError(
-                "projected Function-EEDF normalization audit is missing or exceeds 1e-8"
-            )
-        if (
-            mean_error is None
-            or mean_error > 1.0e-8
-            or projected_audit["mean_energy_relative_error_max"] > 1.0e-8
-        ):
-            raise GecCcpWorkflowError(
-                "projected Function-EEDF mean-energy audit is missing or exceeds 1e-8"
-            )
-        if (
-            minimum is None
-            or minimum < 0.0
-            or projected_audit["nonnegative_minimum"] < 0.0
-        ):
-            raise GecCcpWorkflowError(
-                "projected Function-EEDF nonnegativity audit is missing or failed"
-            )
-        for reported, actual, name in (
-            (
-                norm_error,
-                projected_audit["normalization_error_max"],
-                "normalization",
-            ),
-            (
-                mean_error,
-                projected_audit["mean_energy_relative_error_max"],
-                "mean energy",
-            ),
-            (
-                minimum,
-                projected_audit["nonnegative_minimum"],
-                "nonnegativity",
-            ),
-        ):
-            if not math.isclose(reported, actual, rel_tol=1.0e-9, abs_tol=1.0e-13):
-                raise GecCcpWorkflowError(
-                    f"Function-EEDF manifest {name} audit disagrees with "
-                    "the active structured grid"
-                )
         energy_range = [
             float(grid.electron_energies_eV[0]),
             float(grid.electron_energies_eV[-1]),
         ]
-        mean_range = [
-            float(grid.mean_energies_eV[0]),
-            float(grid.mean_energies_eV[-1]),
-        ]
+        mean_range = [float(grid.mean_energies_eV[0]), float(grid.mean_energies_eV[-1])]
         if (
-            entry.get("electron_energy_range_eV") != energy_range
+            entry.get("argument_order") != ["electron_energy_eV", "mean_energy_eV"]
+            or entry.get("electron_energy_range_eV") != energy_range
             or entry.get("mean_energy_range_eV") != mean_range
         ):
             raise GecCcpWorkflowError(
-                "Function-EEDF manifest ranges disagree with the active structured grid"
+                "Function-EEDF manifest arguments or ranges disagree with the grid"
             )
+
+        # Validate source-derived rates before running a model that integrates
+        # its Function EEDF. This also rejects older inconsistent bundles.
+        rate_consistency = None
+        if mapping.closure.reaction_model == "function_eedf" and (
+            manifest.source == PROPAGATOR_SOLVER
+            or entry.get("source_rate_projection") is not None
+        ):
+            reactions = tuple(
+                reaction for _, reaction in _function_eedf_rate_reactions(mapping)
+            )
+            cross_sections = read_mph_reaction_cross_sections(
+                mapping.model.input_mph, reactions
+            )
+            rate_consistency = _audit_function_eedf_source_rates(
+                mapping, grid, cross_sections, reactions, audit_csv_name=None
+            )
+            if not rate_consistency["passed"]:
+                failed = ", ".join(
+                    name
+                    for name, result in rate_consistency["processes"].items()
+                    if not result["passed"]
+                )
+                raise GecCcpWorkflowError(
+                    f"Function-EEDF source rate mismatch before COMSOL ({failed}). Rebuild the bundle from the qualified tables."
+                )
         actual_sha256 = artifact_digests[spec.table]
         function_eedf_summary = {
             "table": spec.table,
@@ -226,4 +168,6 @@ def validate_active_function_eedf(
             "extrapolation": "constant",
             "projected_moment_audit": projected_audit,
         }
+        if rate_consistency is not None:
+            function_eedf_summary["source_rate_consistency"] = rate_consistency
     return function_eedf_summary

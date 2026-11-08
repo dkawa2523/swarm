@@ -54,6 +54,7 @@ def prepare_layout(
     contract: MphContract,
     *,
     write_java: bool,
+    source_rate_consistency: dict[str, Any] | None = None,
 ) -> PreparedGecCcpLayout:
     output = mapping.results.output_directory
     output.mkdir(parents=True, exist_ok=True)
@@ -120,6 +121,7 @@ def prepare_layout(
         external_export_java=paths["external_export"],
         native_eedf_audit=native_eedf_audit,
         expected_result_files=expected,
+        source_rate_consistency=source_rate_consistency,
     )
     return PreparedGecCcpLayout(
         plan=plan,

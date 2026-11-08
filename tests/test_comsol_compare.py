@@ -134,11 +134,17 @@ def test_units_are_normalized_before_comparison_and_curve_export(tmp_path):
         tmp_path,
         "a",
         x=(0.0, 50.0, 100.0),
-        values={"electron_density": [1.0, 2.0, 3.0], "E_over_N": [10.0, 20.0, 30.0]},
+        values={
+            "electron_density": [1.0, 2.0, 3.0], "E_over_N": [10.0, 20.0, 30.0],
+            "ion_current_density": [-1.0, -2.0, -3.0],
+            "displacement_current_density": [1.0, 2.0, 3.0],
+        },
         units={
             "x": "cm",
             "electron_density": "1/cm^3",
             "E_over_N": "Td",
+            "ion_current_density": "mA/cm^2",
+            "displacement_current_density": "mA/m^2",
             "applied_voltage": "kV",
             "gas_pressure": "kPa",
         },
@@ -152,10 +158,17 @@ def test_units_are_normalized_before_comparison_and_curve_export(tmp_path):
     b = _artifact(
         tmp_path,
         "b",
-        values={"electron_density": [1e6, 2e6, 3e6], "E_over_N": [1e-20, 2e-20, 3e-20]},
+        values={
+            "electron_density": [1e6, 2e6, 3e6], "E_over_N": [1e-20, 2e-20, 3e-20],
+            "ion_current_density": [-10.0, -20.0, -30.0],
+            "displacement_current_density": [1e-3, 2e-3, 3e-3],
+        },
     )
     summary = compare_comsol_profiles(a, b, output_dir=tmp_path / "comparison")
     metrics = list(csv.DictReader(summary.metrics_csv.open()))
+    assert {row["quantity"] for row in metrics} == {
+        "electron_density", "E_over_N", "ion_current_density", "displacement_current_density",
+    }
     assert all(float(row["l2_relative_error"]) < 1e-14 for row in metrics)
     profiles = list(csv.DictReader(summary.profiles_csv.open()))
     assert max(float(row["x_m"]) for row in profiles) == 1

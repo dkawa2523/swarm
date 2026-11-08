@@ -29,6 +29,7 @@ from .moments import (
     pchip_weighted_moments,
     piecewise_linear_weighted_moments,
 )
+from .rate_projection import match_source_rates
 from .source import _SourceSlice, _prepare_source_slice
 
 
@@ -108,6 +109,7 @@ def project_c1_function_eedf_to_comsol_grid(
     representation: C1FunctionEedf,
     *,
     rate_kernels: tuple[CollisionRateKernel, ...] = (),
+    source_rates: np.ndarray | None = None,
     shape_total_variation_tolerance: float = SHAPE_TOTAL_VARIATION_TOLERANCE,
     rate_scaled_error_tolerance: float = RATE_SCALED_ERROR_TOLERANCE,
 ) -> ComsolFunctionEedfGrid:
@@ -119,8 +121,8 @@ def project_c1_function_eedf_to_comsol_grid(
     every solver anchor and adds only the C1 rows needed by COMSOL's linear
     interpolator.  Each materialized row has exact zeroth and first moments,
     so interpolation between rows preserves normalization and the requested
-    mean.  This replaces the old fixed ``2049 x 257`` sampling and applies
-    identically to every solver source.
+    mean. With authoritative rates in anchor and kernel order, the projection
+    matches them and retains the shape-based interpolation between anchors.
     """
 
     if (
@@ -142,8 +144,7 @@ def project_c1_function_eedf_to_comsol_grid(
     # active COMSOL table by the source grid while retaining any larger
     # nonzero support introduced by interpolation between adjacent shapes.
     maximum_energy = max(
-        representation.source_energy_max_eV,
-        closure_energy_support_max(representation),
+        representation.source_energy_max_eV, closure_energy_support_max(representation)
     )
     if (
         not math.isfinite(minimum_energy)
@@ -164,6 +165,20 @@ def project_c1_function_eedf_to_comsol_grid(
         rate_kernels,
         importance_fraction=RATE_IMPORTANCE_FRACTION,
     )
+    means = anchors.copy()
+    # Avoid nearly coincident spreadsheet coordinates over a wide energy span.
+    # This bounds grid conditioning while the dense audit retains all knots.
+    seed_energy = minimum_energy
+    minimum_spacing = 0.0
+    if source_rates is not None:
+        minimum_spacing = maximum_energy * np.sqrt(np.finfo(float).eps)
+        seed_energy = max(seed_energy, minimum_spacing, float(anchors[0]) * 1e-3)
+    energies = initial_energy_axis(
+        seed_energy,
+        maximum_energy,
+        rate_kernels,
+        minimum_spacing=minimum_spacing,
+    )
     mean_rate_scales = rate_error_scales(
         representation,
         audit_energy,
@@ -171,15 +186,7 @@ def project_c1_function_eedf_to_comsol_grid(
         rate_kernels,
         importance_fraction=MEAN_AXIS_RATE_IMPORTANCE_FRACTION,
     )
-    means = anchors.copy()
-    energies = initial_energy_axis(
-        minimum_energy,
-        maximum_energy,
-        rate_kernels,
-    )
     reference_cache: dict[float, np.ndarray] = {}
-    mean_shape_error = math.inf
-    mean_rate_error: float | None = math.inf if rate_kernels else None
     for _iteration in range(32):
         energies = adapt_energy_axis(
             representation,
@@ -188,8 +195,13 @@ def project_c1_function_eedf_to_comsol_grid(
             means,
             rate_kernels,
             rate_scales,
-            shape_tolerance=shape_total_variation_tolerance,
+            shape_tolerance=(
+                shape_total_variation_tolerance / 2
+                if source_rates is not None
+                else shape_total_variation_tolerance
+            ),
             rate_tolerance=rate_scaled_error_tolerance,
+            minimum_spacing=minimum_spacing,
         )
         values = project_rows(representation, energies, means)
         additions, mean_shape_error, mean_rate_error = mean_axis_refinement(
@@ -206,31 +218,44 @@ def project_c1_function_eedf_to_comsol_grid(
         )
         if not additions:
             break
-        means = np.unique(np.concatenate((means, np.asarray(additions))))
+        means = np.union1d(means, additions)
         if len(means) > 513:
             raise FunctionEedfError(
                 "adaptive Function-EEDF mean-energy grid exceeded 513 points"
             )
     else:
         raise FunctionEedfError(
-            "adaptive Function-EEDF mean-energy refinement did not converge "
-            f"({len(means)} points, TV={mean_shape_error:.3e}, "
-            f"rate={mean_rate_error if mean_rate_error is not None else 'not_requested'})"
+            "adaptive Function-EEDF mean-energy refinement did not converge"
         )
+
+    source_rate_residual = None
+    if source_rates is not None:
+        values, source_rate_residual = match_source_rates(
+            energies,
+            means,
+            values,
+            rate_kernels,
+            np.searchsorted(means, anchors),
+            source_rates,
+        )
+        # These mean-axis budgets describe the uncorrected shape family.
+        mean_shape_error = None
+        mean_rate_error = None
     shape_error, rate_error = table_projection_error(
         representation,
         energies,
         means,
         values,
         audit_energy,
-        rate_kernels,
-        rate_scales,
+        rate_kernels if source_rates is None else (),
+        rate_scales if source_rates is None else (),
     )
     if shape_error > shape_total_variation_tolerance or (
         rate_error is not None and rate_error > rate_scaled_error_tolerance
     ):
         raise FunctionEedfError(
-            "adaptive Function-EEDF projection did not meet its shape/rate tolerance"
+            f"Function-EEDF projection exceeded its shape/rate budget "
+            f"(TV={shape_error:.4g}, rate={rate_error})"
         )
 
     normalization_error = 0.0
@@ -268,6 +293,7 @@ def project_c1_function_eedf_to_comsol_grid(
         rate_kernel_count=len(rate_kernels),
         mean_axis_shape_total_variation_error_max=mean_shape_error,
         mean_axis_rate_scaled_error_max=mean_rate_error,
+        source_rate_residual_max=source_rate_residual,
     )
 
 

@@ -50,13 +50,13 @@ family. Its physical electron-energy and mean-energy axes are both refined
 adaptively. Every solver anchor is retained, and every materialized row is
 nonnegative, normalized, and has the requested first moment.
 
-Refinement stops only when the actual tensor-product table meets 0.5% bounds
-for both the sqrt(E)-weighted total-variation error and every active
-cross-section-rate kernel. Rates above 0.1% of a kernel's family peak use a
-relative bound; smaller rates use a peak-scaled absolute bound. This avoids
-forcing dense rows in the vanishing-rate limit without altering any rate.
-Out-of-support values still require a new core-solver anchor; clamping and
-synthetic tail extension are not used.
+The adaptive grid follows the C1 family using the sqrt(E)-weighted shape
+and rate integrals. P1 projection then fits the stored reaction coefficients
+at the solver anchors and preserves the moments. It corrects the rates of
+the shape-based prediction between anchors. The 0.5% shape limit applies to
+the projected rows. The anchor-rate fit and the interpolation prediction
+have separate evidence in the [projection benchmark](benchmarks/function_eedf_projection.md).
+Extend the Swarm sweep when the model needs values outside its support.
 
 Historical pre-refactor measurements used these adaptive tables:
 
@@ -191,11 +191,13 @@ differences because EEDF and mobility change together. The original saved
 is not a converged 10 ms reference.
 
 On 2026-11-08, the current P1 workflow regenerated the 14 Swarm points and
-passed target-grid refinement at 1500, 2500, and 2744.2936035 Td. COMSOL
-6.4.0.429 accepted the declared closure at 1500 W, 13.56 MHz, 2.66644 Pa,
-and 300 K. It saved all 26 times through 0.01 s. At 0.01 s the electron
-inventory was `1.91905e14`, the electron-weighted mean energy was 7.47528 eV,
-and absorbed power was 1393.180 W.
+passed target-grid refinement at 1500, 2500, and 2744.2936035 Td. With the
+rate-preserving projection, COMSOL 6.4.0.429 passed all 1,421 strict Function
+binding samples and accepted the declared closure at 1500 W, 13.56 MHz,
+2.66644 Pa, and 300 K. It saved all 26 times through 0.01 s. At 0.01 s the
+electron inventory was `1.91611e14`, the electron-weighted mean energy was
+7.48282 eV, and absorbed power was 1393.148 W.
+[Current P1 evidence](dev/results/argon_p1_function_eedf_20261108.json)
 
 The maintained [P1 core](dev/results/propagator_p1_core_qualification.json)
 and [target-grid evidence](dev/results/propagator_gec_icp_target_qualification.json)

@@ -32,6 +32,9 @@ def prepare_gec_ccp_run(
         mapping,
         contract,
         write_java=write_java,
+        source_rate_consistency=(evidence.bundle.get("function_eedf") or {}).get(
+            "source_rate_consistency"
+        ),
     )
     prepare_stages.materialize_java(
         layout,

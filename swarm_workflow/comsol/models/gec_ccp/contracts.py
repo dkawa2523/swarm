@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from swarm_workflow.comsol.input.eedf_audit import ComsolEedfAuditPlan
 from swarm_workflow.comsol.runtime import ComsolExecutionSummary
@@ -229,6 +229,7 @@ class GecCcpPlan:
     external_export_java: Path
     native_eedf_audit: ComsolEedfAuditPlan | None
     expected_result_files: tuple[Path, ...]
+    source_rate_consistency: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)

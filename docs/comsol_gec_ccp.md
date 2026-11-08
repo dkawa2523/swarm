@@ -38,10 +38,11 @@ All three solvers use one COMSOL Spreadsheet serialization. Both tensor axes
 are adaptive: every actual solver anchor is retained on the mean-energy axis,
 and additional C1 rows are inserted only where COMSOL's linear interpolation
 needs them. Every materialized row preserves normalization and mean energy.
-Refinement continues until the EEDF total-variation error and every available
-active cross-section-rate integral meet the declared projection budget. Rate
-importance floors belong only to the error norms; they never change an EEDF
-or rate value, and exact zeros remain zero.
+For P1, the materialized EEDF also matches the relevant stored reaction
+coefficients at those anchors. Between anchors, a shape-based rate prediction
+uses an interpolated correction. The output grid avoids nearly coincident
+energy knots while the error audit samples the full support. See the
+[projection benchmark](benchmarks/function_eedf_projection.md).
 
 The qualified MC production route imports inelastic rate tables computed from
 the same EEDF and argon cross sections. It does not substitute two-term
@@ -131,7 +132,10 @@ that artifact against its own explicit fields, bracket, support cap, mixture,
 grid pair, and refinement limits during preflight.
 
 Add `--dry-run` to `run-gec-ccp` to inspect the MPH contract, validate the
-bundle, and materialize Java without starting COMSOL.
+bundle, and materialize Java without starting COMSOL. For P1, preflight
+integrates the active table against the cross sections in the input MPH and
+compares the resulting excitation and ionization rates with the Swarm rates.
+If this fails, rebuild the bundle from its qualified Swarm tables.
 
 ## COMSOL run behavior
 
@@ -140,11 +144,16 @@ A normal physical-target run performs these operations:
 1. Validate the schema, bundle hashes, solver-selection record, MPH contract,
    closure support, and source-specific statistical evidence.
 2. Apply the external closure to a separate MPH copy.
-3. Audit the active Function-EEDF binding when the closure uses one.
+3. Audit the active Function-EEDF binding when the closure uses one. A failed
+   binding writes `status: rejected` and `solve_status: external_not_started`
+   in `gec_ccp_run_status.json` and stops here.
 4. Run the external time-periodic study.
 5. Export the eleven canonical result tables under `swarm_tables/`.
 6. Audit conservation, transport, Function-EEDF behavior, support, MC rate
    censoring, and saved-model provenance.
+
+Use `physical_target_accepted` in the run status to identify an accepted
+result. The configured MPH already exists at step 2.
 
 The COMSOL built-in Druyvesteyn calculation is not required to accept an
 external target and is skipped by default. This removes one complete periodic
@@ -194,12 +203,12 @@ target and supplies every required physical closure. A successful COMSOL
 process exit alone is insufficient for either decision.
 
 On 2026-11-08, all 54 P1 Swarm points and the three high-field grid-refinement
-checks passed. COMSOL 6.4.0.429 completed the 1 W periodic solve and export.
-Acceptance rejected the P1 Function EEDF. The projected excitation coefficient
-at 5 Td was `8.977e-19 m³/s` versus `7.109e-19 m³/s` from the source cells.
-Native Function values also failed 18 of 2422 strict checks. The two-term
-configured model has passed its declared closure checks. See the
-[current P1 evidence](dev/results/argon_p1_comsol_validation_20261108.json).
+checks passed. With the rate-preserving projection, COMSOL 6.4.0.429 passed
+all 2,305 strict Function binding samples, completed the 1 W periodic solve,
+and accepted the declared closure. It exported the eleven canonical tables.
+Phase-local mean energies spanned 4.106–48.817 eV, within the table support.
+The [current P1 evidence](dev/results/argon_p1_function_eedf_20261108.json)
+identifies the inputs and accepted result.
 
 A `diagnostic_control` run has a separate terminal status and is never
 promoted to `physical_target_accepted: true`. Its purpose is to verify the

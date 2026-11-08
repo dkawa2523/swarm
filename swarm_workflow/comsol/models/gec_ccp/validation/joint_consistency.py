@@ -61,6 +61,7 @@ from swarm_workflow.comsol.models.gec_ccp.validation.eedf import (
     _integrate_native_function_eedf_rate,
     _reaction_cross_sections_from_model_xml,
     _read_function_eedf,
+    read_mph_reaction_cross_sections,
 )
 from swarm_workflow.tables.contracts import (
     TWO_TERM_MOMENTUM_CROSS_SECTION_FLOOR_M2,
@@ -113,17 +114,7 @@ def _build_dense_function_eedf_rate_closure(
         raise GecCcpWorkflowError(
             "hybrid Function-EEDF closure has no preintegrated reactions"
         )
-    try:
-        with ZipFile(input_mph) as archive:
-            model_xml = archive.read("dmodel.xml").decode("utf-8", errors="replace")
-    except (OSError, KeyError) as exc:
-        raise GecCcpWorkflowError(
-            f"cannot read embedded reaction cross sections from {input_mph}"
-        ) from exc
-    cross_sections = _reaction_cross_sections_from_model_xml(
-        model_xml,
-        inelastic_reactions,
-    )
+    cross_sections = read_mph_reaction_cross_sections(input_mph, inelastic_reactions)
 
     rows: list[dict[str, Any]] = []
     process_summary: dict[str, Any] = {}
@@ -285,17 +276,7 @@ def _build_upstream_eedf_rate_consistency_audit(
         )
     function_path = mapping.bundle.path / FUNCTION_EEDF_TABLE
     function_grid = _read_function_eedf(function_path)
-    try:
-        with ZipFile(input_mph) as archive:
-            model_xml = archive.read("dmodel.xml").decode("utf-8", errors="replace")
-    except (OSError, KeyError) as exc:
-        raise GecCcpWorkflowError(
-            f"cannot read embedded cross sections from {input_mph}"
-        ) from exc
-    cross_sections = _reaction_cross_sections_from_model_xml(
-        model_xml,
-        mapping.reactions,
-    )
+    cross_sections = read_mph_reaction_cross_sections(input_mph, mapping.reactions)
     cross_section_identity = _audit_gec_argon_cross_section_identity(
         cross_sections,
         mapping.reactions,

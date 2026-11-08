@@ -2441,7 +2441,7 @@ def test_gec_ccp_external_rates_without_transport_run_support_audit(
     assert status["transport_quality_status"] == "not_applicable"
 
 
-def test_gec_ccp_function_eedf_requires_native_saved_function_audit(
+def test_gec_ccp_stops_before_solving_after_native_function_audit_failure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -2467,9 +2467,7 @@ def test_gec_ccp_function_eedf_requires_native_saved_function_audit(
     )
 
     def fake_execute(*args: object, operation: str, **kwargs: object) -> object:
-        for result in plan.expected_result_files:
-            result.write_text("% synthetic test result\n0,0\n", encoding="utf-8")
-        plan.mapping.model.output_mph.write_bytes(b"saved external mph")
+        assert operation in {"apply", "gec_native_eedf_audit"}
         return SimpleNamespace(
             operation=operation,
             stdout_paths=(tmp_path / f"{operation}.txt",),
@@ -2484,43 +2482,6 @@ def test_gec_ccp_function_eedf_requires_native_saved_function_audit(
         "analyze_comsol_eedf_audit",
         lambda *args, **kwargs: {"passed": False, "reason": "binding mismatch"},
     )
-    monkeypatch.setattr(
-        execution_runtime,
-        "_validated_comsol_runtime",
-        lambda *args, **kwargs: {
-            "version": "6.4",
-            "build": "429",
-            "executable": "comsolbatch.exe",
-            "input_model_upgrade_required": False,
-        },
-    )
-    monkeypatch.setattr(
-        execution_runtime,
-        "_validated_saved_mph_versions",
-        lambda *args, **kwargs: {"baseline": "6.4", "external": "6.4"},
-    )
-
-    def audit_file(name: str) -> Path:
-        path = plan.output_directory / name
-        path.write_text(json.dumps({"status": "passed"}), encoding="utf-8")
-        return path
-
-    monkeypatch.setattr(
-        execution_postsolve,
-        "audit_gec_ccp_conservation_run",
-        lambda *args: audit_file("conservation_audit.json"),
-    )
-    monkeypatch.setattr(
-        execution_postsolve,
-        "audit_gec_ccp_function_eedf_run",
-        lambda *args: audit_file("function_eedf_audit.json"),
-    )
-    monkeypatch.setattr(
-        execution_postsolve,
-        "audit_gec_ccp_transport_run",
-        lambda *args: audit_file("transport_audit.json"),
-    )
-
     with pytest.raises(GecCcpQualityError, match="native_function_eedf"):
         execution.execute_gec_ccp_run(mapping_path, bundle_path=bundle)
 
@@ -2529,7 +2490,10 @@ def test_gec_ccp_function_eedf_requires_native_saved_function_audit(
     )
     assert status["status"] == "rejected"
     assert status["native_function_eedf_quality_status"] == "failed"
-    assert "gec_native_eedf_audit" in status["operations"]
+    assert status["solve_status"] == "external_not_started"
+    assert status["physical_target_accepted"] is False
+    assert status["completed_operations"] == ["apply", "gec_native_eedf_audit"]
+    assert all(not result.exists() for result in plan.expected_result_files)
 
 
 def test_gec_ccp_keeps_native_eedf_audit_when_external_compile_fails(

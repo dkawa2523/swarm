@@ -7,7 +7,7 @@ import math
 import numpy as np
 
 from .contracts import C1FunctionEedf, CollisionRateKernel, FunctionEedfError
-from .kernels import collision_rate_coefficient
+from .kernels import collision_cross_section, collision_rate_coefficient
 from .moments import (
     _tilt_linear_row_to_mean,
     evaluate_c1_function_eedf,
@@ -82,6 +82,8 @@ def initial_energy_axis(
     minimum_energy: float,
     maximum_energy: float,
     kernels: tuple[CollisionRateKernel, ...],
+    *,
+    minimum_spacing: float = 0.0,
 ) -> np.ndarray:
     points = {0.0, maximum_energy}
     points.update(np.geomspace(minimum_energy, maximum_energy, 65).tolist())
@@ -92,7 +94,12 @@ def initial_energy_axis(
             for value in kernel.electron_energies_eV
             if 0.0 < value < maximum_energy
         )
-    return np.asarray(sorted(points), dtype=float)
+    ordered = sorted(points)
+    spaced = [ordered[0]]
+    for point in ordered[1:-1]:
+        if min(point - spaced[-1], ordered[-1] - point) >= minimum_spacing:
+            spaced.append(point)
+    return np.asarray([*spaced, ordered[-1]], dtype=float)
 
 
 def audit_energy_axis(
@@ -137,6 +144,7 @@ def adapt_energy_axis(
     *,
     shape_tolerance: float,
     rate_tolerance: float,
+    minimum_spacing: float = 0.0,
 ) -> np.ndarray:
     energies = initial
     references = [
@@ -178,18 +186,7 @@ def adapt_energy_axis(
                 )
                 if reference_rate <= 0.0 and rate_scale <= 0.0:
                     continue
-                right = (
-                    0.0
-                    if kernel.high_energy_extrapolation == "zero"
-                    else float(kernel.cross_sections_m2[-1])
-                )
-                sigma = np.interp(
-                    audit_energy,
-                    kernel.electron_energies_eV,
-                    kernel.cross_sections_m2,
-                    left=0.0,
-                    right=right,
-                )
+                sigma = collision_cross_section(audit_energy, kernel)
                 score = np.maximum(
                     score,
                     audit_energy
@@ -205,6 +202,7 @@ def adapt_energy_axis(
             audit_energy,
             global_score,
             maximum_points=64,
+            minimum_spacing=minimum_spacing,
         )
         if not additions:
             break
@@ -226,6 +224,7 @@ def interval_refinement_points(
     score: np.ndarray,
     *,
     maximum_points: int,
+    minimum_spacing: float = 0.0,
 ) -> set[float]:
     """Choose at most one highest-error audit point from each table interval."""
 
@@ -235,6 +234,12 @@ def interval_refinement_points(
         & (interval < len(energies) - 1)
         & ~np.isin(audit_energy, energies)
         & (score > 0.0)
+    )
+    indices = np.flatnonzero(available)
+    lower = interval[indices]
+    points = audit_energy[indices]
+    available[indices] &= (points - energies[lower] >= minimum_spacing) & (
+        energies[lower + 1] - points >= minimum_spacing
     )
     if not np.any(available):
         return set()

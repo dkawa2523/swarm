@@ -8,6 +8,7 @@ import math
 from pathlib import Path
 import re
 from typing import Any
+from zipfile import BadZipFile, ZipFile
 
 import numpy as np
 
@@ -75,6 +76,19 @@ def _reaction_cross_sections_from_model_xml(
             )
         tables[reaction.process_type] = (arrays["xdata"], arrays["ydata"])
     return tables
+
+
+def read_mph_reaction_cross_sections(
+    path: Path, reactions: tuple[GecReactionSpec, ...]
+) -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    try:
+        with ZipFile(path) as archive:
+            xml = archive.read("dmodel.xml").decode("utf-8")
+    except (BadZipFile, OSError, KeyError, UnicodeError) as exc:
+        raise GecCcpWorkflowError(
+            f"cannot read embedded reaction cross sections from {path}"
+        ) from exc
+    return _reaction_cross_sections_from_model_xml(xml, reactions)
 
 
 def _audit_gec_argon_cross_section_identity(
@@ -168,7 +182,7 @@ def _audit_function_eedf_source_rates(
     reactions: tuple[GecReactionSpec, ...],
     *,
     rate_table_name: str = "rates_vs_mean_energy.csv",
-    audit_csv_name: str = "function_eedf_rate_audit.csv",
+    audit_csv_name: str | None = "function_eedf_rate_audit.csv",
 ) -> dict[str, Any]:
     rate_rows = _read_csv(mapping.bundle.path / rate_table_name)
     solver_source = mapping.bundle.expected_source
@@ -215,16 +229,36 @@ def _audit_function_eedf_source_rates(
             and maximum_relative <= FUNCTION_EEDF_RATE_RELATIVE_ERROR_LIMIT
             and p95_relative <= FUNCTION_EEDF_RATE_P95_RELATIVE_ERROR_LIMIT
         )
-        row_passes: list[bool] = []
+        process_results[reaction.process_type] = {
+            "passed": process_passed,
+            "anchors": int(source.size),
+            "relevant_anchors": int(np.count_nonzero(relevant)),
+            "zero_rate_anchors": int(np.count_nonzero(source == 0.0)),
+            "relevant_zero_rate_anchors": int(
+                np.count_nonzero((source == 0.0) & relevant)
+            ),
+            "normalized_rmse": normalized_rmse,
+            "normalized_rmse_limit": FUNCTION_EEDF_RATE_NORMALIZED_RMSE_LIMIT,
+            "normalized_rmse_scope": "all_samples",
+            "maximum_relative_error_significant": maximum_relative,
+            "maximum_relative_error_limit": FUNCTION_EEDF_RATE_RELATIVE_ERROR_LIMIT,
+            "p95_relative_error_significant": p95_relative,
+            "p95_relative_error_limit": FUNCTION_EEDF_RATE_P95_RELATIVE_ERROR_LIMIT,
+            **_rate_significance_metadata(
+                process_peak=process_peak,
+                significance_floor=significance_floor,
+                significant=relevant,
+            ),
+        }
+        if audit_csv_name is None:
+            continue
         for index, row in enumerate(selected):
             row_relevant = bool(relevant[index])
-            row_pass = (
-                not row_relevant
-                or abs(derived[index] - source[index])
-                / max(derived[index], source[index], 1.0e-300)
-                <= FUNCTION_EEDF_RATE_RELATIVE_ERROR_LIMIT
+            error = (
+                abs(difference[index]) / max(derived[index], source[index], 1.0e-300)
+                if row_relevant
+                else None
             )
-            row_passes.append(row_pass)
             audit_rows.append(
                 {
                     "process_type": reaction.process_type,
@@ -234,42 +268,29 @@ def _audit_function_eedf_source_rates(
                     "solver_rate_m3_s": source[index],
                     "solver_rate_is_zero": bool(source[index] == 0.0),
                     "relevant": row_relevant,
-                    "relative_error_if_relevant": (
-                        abs(derived[index] - source[index])
-                        / max(derived[index], source[index], 1.0e-300)
-                        if row_relevant
-                        else None
-                    ),
+                    "relative_error_if_relevant": error,
                     "criterion": (
                         f"{solver_source}_relative_10_percent"
                         if row_relevant
                         else "below_1e-5_process_peak_record_only"
                     ),
-                    "passed": row_pass,
+                    "passed": error is None
+                    or error <= FUNCTION_EEDF_RATE_RELATIVE_ERROR_LIMIT,
                 }
             )
-        process_results[reaction.process_type] = {
-            "passed": process_passed and all(row_passes),
-            "anchors": int(source.size),
-            "relevant_anchors": int(np.count_nonzero(relevant)),
-            "zero_rate_anchors": int(np.count_nonzero(source == 0.0)),
-            "relevant_zero_rate_anchors": int(
-                np.count_nonzero((source == 0.0) & relevant)
-            ),
-            "normalized_rmse": normalized_rmse,
-            "normalized_rmse_limit": (FUNCTION_EEDF_RATE_NORMALIZED_RMSE_LIMIT),
-            "normalized_rmse_scope": "all_samples",
-            "maximum_relative_error_significant": maximum_relative,
-            "maximum_relative_error_limit": (FUNCTION_EEDF_RATE_RELATIVE_ERROR_LIMIT),
-            "p95_relative_error_significant": p95_relative,
-            "p95_relative_error_limit": (FUNCTION_EEDF_RATE_P95_RELATIVE_ERROR_LIMIT),
-            **_rate_significance_metadata(
-                process_peak=process_peak,
-                significance_floor=significance_floor,
-                significant=relevant,
-            ),
-        }
-
+    result = {
+        "passed": bool(process_results)
+        and all(item["passed"] for item in process_results.values()),
+        "source": f"{solver_source}_rates",
+        "artificial_rate_floor": False,
+        "rate_table": rate_table_name,
+        "rate_table_sha256": hashlib.sha256(
+            (mapping.bundle.path / rate_table_name).read_bytes()
+        ).hexdigest(),
+        "processes": process_results,
+    }
+    if audit_csv_name is None:
+        return result
     audit_path = mapping.results.output_directory / audit_csv_name
     audit_path.parent.mkdir(parents=True, exist_ok=True)
     columns = (
@@ -289,16 +310,9 @@ def _audit_function_eedf_source_rates(
         writer.writeheader()
         writer.writerows(audit_rows)
     return {
-        "passed": all(item["passed"] for item in process_results.values()),
-        "source": f"{solver_source}_rates",
-        "artificial_rate_floor": False,
-        "rate_table": rate_table_name,
-        "rate_table_sha256": hashlib.sha256(
-            (mapping.bundle.path / rate_table_name).read_bytes()
-        ).hexdigest(),
+        **result,
         "audit_csv": str(audit_path),
         "audit_csv_sha256": hashlib.sha256(audit_path.read_bytes()).hexdigest(),
-        "processes": process_results,
     }
 
 
@@ -345,9 +359,11 @@ def _integrate_native_function_eedf_rate(
     return float(np.sum(half_width * weights * integrand))
 
 
-def _read_function_eedf(path: Path) -> ComsolFunctionEedfGrid:
+def _read_function_eedf(
+    path: Path, metadata: dict[str, Any] | None = None
+) -> ComsolFunctionEedfGrid:
     try:
-        return read_comsol_function_eedf_grid(path)
+        return read_comsol_function_eedf_grid(path, metadata)
     except FunctionEedfError as exc:
         raise GecCcpWorkflowError(f"invalid Function-EEDF: {exc}") from exc
 

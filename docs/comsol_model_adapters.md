@@ -8,14 +8,13 @@ positive-column assumptions into global behavior.
 
 Here, model-independent means independent of a particular COMSOL MPH topology.
 The current export still generates COMSOL functions and applies coefficient
-closure requirements. Swarm calculation and ordinary result CSV/Python reading
-do not require COMSOL. Version 0.9 adds neutral DC reaction-coefficient points
-for all four solvers through `output.export` and `export-reaction-rates`.
-These points retain physical context and uncertainty independently of the
-COMSOL closure requirements. A coefficient-reading example with bounded
-interpolation remains planned. That example stops at reading coefficients. Chemical reaction networks
-and species time integration remain in the consuming plasma model. See the
-[output plan](dev/modeling_output_review.md).
+closure requirements. Swarm calculation and simulator-neutral DC coefficient
+export run independently of COMSOL. `output.export` and
+`export-reaction-rates` produce reaction-coefficient points for all four
+solvers with physical context and available uncertainty. For qualified
+tables, the [coefficient reader](coefficient_lookup.md) interpolates within
+the available E/N range at a fixed background gas state. The consuming
+plasma model owns the reaction network and species time integration.
 
 ## Supported adapters
 
@@ -115,14 +114,13 @@ contract. GEC qualification thresholds, Ar reaction tags, RF study sequencing,
 positive-column voltage continuation, and LEA/LFA activation are model-local
 examples, not shared defaults.
 
-The 0.12 input-conversion verification is separate from model acceptance.
-The recorded CCP target qualification declares a 3000--4000 Td operating
-bracket, while the maintained adapter requires 3000--3500 Td; preflight rejects
-this scope mismatch. ICP preparation works from the checkout, but its current
-canonical cross-section/reference lookup still assumes checkout assets and
-fails from a runtime-only wheel. These are tracked next in the
-[improvement plan](dev/improvement_plan.md); they are not waived by a successful
-bundle export.
+The input conversion, target-range qualification, licensed binding, and plasma
+solve are separate decisions. Use the target qualification produced for the
+current database and adapter range. The current pure-Ar P1 runs are recorded
+in the [improvement plan](dev/improvement_plan.md). Run licensed model
+preparation from the checkout so the adapters can locate their model assets
+and reference cross sections. Bundle export and saved-result comparison also
+work from the runtime wheel.
 
 The GEC-ICP adapter is likewise model-local. It binds a steady-DC Function
 EEDF and reduced mobility into the 13.56 MHz frequency-transient ICP model;

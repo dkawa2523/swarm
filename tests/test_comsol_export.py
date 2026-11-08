@@ -18,6 +18,7 @@ from swarm_workflow.quality.policy import (
     quality_policy_provenance,
     quality_thresholds_payload,
 )
+from electron_swarm.core.constants import ELECTRON_MASS_KG, E_CHARGE_C
 from electron_swarm.core.source_identity import (
     PROPAGATOR_SOLVER_SOURCE_METADATA_KEY,
 )
@@ -39,11 +40,12 @@ from swarm_workflow.comsol.input.function_eedf import (
     pchip_weighted_moments,
     project_c1_function_eedf_to_comsol_grid,
     read_c1_function_eedf,
+    read_comsol_function_eedf_grid,
     scaled_shape_moments,
 )
 from swarm_workflow.campaign.store import WorkflowStore
 from swarm_workflow.campaign.sweep import run_sweep
-from swarm_workflow.tables.contracts import ELASTIC_ENERGY_LOSS_TABLE, UNITS
+from swarm_workflow.tables.contracts import COLLISION_RATE_KERNEL_COLUMNS, ELASTIC_ENERGY_LOSS_TABLE, UNITS
 from swarm_workflow.comsol.input.export.contracts import (
     ELASTIC_ENERGY_LOSS_TABLE as COMSOL_ELASTIC_ENERGY_LOSS_TABLE,
 )
@@ -572,6 +574,11 @@ def test_adaptive_projection_bounds_active_rate_and_preserves_exact_zero() -> No
             )
             == 0.0
         )
+    with pytest.raises(FunctionEedfError, match="outside the EEDF support"):
+        project_c1_function_eedf_to_comsol_grid(
+            representation, rate_kernels=(active, zero),
+            source_rates=np.full((2, 2), 1e-15),
+        )
 
 
 def test_comsol_projection_removes_only_identically_zero_global_tail() -> None:
@@ -627,62 +634,91 @@ def test_comsol_projection_removes_only_identically_zero_global_tail() -> None:
     assert projected.mean_energy_relative_error_max <= 1.0e-8
 
 
-def test_propagator_export_uses_common_adaptive_spreadsheet(
-    tmp_path: Path,
-) -> None:
+def test_argon_p1_projection_preserves_source_reaction_integrals(tmp_path: Path) -> None:
+    fixture = Path(__file__).parent / "fixtures/references/argon_p1_projection"
+    cross_section_path = Path(__file__).parents[1] / "examples/cross_sections/argon_application_library.csv"
+    cross_sections = _read_csv(cross_section_path)
     table_dir = tmp_path / "tables" / "mixture_0000"
     table_dir.mkdir(parents=True)
-    _write_minimal_manifest(
-        table_dir,
-        optional_tables=("eedf.csv",),
-        source="propagator",
-    )
+    kernels = "collision_rate_kernels.csv"
+    _write_minimal_manifest(table_dir, optional_tables=("eedf.csv", kernels), source="propagator")
     _write_required_base_tables(table_dir)
-    (table_dir / "eedf.csv").write_text(
-        (
-            "electron_energy_eV,energy_width_eV,E_over_N_Td,E_over_N_V_m2,"
-            "mean_energy_eV,eedf\n"
-            "0.5,1,10,1e-20,0.75,0.75\n"
-            "1.5,1,10,1e-20,0.75,0.25\n"
-            "0.5,1,20,2e-20,1.25,0.25\n"
-            "1.5,1,20,2e-20,1.25,0.75\n"
-        ),
-        encoding="utf-8",
-    )
-    _record_source_artifact(
-        table_dir,
-        "eedf.csv",
-        role="raw_swarm_eedf_audit_and_canonicalization_source",
-    )
-
-    export_comsol_bundle(table_dir, tmp_path / "bundle")
+    for name in ("eedf.csv", "rates_vs_en.csv"):
+        (table_dir / name).write_bytes((fixture / name).read_bytes())
+        _record_source_artifact(
+            table_dir, name,
+            role="raw_swarm_eedf_audit_and_canonicalization_source" if name == "eedf.csv" else "swarm_coefficient_evidence",
+        )
+    with (table_dir / kernels).open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=COLLISION_RATE_KERNEL_COLUMNS)
+        writer.writeheader()
+        for row in cross_sections:
+            writer.writerow({
+                "species": row["species"], "process": row["process"], "process_type": row["type"],
+                "threshold_eV": row["threshold_eV"], "electron_energy_eV": row["energy_eV"],
+                "cross_section_m2": row["cross_section_m2"], "high_energy_extrapolation": "zero",
+            })
+    _record_source_artifact(table_dir, kernels, role="canonical_eedf_projection_rate_kernels")
+    manifest_path = table_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    cross_section_sha = sha256(cross_section_path.read_bytes()).hexdigest()
+    manifest["hashes"]["cross_sections_sha256"] = cross_section_sha
+    manifest["tables"][kernels]["cross_sections_sha256"] = cross_section_sha
+    manifest["tables"][kernels]["argument"] = "electron_energy_eV"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
     bundle = tmp_path / "bundle"
-    manifest = json.loads((bundle / "manifest.json").read_text())
-    active = manifest["tables"]["eedf_f0_comsol_2d.csv"]
-    assert (bundle / "eedf_f0_comsol_2d.csv").is_file()
-    assert not (bundle / "eedf_f0_comsol_grid.txt").exists()
-    assert not (bundle / "eedf_f0_binding_seed.csv").exists()
-    assert (bundle / "eedf_f0_vs_mean_energy.csv").is_file()
-    assert active["format"] == "csv"
-    assert active["comsol_import"]["struct"] == "spreadsheet"
-    assert active["grid_shape"] == [
-        active["mean_energy_grid_points"],
-        active["energy_grid_points"],
-    ]
-    assert active["mean_energy_grid_points"] > 2
-    assert active["representation"] == ("physical_2d_adaptive_moment_rate_projected")
-    assert active["mean_energy_axis"] == (
-        "error_controlled_c1_materialization_with_solver_anchors"
-    )
-    assert active["mean_axis_shape_total_variation_error_max"] <= (
-        SHAPE_TOTAL_VARIATION_TOLERANCE
-    )
-    assert active["mean_axis_rate_scaled_error_max"] is None
-    assert active["source_support"] == {
-        "policy": "full_source_support",
-        "source_values_modified": False,
-    }
+    export_comsol_bundle(table_dir, bundle)
+    manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
+    name = "eedf_f0_comsol_2d.csv"
+    entry = manifest["tables"][name]
+    grid = read_comsol_function_eedf_grid(bundle / name, entry)
+    rate_rows = _read_csv(fixture / "rates_vs_en.csv")
+    bin_rows = _read_csv(fixture / "eedf.csv")
+    assert {float(row["mean_energy_eV"]) for row in rate_rows} <= set(grid.mean_energies_eV)
+    assert entry["mean_energy_axis"] == "adaptive_shape_with_source_rate_correction"
+    assert entry["source_rate_projection"]["sha256"] == sha256((fixture / "rates_vs_en.csv").read_bytes()).hexdigest()
+    assert grid.normalization_error_max < 1e-8
+    assert grid.mean_energy_relative_error_max < 1e-8
+    assert grid.minimum_value >= 0
+
+    for process_type in ("elastic", "excitation", "ionization"):
+        xs_rows = [row for row in cross_sections if row["type"] == process_type]
+        energy = np.asarray([float(row["energy_eV"]) for row in xs_rows])
+        sigma = np.asarray([float(row["cross_section_m2"]) for row in xs_rows])
+        threshold = float(xs_rows[0]["threshold_eV"])
+        references = [row for row in rate_rows if row["process_type"] == process_type]
+        floor = max(float(row["rate_coefficient_m3_s"]) for row in references) * 1e-5
+        for row in references:
+            mean = float(row["mean_energy_eV"])
+            stored = float(row["rate_coefficient_m3_s"])
+            bins = [item for item in bin_rows if item["E_over_N_Td"] == row["E_over_N_Td"]]
+            edges = np.r_[0, np.cumsum([float(item["energy_width_eV"]) for item in bins])]
+            density = np.asarray([float(item["eedf"]) for item in bins])
+            assert _reference_rate(edges, density, energy, sigma, threshold, cell_density=True) == pytest.approx(
+                stored, rel=1e-9, abs=1e-300
+            )
+            index = np.searchsorted(grid.mean_energies_eV, mean)
+            imported = _reference_rate(grid.electron_energies_eV, grid.values_eV_m32[index], energy, sigma, threshold)
+            if max(stored, imported) >= floor:
+                assert imported == pytest.approx(stored, rel=1e-7, abs=0)
+
+
+def _reference_rate(energy, density, cross_energy, cross_sigma, threshold, *, cell_density=False):
+    # Independent quadrature over the joined cell/section knots. The raw P1
+    # samples are constant probability density per cell; the table is linear f0.
+    nodes, weights = np.polynomial.legendre.leggauss(8)
+    knots = np.union1d(energy, np.r_[cross_energy, threshold])
+    knots = knots[(knots >= max(energy[0], threshold)) & (knots <= energy[-1])]
+    half_width = np.diff(knots)[:, None] / 2
+    points = knots[:-1, None] + half_width * (nodes + 1)
+    cross_section = np.interp(points, cross_energy, cross_sigma, left=0, right=0)
+    if cell_density:
+        probability = density[np.searchsorted(energy, points, side="right") - 1]
+    else:
+        probability = np.sqrt(points) * np.interp(points, energy, density)
+    speed = np.sqrt((2 * E_CHARGE_C / ELECTRON_MASS_KG) * points)
+    return float(np.sum(half_width * weights * cross_section * probability * speed))
 
 
 @pytest.mark.parametrize(

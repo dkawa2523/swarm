@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-08",
+  "source_solver": "propagator",
+  "comsol_version": "6.4.0.429",
+  "acceptance_scope": "declared_restricted_closure",
+  "significance_fraction_of_process_peak": 1e-5,
+  "models": {
+    "gec_ccp": {
+      "source_table_manifest_sha256": "cf7a395ee6ddeeca00f3b54614631be6d5a816e18189c54a95076a8d525937ad",
+      "function_table_sha256": "2648a6ce75c60d5916d69afa351c91d21b3f844b80a2ba6ee2195741ebbbd30e",
+      "run_status_sha256": "20fdf02e56a3c7f6ee0d55bb85fa90d702dd28d19fd767552ca66ebb54d92bf0",
+      "output_mph_sha256": "c495b0f893bdfacaf30a1a881e2bd1863511389d977d6ff8348cfd99519edecd",
+      "swarm_anchors": 54,
+      "function_table_shape": [149, 661],
+      "shape_total_variation_error_max": 0.0030456795529560333,
+      "source_anchor_rate_scaled_residual_max": 1.7073949327050652e-14,
+      "source_rate_max_relative_error_with_mph_cross_sections": 6.806173253275768e-10,
+      "native_strict_samples": 2305,
+      "native_failed_samples": 0,
+      "power_W": 1.0,
+      "pressure_Pa": 13.3322,
+      "gas_temperature_K": 300,
+      "phase_local_mean_energy_eV": [4.105648819108302, 48.81666635544408],
+      "canonical_result_tables": 11,
+      "physical_target_accepted": true
+    },
+    "gec_icp": {
+      "source_table_manifest_sha256": "e15c0f706e7702ccad3b3a3d40e3c4c670c59938119e81326dda83296970cb4d",
+      "function_table_sha256": "f92ffe721c6196485b42d3fafbe2f17adae65fe589f3414aac4ac695f5c4b8b2",
+      "run_status_sha256": "afd1431de2efa5345e8d2a6a4632f8cbdaa9f77eebfed02ec7925637587fba36",
+      "output_mph_sha256": "49d03145a1c03754e7a3c47f45b647580672293ce8882d0d442e399cc0fdeb50",
+      "swarm_anchors": 14,
+      "function_table_shape": [81, 606],
+      "shape_total_variation_error_max": 0.003262609939598021,
+      "source_anchor_rate_scaled_residual_max": 2.2888259331852252e-14,
+      "native_strict_samples": 1421,
+      "native_failed_samples": 0,
+      "coil_power_W": 1500.0,
+      "pressure_Pa": 2.66644,
+      "gas_temperature_K": 300,
+      "saved_time_count": 26,
+      "final_time_s": 0.01,
+      "final_electron_inventory": 1.9161103051248753e14,
+      "final_electron_weighted_mean_energy_eV": 7.482818692513703,
+      "final_absorbed_power_W": 1393.1481927862396,
+      "physical_target_accepted": true
+    }
+  }
+}

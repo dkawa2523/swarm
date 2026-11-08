@@ -150,8 +150,9 @@ def test_propagator_workflow_persists_null_transport_and_exports_bundle(
     assert active_eedf["mean_energy_grid_points"] >= 3
     assert active_eedf["solver_anchor_mean_energy_count"] == 3
     assert active_eedf["mean_energy_axis"] == (
-        "error_controlled_c1_materialization_with_solver_anchors"
+        "adaptive_shape_with_source_rate_correction"
     )
+    assert active_eedf["source_rate_projection"]["scaled_residual_max"] <= 1e-7
     assert active_eedf["representation"] == (
         "physical_2d_adaptive_moment_rate_projected"
     )
