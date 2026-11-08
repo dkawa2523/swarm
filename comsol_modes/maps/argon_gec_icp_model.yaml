@@ -5,6 +5,7 @@ schema_version: 2
 model:
   input_mph: ../argon_gec_icp.mph
   output_mph: ../work/argon_gec_icp_contract_output.mph
+  cross_sections: ../../examples/cross_sections/argon_application_library.csv
   component: comp1
   geometry: geom1
   mesh: mesh1

@@ -243,6 +243,16 @@ def _add_comsol_model_commands(subparsers: argparse._SubParsersAction) -> None:
     )
     positive_column.set_defaults(handler=handlers.run_positive_column_command)
 
+    saved_positive = subparsers.add_parser(
+        "export-positive-column",
+        help="Export fields from an existing positive-column MPH solution",
+    )
+    saved_positive.add_argument("mapping", type=Path, help="mapping YAML with results selection")
+    saved_positive.add_argument("saved_mph", type=Path, help="MPH containing the saved solution")
+    saved_positive.add_argument("--output", type=Path, required=True, help="new export directory")
+    saved_positive.add_argument("--comsol", type=Path, help="COMSOL batch executable")
+    saved_positive.set_defaults(handler=handlers.export_positive_column_command)
+
     gec = subparsers.add_parser(
         "run-gec-ccp",
         help="Prepare or run an external-Swarm argon GEC CCP target",
@@ -286,6 +296,17 @@ def _add_comsol_model_commands(subparsers: argparse._SubParsersAction) -> None:
         help="one-mixture export-comsol bundle directory to import",
     )
     icp.set_defaults(handler=handlers.run_gec_icp_command)
+
+    saved_icp = subparsers.add_parser(
+        "export-gec-icp",
+        help="Export saved GEC ICP profiles and physical-time histories",
+    )
+    saved_icp.add_argument("model_mapping", type=Path, help="GEC ICP model tags YAML")
+    saved_icp.add_argument("saved_mph", type=Path, help="MPH containing the saved solution")
+    saved_icp.add_argument("--time-s", type=float, required=True, help="profile time in seconds")
+    saved_icp.add_argument("--output", type=Path, required=True, help="new export directory")
+    saved_icp.add_argument("--comsol", type=Path, help="COMSOL batch executable")
+    saved_icp.set_defaults(handler=handlers.export_gec_icp_command)
 
     plot_gec = subparsers.add_parser(
         "plot-gec-ccp",
@@ -333,12 +354,12 @@ def _add_comsol_model_commands(subparsers: argparse._SubParsersAction) -> None:
     compare_positive.add_argument(
         "external_results",
         type=Path,
-        help="external positive_column_run_summary.json",
+        help="external positive-column result summary with verified gas context",
     )
     compare_positive.add_argument(
         "reference_results",
         type=Path,
-        help="reference positive_column_run_summary.json",
+        help="reference positive-column result summary with verified gas context",
     )
     compare_positive.add_argument(
         "--external-solution", type=int, help="explicit saved solution index"

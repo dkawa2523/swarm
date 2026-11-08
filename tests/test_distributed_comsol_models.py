@@ -1,4 +1,4 @@
-"""Check downloadable model bytes and their distinction from prepared inputs."""
+"""Check downloadable models, solver inputs, and physical acceptance records."""
 
 import hashlib
 import json
@@ -46,34 +46,52 @@ def test_distributed_source_models_retain_the_original_bytes():
 
 
 @pytest.mark.parametrize("target", ["positive_column", "gec_ccp", "gec_icp"])
-def test_prepared_inputs_do_not_claim_a_materialized_or_accepted_model(target):
+def test_configured_model_has_accepted_results_and_qualified_input(target):
     directory = MODELS / target
-    preparation = _json(directory / "preparation.json")
-    assert preparation["source_solver"] == "two_term"
-    assert preparation["plasma_solve_executed"] is False
-    assert preparation["physical_target_accepted"] is False
-    assert not list(directory.glob("*.mph"))
-    assert preparation["mph_materialization"] in {
-        "blocked_license_expired", "blocked_preflight"
+    release = _json(directory / "release.json")
+    assert release["source_solver"] == "two_term"
+    assert release["physical_target_accepted"] is True
+    assert release["gui_recompute"]["source_csv_paths_unavailable"] is True
+    materialized = {
+        record["file"]: _check_file(directory, record)
+        for record in release["files"]
     }
-    for record in preparation["files"]:
-        _check_file(directory, record)
-    _check_file(ROOT, preparation["source_model"])
+    _check_file(ROOT, release["source_model"])
+    model = release["model"]
+    has_mph = _check_file(directory, model)
+    acceptance = _json(directory / release["acceptance_record"])
+    if target == "positive_column":
+        assert acceptance["status"] == "completed" and acceptance["quality_passed"]
+    else:
+        assert acceptance["physical_target_accepted"] is True
+        assert acceptance["quality_accepted_for_declared_closure"] is True
+        if target == "gec_ccp":
+            assert acceptance["output_mph"]["sha256"] == model["sha256"]
+        else:
+            export = _json(directory / "results/comparison_export_manifest.json")
+            assert export["input_mph"]["sha256"] == model["sha256"]
     configuration = yaml.safe_load((directory / "swarm.yaml").read_text())
     assert configuration["schema_version"] == 2
     assert configuration["run"]["solvers"] == [{"id": "two_term"}]
-    assert len(configuration["run"]["e_over_n_Td"]) == preparation["case_count"]
+    assert len(configuration["run"]["e_over_n_Td"]) == release["case_count"]
     bundle = _json(directory / "bundle/manifest.json")
     assert bundle["format_version"] == 2
-    assert bundle["valid_ranges"] == preparation["valid_ranges"]
-    database = next(r for r in preparation["files"] if r["file"] == "swarm_results.sqlite")
-    if _check_file(directory, database):
+    assert bundle["valid_ranges"] == release["valid_ranges"]
+    database = next(r for r in release["files"] if r["file"] == "swarm_results.sqlite")
+    assert bundle["hashes"]["source_database_sha256"] == database["sha256"]
+    if has_mph and target != "positive_column":
+        with ZipFile(directory / model["file"]) as mph:
+            embedded = mph.read("resources/fileResource1.csv")
+        assert hashlib.sha256(embedded).hexdigest() == (
+            bundle["tables"]["eedf_f0_comsol_2d.csv"]["sha256"]
+        )
+    if materialized["swarm_results.sqlite"]:
         uri = (directory / "swarm_results.sqlite").as_uri() + "?mode=ro"
         with sqlite3.connect(uri, uri=True) as connection:
             fields = connection.execute(
                 "SELECT solver, e_over_n_Td FROM cases ORDER BY e_over_n_Td"
             ).fetchall()
-        assert len(fields) == preparation["case_count"]
+        assert len(fields) == release["case_count"]
         assert {solver for solver, _ in fields} == {"two_term"}
         assert [field for _, field in fields] == sorted(configuration["run"]["e_over_n_Td"])
 

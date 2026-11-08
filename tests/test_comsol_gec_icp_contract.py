@@ -45,6 +45,7 @@ def _mapping_payload(input_mph: str = "model.mph") -> dict[str, object]:
         "model": {
             "input_mph": input_mph,
             "output_mph": "work/result.mph",
+            "cross_sections": CANONICAL_ARGON_CROSS_SECTIONS.as_posix(),
             "component": "comp1",
             "geometry": "geom1",
             "mesh": "mesh1",

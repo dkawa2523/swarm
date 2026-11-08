@@ -49,8 +49,6 @@ from swarm_workflow.tables.contracts import (
     SOURCE_CHOICES,
 )
 
-from .contracts import GecIcpContractError
-from .cross_sections import canonical_cross_sections_combined_sha256
 
 
 _BOLTZMANN_J_K = 1.380649e-23
@@ -96,6 +94,8 @@ def validate_gec_icp_bundle(
     expected_temperature_K: float = 300.0,
     expected_transport_definition: str | None = None,
     expected_mc_qualification_profile: str | None = None,
+    *,
+    cross_section_csv: Path,
 ) -> dict[str, Any]:
     """Validate one model-independent bundle for the restricted ICP closure."""
 
@@ -126,6 +126,14 @@ def validate_gec_icp_bundle(
         root, source, manifest
     )
     digests.update(evidence_digests)
+    input_manifest = (
+        _read_manifest(evidence_paths["monte_carlo_source_manifest.json"])
+        if source == ANCHOR_FALLBACK_SOURCE else manifest
+    )
+    _validate_cross_section_source(
+        cross_section_csv, input_manifest.get("input_evidence"),
+        hashes["cross_sections_sha256"],
+    )
     function_path, function_support = _validate_active_function_eedf(
         source, manifest, tables, table_paths
     )
@@ -266,16 +274,26 @@ def _validate_manifest_identity(
         raise GecIcpBundleError(
             "bundle lacks canonical workflow, config, or cross-section SHA-256 provenance"
         )
-    try:
-        expected_cross_sections = canonical_cross_sections_combined_sha256()
-    except GecIcpContractError as exc:
-        raise GecIcpBundleError(str(exc)) from exc
-    if hashes["cross_sections_sha256"] != expected_cross_sections:
-        raise GecIcpBundleError(
-            "bundle cross_sections_sha256 does not match the repository canonical "
-            "examples/cross_sections/argon_application_library.csv combined hash"
-        )
     return str(source), transport_definition, source_policy, hashes
+
+
+def _validate_cross_section_source(path: Path, evidence: object, expected: str) -> None:
+    if not isinstance(evidence, dict) or len(evidence) != 1:
+        raise GecIcpBundleError(
+            "GEC-ICP requires the recorded source path for one Argon cross-section file"
+        )
+    source = next(iter(evidence))
+    try:
+        digest = _file_sha256(path)
+    except OSError as exc:
+        raise GecIcpBundleError(f"cannot read mapped Argon cross sections: {path}") from exc
+    # The path in this historical workflow hash identifies the input record.
+    # Use the declared local file's bytes and the recorded producer path.
+    combined = sha256(f"{source}\0{digest}\0".encode("utf-8")).hexdigest()
+    if combined != expected:
+        raise GecIcpBundleError(
+            "mapped Argon cross sections do not match bundle cross_sections_sha256"
+        )
 
 
 def _validate_physical_context(

@@ -21,10 +21,6 @@ from .closure_readback import (
     generate_closure_readback_java,
     prepare_gec_icp_closure_readback,
 )
-from .cross_sections import (
-    CANONICAL_ARGON_CROSS_SECTIONS,
-    COMSOL_ARGON_IMPORT_REFERENCE,
-)
 from .java import (
     APPLY_CLASS,
     CLOSURE_CLASS,
@@ -62,6 +58,7 @@ def prepare_gec_icp_run(
     bundle_evidence = validate_gec_icp_bundle(
         mapping.bundle.path,
         expected_source=mapping.bundle.expected_source,
+        cross_section_csv=mapping.model_mapping.model.cross_sections,
         expected_pressure_Pa=mapping.run.pressure_Pa,
         expected_temperature_K=mapping.run.gas_temperature_K,
         expected_transport_definition=mapping.bundle.expected_transport_definition,
@@ -134,11 +131,6 @@ def prepare_gec_icp_run(
     expected = tuple(output / name for name in _RESULT_NAMES)
     plan_json = output / "gec_icp_plan.json"
     input_mph = mapping.model_mapping.model.input_mph
-    if not COMSOL_ARGON_IMPORT_REFERENCE.is_file():
-        raise GecIcpWorkflowError(
-            "repository COMSOL cross-section import reference is missing: "
-            f"{COMSOL_ARGON_IMPORT_REFERENCE}"
-        )
     plan_payload = {
         "schema": "swarm.gec_icp_comsol_plan.v1",
         "status": "ready",
@@ -148,10 +140,7 @@ def prepare_gec_icp_run(
         "source": mapping.bundle.expected_source,
         "input_mph": _artifact(input_mph),
         "cross_section_evidence": {
-            "canonical_ground_state_csv": _artifact(CANONICAL_ARGON_CROSS_SECTIONS),
-            "repository_comsol_import_reference": _artifact(
-                COMSOL_ARGON_IMPORT_REFERENCE
-            ),
+            "canonical_ground_state_csv": _artifact(mapping.model_mapping.model.cross_sections),
             "offline_mph_contract": (
                 "eir1/eir2/eir4 species, process, type, threshold, energy, and "
                 "cross-section arrays match canonical_ground_state_csv; "

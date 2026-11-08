@@ -13,7 +13,7 @@ from typing import Iterable
 
 import numpy as np
 
-from electron_swarm.grids.energy import reported_cell_edges
+from electron_swarm.grids.energy import EnergyGrid, reported_cell_edges
 import electron_swarm.solvers.monte_carlo.evidence as _mc_evidence
 
 from .._io import write_json as _write_json
@@ -572,7 +572,7 @@ def _aggregate_eedf(
     if not by_replicate:
         return None, False
 
-    replicate_edges: dict[int, np.ndarray] = {}
+    replicate_grids: dict[int, EnergyGrid] = {}
     replicate_masses: dict[int, np.ndarray] = {}
     replicate_effective_counts: dict[int, np.ndarray] = {}
     for replicate, replicate_rows in by_replicate.items():
@@ -611,31 +611,35 @@ def _aggregate_eedf(
                 f"replicate {replicate}: {exc}"
             ) from exc
         mass = eedf * widths
-        replicate_edges[replicate] = edges
+        replicate_grids[replicate] = EnergyGrid(energy, edges, widths)
         replicate_masses[replicate] = mass
         replicate_effective_counts[replicate] = effective_counts
-    if not replicate_edges:
-        return None, False
-
-    ordered_replicates = sorted(replicate_edges)
-    reference_edges = replicate_edges[ordered_replicates[0]]
+    ordered_replicates = sorted(replicate_grids)
+    reference = replicate_grids[ordered_replicates[0]]
     common_grid = all(
-        np.array_equal(reference_edges, replicate_edges[replicate])
+        np.array_equal(reference.centers_eV, replicate_grids[replicate].centers_eV)
+        and np.array_equal(reference.widths_eV, replicate_grids[replicate].widths_eV)
         for replicate in ordered_replicates[1:]
     )
     if common_grid:
-        target_edges = reference_edges
+        # The solver's quadrature nodes may differ from cell midpoints.
+        target = reference
         rebinned = np.vstack(
             [replicate_masses[replicate] for replicate in ordered_replicates]
         )
     else:
         target_edges = _union_energy_edges(
-            replicate_edges[replicate] for replicate in ordered_replicates
+            replicate_grids[replicate].edges_eV for replicate in ordered_replicates
+        )
+        target = EnergyGrid(
+            (target_edges[:-1] + target_edges[1:]) / 2.0,
+            target_edges,
+            np.diff(target_edges),
         )
         rebinned = np.vstack(
             [
                 _conservative_rebin_probability_mass(
-                    replicate_edges[replicate],
+                    replicate_grids[replicate].edges_eV,
                     replicate_masses[replicate],
                     target_edges,
                 )
@@ -660,7 +664,7 @@ def _aggregate_eedf(
             support = np.vstack(
                 [
                     _conservative_rebin_probability_mass(
-                        replicate_edges[replicate],
+                        replicate_grids[replicate].edges_eV,
                         replicate_effective_counts[replicate],
                         target_edges,
                     )
@@ -672,7 +676,7 @@ def _aggregate_eedf(
     stats = [
         _summarize_replicates(rebinned[:, index]) for index in range(rebinned.shape[1])
     ]
-    widths = np.diff(target_edges)
+    widths = target.widths_eV
     mean_mass = np.asarray([stat.mean or 0.0 for stat in stats], dtype=float)
     normalization_error = float(abs(np.sum(mean_mass) - 1.0))
     finite_nonnegative = bool(
@@ -699,9 +703,9 @@ def _aggregate_eedf(
                 solver,
                 e_over_n_Td,
                 index,
-                float(target_edges[index]),
-                float(target_edges[index + 1]),
-                float(0.5 * (target_edges[index] + target_edges[index + 1])),
+                float(target.edges_eV[index]),
+                float(target.edges_eV[index + 1]),
+                float(target.centers_eV[index]),
                 float(widths[index]),
                 float(mean_mass[index]),
                 _finite_or_none(stats[index].sample_stddev),

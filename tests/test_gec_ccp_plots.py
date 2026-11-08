@@ -115,6 +115,7 @@ def test_plot_provenance_binds_bundle_hashes_and_closure_axes(
         "source": "two_term",
         "hashes": hashes,
         "quality_thresholds": quality_thresholds,
+        "tables": _plot_bundle_tables(bundle),
     }
     bundle_manifest_path = bundle / "manifest.json"
     bundle_manifest_path.write_text(
@@ -253,6 +254,10 @@ def test_plot_provenance_rejects_tampered_result_csv(tmp_path: Path) -> None:
     bundle, results = _write_comparison_case(
         tmp_path, "two_term", external_scale=1.1
     )
+    relocated = tmp_path / "relocated"
+    relocated.mkdir()
+    bundle = bundle.rename(relocated / "bundle")
+    results = results.rename(relocated / "results")
     manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
     _validated_plot_provenance(bundle.resolve(), manifest, results.resolve())
 
@@ -669,6 +674,7 @@ def _write_comparison_case(
         "source": solver,
         "hashes": hashes,
         "quality_thresholds": quality_thresholds,
+        "tables": _plot_bundle_tables(bundle),
     }
     manifest_path = bundle / "manifest.json"
     manifest_path.write_text(json.dumps(bundle_manifest), encoding="utf-8")
@@ -739,6 +745,17 @@ def _write_comparison_case(
         encoding="utf-8",
     )
     return bundle, results
+
+
+def _plot_bundle_tables(bundle: Path) -> dict[str, dict[str, str]]:
+    table = bundle / "mean_energy_vs_en.csv"
+    table.write_text("E_over_N_Td,mean_energy_eV\n1,2\n2,3\n", encoding="utf-8")
+    return {
+        table.name: {
+            "sha256": sha256(table.read_bytes()).hexdigest(),
+            "artifact_role": "qualified_swarm_point_evidence",
+        }
+    }
 
 
 def _result_metadata(root: Path, paths: list[Path]) -> list[dict[str, object]]:

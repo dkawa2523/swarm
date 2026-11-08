@@ -1,0 +1,1099 @@
+{
+  "bindings": {
+    "component": "comp1",
+    "conversion_study": "std2",
+    "datasets": {
+      "period_external": "dset4",
+      "phase": "dset3",
+      "waveform_external": "dset5"
+    },
+    "external_solution": "sol3",
+    "external_study": "std3",
+    "physics": "ptp",
+    "plasma_feature": "pes1"
+  },
+  "bundle": {
+    "artifact_verification": {
+      "sha256": {
+        "collision_rate_kernels.csv": "dc8e22fe8410085dce9d83ae1c9f8783907a8b4784a14c42341085555a06d845",
+        "comsol_functions/sw_meanE.csv": "233023be23383bb8f4b703255730004b206df477053e0e57fbbf1fc584aa575d",
+        "comsol_functions/sw_muN.csv": "ff992a6b3040e876707bba677497f15845b0f6aad10527e1dca20cce38937feb",
+        "eedf.csv": "c49ebeb47224a6079169b0faa0b6834c78a7be033c572255d423436f8dd34cdf",
+        "eedf_f0_comsol_2d.csv": "9e70fc6b6e581107d249be27b0db8b008abe49153d772751c68f2469dfcaa8de",
+        "eedf_f0_vs_mean_energy.csv": "e3350b69e227b5b607def869cc436ec754cc5a94ffeeb0d36d86c3b2f2a61792",
+        "elastic_energy_loss.csv": "455d8e6006f4bcd4626a80af33937e5008c2ae1d7a491294a9f1c242df23b578",
+        "elastic_energy_loss_vs_mean_energy.csv": "6a9d39158aa6349dd88e70b881ebaaf04c50ec83859d38c1cd68d47fb2d9710f",
+        "energy_loss.csv": "64842fc9c744406bf1a86306b2a5f26bda34aac639395d87b0bb6ff5e8eaaee9",
+        "mean_energy_vs_en.csv": "25cbb48d63608777d24b66e1b3ed10ed4e4106dcdae8f4781fdbe8a3dcbed4a4",
+        "quality.csv": "115788462437e8e5b65a0e828ac13d33d721b1ad762c8acef8d5f3f9b91439ca",
+        "rates_vs_en.csv": "46f2b23f8dc0b210ea0911e31f381c14dc473cf229ea9d6a67a37c939ea0b823",
+        "rates_vs_mean_energy.csv": "edfc5545b95352aac16d8e2c9ef6a08e044f81e522d583d435a5ae7c34b21ebc",
+        "townsend_vs_en.csv": "f9f48359958b454497cf1b25d0c405e295fc7e1ace20ff3c3598a6f8b04fdfb2",
+        "transport_vs_en.csv": "8c1baff83a28be3693fdec26e454b89e3e9d84973d40aa1b76d21c0369efed83",
+        "transport_vs_mean_energy.csv": "154bccc6de67a0ba37175ec97bf3293e9e4a8c0025e4470b16a6e5d22bc2ca3e"
+      },
+      "status": "passed",
+      "verified_files": 16
+    },
+    "eedf_artifacts": {
+      "canonicalization_source": {
+        "file": "eedf.csv",
+        "role": "raw_swarm_eedf_audit_and_canonicalization_source",
+        "sha256": "c49ebeb47224a6079169b0faa0b6834c78a7be033c572255d423436f8dd34cdf"
+      },
+      "comsol_input": {
+        "file": "eedf_f0_comsol_2d.csv",
+        "role": "canonical_comsol_function_eedf_input",
+        "sha256": "9e70fc6b6e581107d249be27b0db8b008abe49153d772751c68f2469dfcaa8de"
+      },
+      "raw_audit": {
+        "file": "eedf.csv",
+        "role": "raw_swarm_eedf_audit_and_canonicalization_source",
+        "sha256": "c49ebeb47224a6079169b0faa0b6834c78a7be033c572255d423436f8dd34cdf"
+      }
+    },
+    "elastic_energy_loss": {
+      "COMSOL_elastic_reaction_owner": "disabled:eir1",
+      "coefficient_range_eV_m3_s": [
+        6.750232102551914e-20,
+        1.8767817636821957e-16
+      ],
+      "energy_equation_owner": "GeneralPowerDeposition:swElLoss",
+      "mean_energy_range_eV": [
+        0.5764851748759381,
+        59.88362056248497
+      ],
+      "model": "external_solver_native",
+      "physics_contract": {
+        "estimator": "same_discrete_elastic_collision_operator_energy_moment",
+        "gas_temperature_K": 300.0,
+        "gas_temperature_terms_included": true,
+        "neutral_thermal_motion_model": "finite_temperature_fokker_planck",
+        "operator": "native_finite_volume_scharfetter_gummel_elastic_A_D_zero_field",
+        "operator_isolation": "zero_field_reassembly_from_same_elastic_A_D_coefficients",
+        "schema": "swarm.elastic_energy_loss.v1",
+        "sign_convention": "positive_is_net_electron_energy_loss",
+        "source_eedf": "same_solved_eedf",
+        "symbol": "K_epsilon_el",
+        "uncertainty": "deterministic_kinetic_solver"
+      },
+      "points": 54,
+      "source": "two_term",
+      "statistical_evidence": {
+        "kind": "deterministic_kinetic_solver",
+        "uncertainty_applicability": "not_applicable"
+      },
+      "table": "elastic_energy_loss_vs_mean_energy.csv",
+      "table_sha256": "6a9d39158aa6349dd88e70b881ebaaf04c50ec83859d38c1cd68d47fb2d9710f"
+    },
+    "expected_mc_qualification_profile": null,
+    "expected_mc_tail_estimator_schema": null,
+    "expected_mc_transport_estimator_schema": null,
+    "expected_source": "two_term",
+    "function_eedf": {
+      "comsol_feature_operation": "Interpolation",
+      "continuity": "C0",
+      "data_structure": "spreadsheet",
+      "electron_energy_range_eV": [
+        0.0,
+        5347.6184616555565
+      ],
+      "extrapolation": "constant",
+      "function_tag": "sw_eedf_two_term",
+      "grid_shape": [
+        176,
+        734
+      ],
+      "interpolation": "linear",
+      "mean_energy_range_eV": [
+        0.5764851748759381,
+        59.88362056248497
+      ],
+      "projected_moment_audit": {
+        "integration": "exact_piecewise_linear_energy_segments",
+        "mean_energy_relative_error_max": 9.863589967117238e-14,
+        "nonnegative_minimum": 0.0,
+        "normalization_error_max": 2.220446049250313e-16,
+        "rows": 176
+      },
+      "representation": "structured_spreadsheet_linear_projection",
+      "table": "eedf_f0_comsol_2d.csv",
+      "table_sha256": "9e70fc6b6e581107d249be27b0db8b008abe49153d772751c68f2469dfcaa8de"
+    },
+    "hashes": {
+      "calculation_sha256": "fb1615413ddf4cf3cd5bdd090b8f393d8ef1767f0c8af7750be8f8e4179898cd",
+      "cross_sections_sha256": "a70cd71afa33710fbb4189b82fb61612f75f492ba1dc7e626789e759f70ea921",
+      "workflow_config_sha256": "8bfa46bb719bc566e31f257ae7ec5d4bb1d5c75d1e184b72eb0c9db16c407394"
+    },
+    "independent_quality_audit": {
+      "decision": "independently_recomputed_from_quality_columns",
+      "passed": true,
+      "rows": [
+        {
+          "E_over_N_Td": 0.05,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 0.1,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 0.2,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 0.5,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 1.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 2.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 3.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 3.5,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 4.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 4.5,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 5.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 5.5,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 6.5,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 7.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 7.5,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 8.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 8.5,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 9.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 9.5,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 10.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 11.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 12.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 13.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 14.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 15.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 17.5,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 20.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 22.5,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 25.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 27.5,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 30.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 35.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 40.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 45.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 50.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 60.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 70.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 75.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 85.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 100.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 125.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 150.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 175.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 200.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 250.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 300.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 500.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 750.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 1000.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 1500.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 2000.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 3000.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 3500.0,
+          "failure_reasons": [],
+          "passed": true
+        },
+        {
+          "E_over_N_Td": 4000.0,
+          "failure_reasons": [],
+          "passed": true
+        }
+      ],
+      "source": "two_term",
+      "thresholds": {
+        "diffusion_rse": 0.05,
+        "eedf_normalization_error": 1e-06,
+        "major_rate_fraction": 0.01,
+        "major_rate_rse": 0.05,
+        "mobility_rse": 0.02,
+        "required_rate_min_process_peak_fraction": 0.0,
+        "required_rate_rse": {
+          "process": {},
+          "process_type": {
+            "excitation": null,
+            "ionization": null
+          }
+        }
+      },
+      "transport_anchor_coverage": null
+    },
+    "low_energy_guard": null,
+    "manifest_path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\bundle\\manifest.json",
+    "manifest_sha256": "066774e045678e09390ab5402e383234e652f18ef1f4efaad378bd694841625b",
+    "mc_eedf_estimator_schema": null,
+    "mc_qualification_profile": null,
+    "mc_sampling_plan_sha256": null,
+    "mc_solver_source_sha256": null,
+    "mc_tail_estimator_schema": null,
+    "mc_transport_estimator_schema": null,
+    "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\bundle",
+    "quality_thresholds": {
+      "diffusion_rse": 0.05,
+      "eedf_normalization_error": 1e-06,
+      "major_rate_fraction": 0.01,
+      "major_rate_rse": 0.05,
+      "mobility_rse": 0.02,
+      "required_rate_min_process_peak_fraction": 0.0,
+      "required_rate_rse": {
+        "process": {},
+        "process_type": {
+          "excitation": null,
+          "ionization": null
+        }
+      }
+    },
+    "restricted_scalar_diffusion_audit": null,
+    "solver_qualification": null,
+    "solver_selection": null,
+    "source": "two_term",
+    "source_policy": {
+      "field_type": "dc",
+      "physical_context": {
+        "angle_EB_deg": 0.0,
+        "angular_scattering": {
+          "higher_moment_closure": "zero",
+          "model": "isotropic",
+          "moment_table_extrapolation": null,
+          "moment_table_provenance": null,
+          "moment_table_sha256": null
+        },
+        "collision_data_sha256": "bab53b8edbb6e199492498c69831149decb9970407a5bb1581a5d499413fb674",
+        "cross_section_extrapolation": "zero",
+        "electron_electron": {
+          "conserve_mean_energy": null,
+          "enabled": false,
+          "model": "none",
+          "relaxation_fraction": null,
+          "strength_model": null,
+          "target_temperature_eV": null
+        },
+        "field_frequency_Hz": null,
+        "field_type": "dc",
+        "gas_number_density_m3": 3.2188243837982474e+21,
+        "gas_temperature_K": 300.0,
+        "growth_model": "temporal_growth",
+        "ionization_energy_sharing": "equal",
+        "magnetic_field_T": 0.0,
+        "secondary_electron_energy_eV": 0.0,
+        "species": [
+          [
+            "Ar",
+            1.0,
+            39.948
+          ]
+        ]
+      },
+      "postprocess": "none",
+      "rf_amplitude_definition": "none",
+      "rf_field_treatment": "none",
+      "rf_frequency_Hz": null,
+      "selection": "all_aggregate_points",
+      "source": "two_term",
+      "transport_definition": "flux",
+      "transport_observables": {
+        "diffusion_L_m2_s": {
+          "approximate": true,
+          "method": "f0_gradient",
+          "quantity": "isotropic_particle_diffusion_approximation",
+          "unit": "m2/s"
+        },
+        "diffusion_T_m2_s": {
+          "approximate": true,
+          "method": "f0_gradient",
+          "quantity": "transverse_flux_diffusion",
+          "unit": "m2/s"
+        },
+        "drift_velocity_m_s": {
+          "approximate": false,
+          "method": "velocity_moment",
+          "quantity": "flux_drift",
+          "unit": "m/s"
+        },
+        "electron_energy_diffusion_L_m2_s": {
+          "approximate": true,
+          "method": "f0_energy_gradient",
+          "quantity": "isotropic_energy_diffusion_approximation",
+          "unit": "m2/s"
+        },
+        "electron_energy_diffusion_T_m2_s": {
+          "approximate": true,
+          "method": "f0_energy_gradient",
+          "quantity": "transverse_flux_energy_diffusion",
+          "unit": "m2/s"
+        },
+        "electron_energy_diffusion_m2_s": {
+          "approximate": true,
+          "method": "f0_energy_gradient",
+          "quantity": "isotropic_energy_diffusion_approximation",
+          "unit": "m2/s"
+        },
+        "electron_energy_mobility_m2_V_s": {
+          "approximate": false,
+          "method": "f1_energy_moment",
+          "quantity": "mean_energy_normalized_flux_energy_mobility",
+          "unit": "m2/(V s)"
+        },
+        "mobility_m2_V_s": {
+          "approximate": false,
+          "method": "flux_drift_over_field",
+          "quantity": "flux_mobility",
+          "unit": "m2/(V s)"
+        }
+      },
+      "two_term_transport_kernel": {
+        "anchor_points": 54,
+        "correction_applied_every_anchor": true,
+        "effective_momentum_model": "nu_m_eff(epsilon)=nu_m(epsilon)+growth_frequency",
+        "evidence_columns": [
+          "gas_number_density_m3",
+          "temporal_growth_frequency_s_inv",
+          "reduced_temporal_growth_frequency_m3_s"
+        ],
+        "gas_number_density_m3": [
+          3.2188243837982474e+21,
+          3.2188243837982474e+21
+        ],
+        "growth_frequency_s_inv": [
+          1.4805598012816345e-09,
+          288753255.04895705
+        ],
+        "growth_frequency_source": "converged_temporal_growth_eigenvalue",
+        "minimum_momentum_cross_section_m2": 1e-24,
+        "momentum_cross_section_floor_policy": "sum_raw_process_cross_sections_then_single_floor",
+        "schema": "two_term_temporal_growth_transport.v1"
+      }
+    },
+    "target_qualification": null,
+    "two_term_transport_kernel": {
+      "anchor_points": 54,
+      "correction_applied_every_anchor": true,
+      "effective_momentum_model": "nu_m_eff(epsilon)=nu_m(epsilon)+growth_frequency",
+      "evidence_columns": [
+        "gas_number_density_m3",
+        "temporal_growth_frequency_s_inv",
+        "reduced_temporal_growth_frequency_m3_s"
+      ],
+      "gas_number_density_m3": [
+        3.2188243837982474e+21,
+        3.2188243837982474e+21
+      ],
+      "growth_frequency_s_inv": [
+        1.4805598012816345e-09,
+        288753255.04895705
+      ],
+      "growth_frequency_source": "converged_temporal_growth_eigenvalue",
+      "minimum_momentum_cross_section_m2": 1e-24,
+      "momentum_cross_section_floor_policy": "sum_raw_process_cross_sections_then_single_floor",
+      "schema": "two_term_temporal_growth_transport.v1"
+    },
+    "upstream_eedf_evidence": {
+      "active_in_comsol": true,
+      "binding_status": "active_comsol_function_eedf",
+      "bundle_artifact_role": "canonical_comsol_function_eedf_input",
+      "bundle_comsol_import_capable": true,
+      "grid_shape": [
+        176,
+        734
+      ],
+      "mean_energy_range_eV": [
+        0.5764851748759381,
+        59.88362056248497
+      ],
+      "representation": "physical_2d_adaptive_moment_rate_projected",
+      "role": "active_comsol_function_eedf",
+      "table": "eedf_f0_comsol_2d.csv",
+      "table_sha256": "9e70fc6b6e581107d249be27b0db8b008abe49153d772751c68f2469dfcaa8de"
+    },
+    "valid_ranges": {
+      "E_over_N_Td": [
+        0.05,
+        4000.0
+      ],
+      "E_over_N_V_m2": [
+        4.9999999999999997e-23,
+        3.9999999999999995e-18
+      ],
+      "mean_energy_eV": [
+        0.5764851748759381,
+        59.88362056248497
+      ]
+    }
+  },
+  "closure": {
+    "active_closure_support": {
+      "accepted_interior_mean_energy_eV": [
+        0.5764880573090185,
+        59.883321145130694
+      ],
+      "common_intersection_mean_energy_eV": [
+        0.5764851748759381,
+        59.88362056248497
+      ],
+      "elastic_energy_loss_support_mean_energy_eV": [
+        0.5764851748759381,
+        59.88362056248497
+      ],
+      "endpoint_margin_log_absolute": 5e-06,
+      "endpoint_margin_log_fraction": 1e-06,
+      "guard_policy": "shared_positive_log_closure_guard",
+      "passed": true,
+      "rate_supports_mean_energy_eV": {},
+      "supports_mean_energy_eV": {
+        "elastic_energy_loss": [
+          0.5764851748759381,
+          59.88362056248497
+        ],
+        "function_eedf": [
+          0.5764851748759381,
+          59.88362056248497
+        ],
+        "transport:muN": [
+          0.5764851748759381,
+          59.88362056248497
+        ]
+      },
+      "transport_intersection_mean_energy_eV": [
+        0.5764851748759381,
+        59.88362056248497
+      ]
+    },
+    "active_rate_support": null,
+    "coefficient_representation": "differentiable_log_piecewise_cubic",
+    "data_processing": {
+      "function_eedf_extrapolation": "constant",
+      "function_eedf_interpolation": "COMSOL_native_2d_linear_C0",
+      "function_eedf_projection": "moment_preserving_nonnegative_native_2d_projection",
+      "swarm_source_postprocess": "none",
+      "transport_coupling": "positive_log_value_shape_preserving_piecewise_cubic_Hermite_C1_on_log_mean_energy",
+      "transport_extrapolation": "smooth_constant_asymptote"
+    },
+    "eedf_artifacts": {
+      "canonicalization_source": {
+        "file": "eedf.csv",
+        "role": "raw_swarm_eedf_audit_and_canonicalization_source",
+        "sha256": "c49ebeb47224a6079169b0faa0b6834c78a7be033c572255d423436f8dd34cdf"
+      },
+      "comsol_input": {
+        "file": "eedf_f0_comsol_2d.csv",
+        "role": "canonical_comsol_function_eedf_input",
+        "sha256": "9e70fc6b6e581107d249be27b0db8b008abe49153d772751c68f2469dfcaa8de"
+      },
+      "raw_audit": {
+        "file": "eedf.csv",
+        "role": "raw_swarm_eedf_audit_and_canonicalization_source",
+        "sha256": "c49ebeb47224a6079169b0faa0b6834c78a7be033c572255d423436f8dd34cdf"
+      }
+    },
+    "elastic_energy_loss": {
+      "COMSOL_elastic_reaction_owner": "disabled:eir1",
+      "coefficient_range_eV_m3_s": [
+        6.750232102551914e-20,
+        1.8767817636821957e-16
+      ],
+      "energy_equation_owner": "GeneralPowerDeposition:swElLoss",
+      "mean_energy_range_eV": [
+        0.5764851748759381,
+        59.88362056248497
+      ],
+      "model": "external_solver_native",
+      "physics_contract": {
+        "estimator": "same_discrete_elastic_collision_operator_energy_moment",
+        "gas_temperature_K": 300.0,
+        "gas_temperature_terms_included": true,
+        "neutral_thermal_motion_model": "finite_temperature_fokker_planck",
+        "operator": "native_finite_volume_scharfetter_gummel_elastic_A_D_zero_field",
+        "operator_isolation": "zero_field_reassembly_from_same_elastic_A_D_coefficients",
+        "schema": "swarm.elastic_energy_loss.v1",
+        "sign_convention": "positive_is_net_electron_energy_loss",
+        "source_eedf": "same_solved_eedf",
+        "symbol": "K_epsilon_el",
+        "uncertainty": "deterministic_kinetic_solver"
+      },
+      "points": 54,
+      "source": "two_term",
+      "statistical_evidence": {
+        "kind": "deterministic_kinetic_solver",
+        "uncertainty_applicability": "not_applicable"
+      },
+      "table": "elastic_energy_loss_vs_mean_energy.csv",
+      "table_sha256": "6a9d39158aa6349dd88e70b881ebaaf04c50ec83859d38c1cd68d47fb2d9710f"
+    },
+    "elastic_energy_loss_model": "external_solver_native",
+    "electron_transport": "swarm_mobility_einstein",
+    "external_rate_processes": [],
+    "function_eedf": {
+      "comsol_feature_operation": "Interpolation",
+      "continuity": "C0",
+      "data_structure": "spreadsheet",
+      "electron_energy_range_eV": [
+        0.0,
+        5347.6184616555565
+      ],
+      "extrapolation": "constant",
+      "function_tag": "sw_eedf_two_term",
+      "grid_shape": [
+        176,
+        734
+      ],
+      "interpolation": "linear",
+      "mean_energy_range_eV": [
+        0.5764851748759381,
+        59.88362056248497
+      ],
+      "projected_moment_audit": {
+        "integration": "exact_piecewise_linear_energy_segments",
+        "mean_energy_relative_error_max": 9.863589967117238e-14,
+        "nonnegative_minimum": 0.0,
+        "normalization_error_max": 2.220446049250313e-16,
+        "rows": 176
+      },
+      "representation": "structured_spreadsheet_linear_projection",
+      "table": "eedf_f0_comsol_2d.csv",
+      "table_sha256": "9e70fc6b6e581107d249be27b0db8b008abe49153d772751c68f2469dfcaa8de"
+    },
+    "gradient_response": {
+      "closure_scope": "external_swarm_mobility_with_COMSOL_SpecifyMueOnly_local_mean_energy_closure",
+      "comsol_executable_eligible": true,
+      "full_gradient_response_identified": false,
+      "full_physical_eligible": false,
+      "gradient_response_policy": "standard_local_energy",
+      "independent_2x2_gradient_response_identified": false,
+      "limitation": "external_swarm_data_do_not_identify_the_independent_density_and_mean_energy_gradient_response_matrix",
+      "model": "swarm_mobility_einstein",
+      "restricted_closure_eligible": true,
+      "scalar_diffusion_audit": null,
+      "standard_local_energy_selected": true,
+      "thermal_diffusion_model": "off_restricted_diagonal",
+      "transport_ownership": {
+        "electron_energy_diffusion": "COMSOL_SpecifyMueOnly_closure",
+        "electron_energy_mobility": "COMSOL_SpecifyMueOnly_closure",
+        "electron_mobility": "external_swarm_muN",
+        "particle_diffusion": "COMSOL_mean_energy_dependent_Einstein_from_external_muN"
+      },
+      "unconsumed_swarm_transport": [
+        "particle_diffusion_L_T",
+        "electron_energy_mobility",
+        "electron_energy_diffusion_L_T"
+      ]
+    },
+    "gradient_response_policy": "standard_local_energy",
+    "lookup_jacobian": "exact",
+    "low_energy_guard": null,
+    "mc_rate_censoring": null,
+    "mc_rate_interpolation": null,
+    "preintegrated_rate_closure": null,
+    "reaction_handling": [
+      {
+        "binding": "DisabledElasticReaction",
+        "eedf_source": "same_solver_native_elastic_energy_loss_estimator",
+        "energy_loss": "external_solver_native_GeneralPowerDeposition",
+        "feature": "eir1",
+        "process_type": "elastic",
+        "rate_source": "disabled_COMSOL_elastic_reaction_rate"
+      },
+      {
+        "binding": "UseCrossSectionData",
+        "eedf_source": "sw_eedf_two_term",
+        "energy_loss": "preserved_existing_ElectronImpactReaction_de",
+        "feature": "eir2",
+        "process_type": "excitation",
+        "rate_source": "comsol_cross_section_integral"
+      },
+      {
+        "binding": "UseCrossSectionData",
+        "eedf_source": "sw_eedf_two_term",
+        "energy_loss": "preserved_existing_ElectronImpactReaction_de",
+        "feature": "eir3",
+        "process_type": "ionization",
+        "rate_source": "comsol_cross_section_integral"
+      }
+    ],
+    "reaction_model": "function_eedf",
+    "source_field": "steady_dc",
+    "support_policy": "strict",
+    "thermal_diffusion_model": "off_restricted_diagonal",
+    "transport_inputs": {
+      "DeN": {
+        "external_table_column": null,
+        "formula": null,
+        "source": "comsol_local_energy_closure"
+      },
+      "DenN": {
+        "external_table_column": null,
+        "formula": null,
+        "source": "comsol_local_energy_closure"
+      },
+      "muN": {
+        "external_table_column": "reduced_mobility_m2_V_s_m3",
+        "formula": "muN(mean_energy)",
+        "source": "external_swarm_table"
+      },
+      "muenN": {
+        "external_table_column": null,
+        "formula": null,
+        "source": "comsol_local_energy_closure"
+      }
+    },
+    "transport_tensor": {
+      "basis": "isotropic_unmagnetized_external_mobility",
+      "comsol_magnetized_tensor_computation": false,
+      "energy_transport": "COMSOL_SpecifyMueOnly_closure",
+      "external_energy_transport_consumed": false,
+      "external_particle_diffusion_consumed": false,
+      "full_eedf_consistent_transport": false,
+      "full_gradient_response_identified": false,
+      "particle_diffusion": "COMSOL_mean_energy_dependent_Einstein_from_external_muN",
+      "scope": "external_muN_only_with_COMSOL_SpecifyMueOnly_local_mean_energy_closure",
+      "thermal_diffusion": false
+    },
+    "two_term_joint_consistency": null,
+    "upstream_eedf_evidence": {
+      "active_in_comsol": true,
+      "binding_status": "active_comsol_function_eedf",
+      "bundle_artifact_role": "canonical_comsol_function_eedf_input",
+      "bundle_comsol_import_capable": true,
+      "grid_shape": [
+        176,
+        734
+      ],
+      "mean_energy_range_eV": [
+        0.5764851748759381,
+        59.88362056248497
+      ],
+      "representation": "physical_2d_adaptive_moment_rate_projected",
+      "role": "active_comsol_function_eedf",
+      "table": "eedf_f0_comsol_2d.csv",
+      "table_sha256": "9e70fc6b6e581107d249be27b0db8b008abe49153d772751c68f2469dfcaa8de"
+    },
+    "upstream_eedf_rate_consistency": null,
+    "validation_mean_energy_floor_eV": null,
+    "wall_closure": {
+      "angular_half_range_response_identified": false,
+      "external_eedf_half_range_moments_consumed": false,
+      "model": "WallDriftDiffusion_Te_thermal_velocity",
+      "owner": "input_COMSOL_GEC_model",
+      "scope": "shared_boundary_model_not_external_swarm_closure"
+    },
+    "zero_field_isotropization_Td": null
+  },
+  "expected_results": [
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\swarm_tables\\domain_period_average.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\swarm_tables\\axis_period_average.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\swarm_tables\\radial_period_average.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\swarm_tables\\axis_phase_resolved.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\swarm_tables\\domain_phase_closure.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\swarm_tables\\electrode_waveform.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\swarm_tables\\closure_phase.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\swarm_tables\\closure_phase_radial.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\swarm_tables\\conservation_volume.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\swarm_tables\\conservation_wall.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\swarm_tables\\conservation_terminal_power.csv"
+  ],
+  "generated_java": {
+    "apply": {
+      "materialized": true,
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\SwarmGecCcpApply.java",
+      "sha256": "78d1355e2031fed136406b30d4e187f842726c089063908f2bcc5085cfc2c090"
+    },
+    "external_export": {
+      "materialized": true,
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\SwarmGecCcpExternalExport.java",
+      "sha256": "1995f5102b01491c191f1978660490d40f058ca0c609a7a3d1f2cbe188535e00"
+    },
+    "external_run": {
+      "materialized": true,
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\SwarmGecCcpExternalRun.java",
+      "sha256": "f568fa928cf05e67c17cbaa216c9e6ac114dfb8e3c4b1e6c65b7d63c526f6ef3"
+    },
+    "native_eedf_audit": {
+      "materialized": true,
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\native_function_eedf_audit\\SwarmGecCcpNativeEedfAudit.java",
+      "sha256": "8159ed30f5dfb26f29d747f07202cff09f4c84754c8174d9582c9b14184c7c01"
+    }
+  },
+  "mapping": {
+    "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\mapping.yaml",
+    "sha256": "8edb965ef663dabc1cd9d5fc297de0b14c5e201f787bfa04d06f9a0ae9e4d488"
+  },
+  "model": {
+    "contract": {
+      "axisymmetric": true,
+      "common_heavy_species_molar_mass_kg_mol": 0.04,
+      "comsol_version": "6.3.0.420",
+      "datasets": [
+        "dset1",
+        "dset2",
+        "cln1",
+        "cln2",
+        "dset3",
+        "dset4",
+        "dset5"
+      ],
+      "heavy_species": [
+        {
+          "charge_number": 0.0,
+          "enabled": true,
+          "from_mass_constraint": true,
+          "molar_mass_kg_mol": 0.04,
+          "species_type": "neutral",
+          "tag": "Ar",
+          "thermal_diffusion": 0.0
+        },
+        {
+          "charge_number": 0.0,
+          "enabled": false,
+          "from_mass_constraint": false,
+          "molar_mass_kg_mol": 0.04,
+          "species_type": "neutral",
+          "tag": "Ars",
+          "thermal_diffusion": 0.0
+        },
+        {
+          "charge_number": 1.0,
+          "enabled": true,
+          "from_mass_constraint": false,
+          "molar_mass_kg_mol": 0.04,
+          "species_type": "ion",
+          "tag": "Ar_1p",
+          "thermal_diffusion": 0.0
+        }
+      ],
+      "heavy_species_convection": false,
+      "heavy_species_diffusion_model": "MixtureAveraged",
+      "heavy_species_formulation": "FEMLogLinear",
+      "heavy_species_migration": true,
+      "heavy_species_molar_masses_kg_mol": [
+        [
+          "Ar",
+          0.04
+        ],
+        [
+          "Ars",
+          0.04
+        ],
+        [
+          "Ar_1p",
+          0.04
+        ]
+      ],
+      "heavy_species_selection": "BaseGeometry",
+      "ion_electric_field_time_model": "Instantaneous",
+      "ion_tensor_properties": false,
+      "mixture_diffusion_correction": false,
+      "original_eedf": "Druyvesteyn",
+      "physics_operation": "ColdPlasmaTimePeriodic",
+      "physics_tag": "ptp",
+      "plasma_feature": "pes1",
+      "reaction_features": [
+        "eir1",
+        "eir2",
+        "eir3"
+      ],
+      "studies": [
+        "std1",
+        "std3",
+        "std2"
+      ],
+      "surface_reactions": [
+        {
+          "enabled": true,
+          "formula": "Ar+=>Ar",
+          "tag": "sr1"
+        }
+      ]
+    },
+    "input_mph": {
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\comsol_modes\\argon_gec_ccp.mph",
+      "sha256": "850961ca17424958b1abddef31ff63d49f74741fa93ce1fb5c1fc7ec621df05a",
+      "size_bytes": 24506900
+    }
+  },
+  "native_function_eedf_audit": {
+    "active_table": {
+      "import_contract": {
+        "argunit": "eV,eV",
+        "extrap": "const",
+        "funcnametable_position": "1",
+        "fununit": "1",
+        "interp": "linear",
+        "nargs": 2,
+        "scaledata": "auto",
+        "source": "file",
+        "struct": "spreadsheet"
+      },
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\bundle\\eedf_f0_comsol_2d.csv",
+      "sha256": "9e70fc6b6e581107d249be27b0db8b008abe49153d772751c68f2469dfcaa8de"
+    },
+    "expected_runtime_outputs": [
+      "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\native_function_eedf_audit\\comsol_eedf_audit_values.csv",
+      "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\native_function_eedf_audit\\comsol_eedf_audit_contract.tsv",
+      "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\native_function_eedf_audit\\comsol_eedf_audit.json"
+    ],
+    "query_csv": {
+      "moment_means": 9,
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\qualified\\gec_ccp\\results\\native_function_eedf_audit\\comsol_eedf_audit_queries.csv",
+      "points": 9353,
+      "sha256": "d36bf84795d4c1c6fcd19232ac72cd5b18a0b35f3832d933668c29fbfc83e6b1"
+    }
+  },
+  "physical_target_eligible": true,
+  "result_role": "physical_target",
+  "solve": {
+    "coefficient_sweep": false,
+    "external_model_is_separate_copy": true,
+    "external_nonlinear_method": "model_defined",
+    "external_study_policy": "dedicated_external_study",
+    "include_builtin_reference": false,
+    "native_heavy_species_ownership": {
+      "boundary_weak_override": false,
+      "custom_initialization": false,
+      "domain_weak_override": false,
+      "mass_fraction_mapping_override": false,
+      "owner": "comsol_plasma_interface",
+      "species": [
+        "Ar",
+        "Ar_1p"
+      ],
+      "surface_reaction": {
+        "formula": "Ar+=>Ar",
+        "owner": "comsol_plasma_interface",
+        "tag": "sr1"
+      },
+      "time_periodic_to_time_dependent": "native"
+    },
+    "native_physics_initial_values": true,
+    "nonlinear_globalization": {
+      "method": "model_defined",
+      "physical_equations_changed": false,
+      "residual_scaling": "model_defined",
+      "scope": [
+        "external"
+      ]
+    },
+    "nonlinear_solver_overrides": false,
+    "periodic_solver_exact_identities": {
+      "applied_during_periodic_solve": true,
+      "equation_view_locks": {
+        "ptp.Mn": "0.04[kg/mol]",
+        "ptp.Te": "2*ptp.ebar/3",
+        "ptp.ebar": "exp(En_per-Ne_per)*1[V]"
+      },
+      "expected_saved_lock_count": 0,
+      "physical_equations_changed": false,
+      "reason": "remove_exact_algebraic_cancellation_and_exp_ratio_underflow_during_the_periodic_nonlinear_solve",
+      "removed_before_conversion": true,
+      "removed_before_final_save": true,
+      "scope": [
+        "external"
+      ]
+    },
+    "power_W": 1.0,
+    "power_sweep": false,
+    "reaction_source_stabilization": false,
+    "saved_solution_dependency": false,
+    "source_stabilization": false
+  },
+  "stage": "prepare-gec-ccp",
+  "status": "ready"
+}

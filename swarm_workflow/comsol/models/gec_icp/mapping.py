@@ -23,6 +23,7 @@ ROOT_FIELDS = {"schema_version", "model", "parameters", "species", "reactions"}
 MODEL_FIELDS = {
     "input_mph",
     "output_mph",
+    "cross_sections",
     "component",
     "geometry",
     "mesh",
@@ -76,6 +77,7 @@ def load_gec_icp_mapping(
 
     input_mph = _resolved_mph_path(model_raw, "input_mph", root)
     output_mph = _resolved_mph_path(model_raw, "output_mph", root)
+    cross_sections = (root / _required_string(model_raw, "cross_sections", "model")).resolve()
     if input_mph == output_mph:
         raise GecIcpContractError("model.output_mph must differ from model.input_mph")
     dimension = _required_integer(model_raw, "geometry_dimension", "model")
@@ -91,6 +93,7 @@ def load_gec_icp_mapping(
         model=GecIcpModelSpec(
             input_mph=input_mph,
             output_mph=output_mph,
+            cross_sections=cross_sections,
             component=_required_string(model_raw, "component", "model"),
             geometry=_required_string(model_raw, "geometry", "model"),
             mesh=_required_string(model_raw, "mesh", "model"),
@@ -136,6 +139,8 @@ def load_gec_icp_mapping(
     _require_unique_tags(mapping)
     if validate_files and not input_mph.is_file():
         raise GecIcpContractError(f"model.input_mph does not exist: {input_mph}")
+    if validate_files and not cross_sections.is_file():
+        raise GecIcpContractError(f"model.cross_sections does not exist: {cross_sections}")
     return mapping
 
 

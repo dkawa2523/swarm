@@ -3,28 +3,28 @@
     "canonicalization_source": {
       "file": "eedf.csv",
       "role": "raw_swarm_eedf_audit_and_canonicalization_source",
-      "sha256": "05797addd957271d49c8b74ea20aa001d54cd493368eaeac259b01537d431cab"
+      "sha256": "c49ebeb47224a6079169b0faa0b6834c78a7be033c572255d423436f8dd34cdf"
     },
     "comsol_input": {
       "file": "eedf_f0_comsol_2d.csv",
       "role": "canonical_comsol_function_eedf_input",
-      "sha256": "910deadbd1bb0d80bd8f1449a4178f3b0490630ba027fc8ac1d867a1a1f92fbb"
+      "sha256": "9e70fc6b6e581107d249be27b0db8b008abe49153d772751c68f2469dfcaa8de"
     },
     "raw_audit": {
       "file": "eedf.csv",
       "role": "raw_swarm_eedf_audit_and_canonicalization_source",
-      "sha256": "05797addd957271d49c8b74ea20aa001d54cd493368eaeac259b01537d431cab"
+      "sha256": "c49ebeb47224a6079169b0faa0b6834c78a7be033c572255d423436f8dd34cdf"
     }
   },
   "evidence": null,
   "evidence_scope": "numerical_source_tables",
   "format_version": 2,
   "hashes": {
-    "calculation_sha256": "16bb78a011f82ebf59cb26b757dd49e686ef1315c3555d4e4569272090faa8a5",
+    "calculation_sha256": "fb1615413ddf4cf3cd5bdd090b8f393d8ef1767f0c8af7750be8f8e4179898cd",
     "cross_sections_sha256": "a70cd71afa33710fbb4189b82fb61612f75f492ba1dc7e626789e759f70ea921",
-    "solver_implementations_sha256": "1dba7585d39364df218c485137d1289d342d3c4e6f472932ee00ba0a995dc588",
-    "source_database_sha256": "5e12046a1952ff05068b4253d4a8447996b4aaa5a599585e84384f4d46ae102a",
-    "workflow_config_sha256": "3e9fcca08e61b89d4b87e76f437df165d0cc48fcfd2bf3e485c654edd7db65d7"
+    "solver_implementations_sha256": "938ea0ad5bde9a1744f16586592bf75246fe21121595c6203ae673d589bdced2",
+    "source_database_sha256": "9b06cd8a92538cc5942a387aa1e9373d5375b2b5028dae16a3f00bf5eb76fbca",
+    "workflow_config_sha256": "8bfa46bb719bc566e31f257ae7ec5d4bb1d5c75d1e184b72eb0c9db16c407394"
   },
   "implementation": {
     "execution_schema": "swarm.execution_pipeline_sha256.v1",
@@ -36,7 +36,7 @@
       "python": "3.13.12",
       "scipy": "1.17.1"
     },
-    "source_sha256": "9d92cf866c3bdade1ecc3e6e977166d6d44e611380f064c215dd481807f6362c"
+    "source_sha256": "4a781f4732d8edea48115612e316bef6fcd11efc0dab0600f7da23d0324c4a9e"
   },
   "input_evidence": {
     "C:\\Users\\user\\Desktop\\swarm_5\\examples\\cross_sections\\argon_application_library.csv": {
@@ -109,11 +109,11 @@
   },
   "quality_policy": {
     "evaluation": {
-      "diffusion_rse": 0.3,
+      "diffusion_rse": 0.05,
       "eedf_normalization_error": 1e-06,
       "major_rate_fraction": 0.01,
-      "major_rate_rse": 0.5,
-      "mobility_rse": 0.2,
+      "major_rate_rse": 0.05,
+      "mobility_rse": 0.02,
       "required_rate_min_process_peak_fraction": 0.0,
       "required_rate_rse": {
         "process": {},
@@ -123,14 +123,14 @@
         }
       }
     },
-    "evaluation_sha256": "bbb2f101fb36fad5a5dad8c733e1edf205bfe0f3b6fdd54834c4d062810ac9a2",
+    "evaluation_sha256": "17b39705042bcf93fd04488a253a8b62b356b3fafdf431fbab9573a9613c848c",
     "quality_only_reevaluation": false,
     "source": {
-      "diffusion_rse": 0.3,
+      "diffusion_rse": 0.05,
       "eedf_normalization_error": 1e-06,
       "major_rate_fraction": 0.01,
-      "major_rate_rse": 0.5,
-      "mobility_rse": 0.2,
+      "major_rate_rse": 0.05,
+      "mobility_rse": 0.02,
       "required_rate_min_process_peak_fraction": 0.0,
       "required_rate_rse": {
         "process": {},
@@ -140,19 +140,19 @@
         }
       }
     },
-    "source_sha256": "bbb2f101fb36fad5a5dad8c733e1edf205bfe0f3b6fdd54834c4d062810ac9a2"
+    "source_sha256": "17b39705042bcf93fd04488a253a8b62b356b3fafdf431fbab9573a9613c848c"
   },
   "quality_summary": {
     "failed_points": 0,
     "passed": true,
-    "total_points": 47
+    "total_points": 54
   },
   "quality_thresholds": {
-    "diffusion_rse": 0.3,
+    "diffusion_rse": 0.05,
     "eedf_normalization_error": 1e-06,
     "major_rate_fraction": 0.01,
-    "major_rate_rse": 0.5,
-    "mobility_rse": 0.2,
+    "major_rate_rse": 0.05,
+    "mobility_rse": 0.02,
     "required_rate_min_process_peak_fraction": 0.0,
     "required_rate_rse": {
       "process": {},
@@ -260,7 +260,7 @@
       }
     },
     "two_term_transport_kernel": {
-      "anchor_points": 47,
+      "anchor_points": 54,
       "correction_applied_every_anchor": true,
       "effective_momentum_model": "nu_m_eff(epsilon)=nu_m(epsilon)+growth_frequency",
       "evidence_columns": [
@@ -274,7 +274,7 @@
       ],
       "growth_frequency_s_inv": [
         1.4805598012816345e-09,
-        12851861.692247853
+        288753255.04895705
       ],
       "growth_frequency_source": "converged_temporal_growth_eigenvalue",
       "minimum_momentum_cross_section_m2": 1e-24,
@@ -318,7 +318,7 @@
         "mean_energy_eV"
       ],
       "derived_for_comsol_interpolation": true,
-      "sha256": "57d326b20492d48ae39e5006c41b47958cdefc99bb1435460b8e56eeb999940e",
+      "sha256": "233023be23383bb8f4b703255730004b206df477053e0e57fbbf1fc584aa575d",
       "units": {
         "E_over_N_V_m2": "V m^2",
         "mean_energy_eV": "eV"
@@ -332,7 +332,7 @@
         "reduced_mobility_m2_V_s_m3"
       ],
       "derived_for_comsol_interpolation": true,
-      "sha256": "f8fa965be5c555dc1552ac12b7ef684b1d17bbc08a51a8e3216a344b9ccc5392",
+      "sha256": "ff992a6b3040e876707bba677497f15845b0f6aad10527e1dca20cce38937feb",
       "units": {
         "E_over_N_V_m2": "V m^2",
         "reduced_mobility_m2_V_s_m3": "1/(V m s)"
@@ -350,7 +350,7 @@
         "eedf",
         "pooled_effective_sample_count"
       ],
-      "sha256": "05797addd957271d49c8b74ea20aa001d54cd493368eaeac259b01537d431cab",
+      "sha256": "c49ebeb47224a6079169b0faa0b6834c78a7be033c572255d423436f8dd34cdf",
       "units": {
         "E_over_N_Td": "Td",
         "E_over_N_V_m2": "V m^2",
@@ -377,41 +377,48 @@
         4.888377840166982,
         5.008265408120928,
         5.092042467121625,
-        5.196456119379094,
-        5.2311223820122,
-        5.259393157519762,
-        5.283440238532779,
-        5.304638275410945,
-        5.323870284077545,
-        5.341713248137479,
-        5.358550935523254,
-        5.390168697136047,
-        5.419984463479477,
-        5.448629774284947,
-        5.4764401277453665,
-        5.503603550094911,
-        5.56930861665857,
-        5.632435038931629,
-        5.693317083268584,
-        5.75212436350627,
-        5.808971047032838,
-        5.863951400185764,
-        5.968658107656386,
-        6.066912617813139,
-        6.159356279346906,
-        6.24659555619613,
-        6.407651302617931,
-        6.553937002336869,
-        6.622523247385621,
-        6.752155345246551,
-        6.931402803969787,
-        7.201262459066297,
-        7.446980958235454,
-        7.6772244251232005,
-        7.897260085542025,
-        8.319348183448488,
-        8.72991349346514,
-        10.385812182813083
+        5.196456119377915,
+        5.231122382012484,
+        5.2593931575196535,
+        5.283440238531664,
+        5.304638275409558,
+        5.323870284077837,
+        5.3417132481373955,
+        5.358550935523464,
+        5.3901686971366916,
+        5.419984463479944,
+        5.448629774285514,
+        5.476440127745337,
+        5.503603550094986,
+        5.569308616658447,
+        5.632435038933529,
+        5.6933170832698075,
+        5.752124363507691,
+        5.808971047035898,
+        5.863951400190452,
+        5.96865810767293,
+        6.066912617840198,
+        6.159356279401721,
+        6.246595556282253,
+        6.4076513027739965,
+        6.553937002599091,
+        6.6225232477141605,
+        6.752155345716072,
+        6.931402804981847,
+        7.201262459740553,
+        7.4469809601967105,
+        7.677224428155665,
+        7.897260089573442,
+        8.319348190024629,
+        8.729913503132886,
+        10.385929403135297,
+        12.64285567369731,
+        15.165989247930723,
+        20.94940669906335,
+        27.530006990901004,
+        42.56179383652922,
+        50.93329907922982,
+        59.88362056248497
       ],
       "argument": "electron_energy_eV,mean_energy_eV",
       "argument_order": [
@@ -439,9 +446,9 @@
       "definition": "physical f0(E,m) on independently adaptive energy and mean-energy axes; every solver anchor is retained and nonnegative row projection preserves normalization and mean energy",
       "electron_energy_range_eV": [
         0.0,
-        157.9348900466172
+        5347.6184616555565
       ],
-      "energy_grid_points": 1429,
+      "energy_grid_points": 734,
       "energy_support_policy": "full_source_support_no_solver_specific_tail_cutoff",
       "format": "csv",
       "grid_axis_order": [
@@ -449,47 +456,47 @@
         "mean_energy_eV"
       ],
       "grid_shape": [
-        190,
-        1429
+        176,
+        734
       ],
       "interpolation_contract": "tensor_product_linear on error-controlled axes; every materialized mean row has unit normalization and first moment equal to its mean, so linear mean interpolation preserves both moments",
       "materialized_mean_nodes_include_all_solver_anchors": true,
       "mean_axis_rate_importance_fraction": 0.001,
-      "mean_axis_rate_scaled_error_max": 0.004841173121770567,
+      "mean_axis_rate_scaled_error_max": 0.004977489371775091,
       "mean_axis_rate_scaled_error_tolerance": 0.005,
-      "mean_axis_shape_total_variation_error_max": 0.004928787266602001,
+      "mean_axis_shape_total_variation_error_max": 0.004993700885706641,
       "mean_axis_shape_total_variation_tolerance": 0.005,
       "mean_energy_axis": "error_controlled_c1_materialization_with_solver_anchors",
-      "mean_energy_grid_points": 190,
+      "mean_energy_grid_points": 176,
       "mean_energy_range_eV": [
         0.5764851748759381,
-        10.385812182813083
+        59.88362056248497
       ],
       "mean_energy_support_policy": "no_clamp_no_synthetic_extension; values outside the tabulated range require new solver anchors",
-      "projected_mean_energy_relative_error_max": 9.926233618313253e-14,
+      "projected_mean_energy_relative_error_max": 9.863589967117238e-14,
       "projected_nonnegative_minimum": 0.0,
       "projected_normalization_error_max": 2.220446049250313e-16,
       "projection_evidence_artifact": "eedf_f0_vs_mean_energy.csv",
-      "projection_evidence_sha256": "715c384034e3d694e521ad7e0c5383ed26dd3271b4c1055cabb86964bf6197f4",
+      "projection_evidence_sha256": "e3350b69e227b5b607def869cc436ec754cc5a94ffeeb0d36d86c3b2f2a61792",
       "rate_error_norm": "abs(projected-reference)/max(reference,global_kernel_peak*importance_fraction); values_unmodified",
       "rate_importance_fraction": 1e-12,
       "rate_kernel_count": 3,
-      "rate_scaled_error_max": 0.0032226280222846368,
+      "rate_scaled_error_max": 0.003109339377035254,
       "rate_scaled_error_tolerance": 0.005,
       "representation": "physical_2d_adaptive_moment_rate_projected",
       "row_order": "mean_energy_major_then_electron_energy",
-      "sha256": "910deadbd1bb0d80bd8f1449a4178f3b0490630ba027fc8ac1d867a1a1f92fbb",
-      "shape_total_variation_error_max": 9.099614556568854e-05,
+      "sha256": "9e70fc6b6e581107d249be27b0db8b008abe49153d772751c68f2469dfcaa8de",
+      "shape_total_variation_error_max": 0.003041840641846493,
       "shape_total_variation_tolerance": 0.005,
-      "solver_anchor_mean_energy_count": 47,
+      "solver_anchor_mean_energy_count": 54,
       "source_artifact": "eedf.csv",
-      "source_energy_max_eV": 156.04513631416003,
-      "source_sha256": "05797addd957271d49c8b74ea20aa001d54cd493368eaeac259b01537d431cab",
+      "source_energy_max_eV": 5347.6184616555565,
+      "source_sha256": "c49ebeb47224a6079169b0faa0b6834c78a7be033c572255d423436f8dd34cdf",
       "source_support": {
         "policy": "full_source_support",
         "source_values_modified": false
       },
-      "support_expansion_beyond_source_eV": 1.8897537324571658,
+      "support_expansion_beyond_source_eV": 0.0,
       "units": {
         "eepf_eV_m32": "1/eV^(3/2)",
         "electron_energy_eV": "eV",
@@ -510,41 +517,48 @@
         4.888377840166982,
         5.008265408120928,
         5.092042467121625,
-        5.196456119379094,
-        5.2311223820122,
-        5.259393157519762,
-        5.283440238532779,
-        5.304638275410945,
-        5.323870284077545,
-        5.341713248137479,
-        5.358550935523254,
-        5.390168697136047,
-        5.419984463479477,
-        5.448629774284947,
-        5.4764401277453665,
-        5.503603550094911,
-        5.56930861665857,
-        5.632435038931629,
-        5.693317083268584,
-        5.75212436350627,
-        5.808971047032838,
-        5.863951400185764,
-        5.968658107656386,
-        6.066912617813139,
-        6.159356279346906,
-        6.24659555619613,
-        6.407651302617931,
-        6.553937002336869,
-        6.622523247385621,
-        6.752155345246551,
-        6.931402803969787,
-        7.201262459066297,
-        7.446980958235454,
-        7.6772244251232005,
-        7.897260085542025,
-        8.319348183448488,
-        8.72991349346514,
-        10.385812182813083
+        5.196456119377915,
+        5.231122382012484,
+        5.2593931575196535,
+        5.283440238531664,
+        5.304638275409558,
+        5.323870284077837,
+        5.3417132481373955,
+        5.358550935523464,
+        5.3901686971366916,
+        5.419984463479944,
+        5.448629774285514,
+        5.476440127745337,
+        5.503603550094986,
+        5.569308616658447,
+        5.632435038933529,
+        5.6933170832698075,
+        5.752124363507691,
+        5.808971047035898,
+        5.863951400190452,
+        5.96865810767293,
+        6.066912617840198,
+        6.159356279401721,
+        6.246595556282253,
+        6.4076513027739965,
+        6.553937002599091,
+        6.6225232477141605,
+        6.752155345716072,
+        6.931402804981847,
+        7.201262459740553,
+        7.4469809601967105,
+        7.677224428155665,
+        7.897260089573442,
+        8.319348190024629,
+        8.729913503132886,
+        10.385929403135297,
+        12.64285567369731,
+        15.165989247930723,
+        20.94940669906335,
+        27.530006990901004,
+        42.56179383652922,
+        50.93329907922982,
+        59.88362056248497
       ],
       "argument": "electron_energy_eV,mean_energy_eV",
       "argument_order": [
@@ -601,22 +615,29 @@
         "shape_0043",
         "shape_0044",
         "shape_0045",
-        "shape_0046"
+        "shape_0046",
+        "shape_0047",
+        "shape_0048",
+        "shape_0049",
+        "shape_0050",
+        "shape_0051",
+        "shape_0052",
+        "shape_0053"
       ],
       "constraint_invariant": "each h_i has integral(sqrt(x)*h_i,dx)=1 and integral(x^(3/2)*h_i,dx)=1",
       "definition": "x=electron_energy_eV/mean_energy_eV; h_i(x)=mean_energy_i^(3/2)*f0_i(mean_energy_i*x); each h_i is a moment-preserving anchor shape",
       "derived_for_comsol_interpolation": true,
-      "dimensionless_energy_grid_points": 1279,
+      "dimensionless_energy_grid_points": 1286,
       "energy_axis_interpolation": "shape_preserving_piecewise_cubic_Hermite_C1",
       "format": "csv",
       "grid": "common_dimensionless_energy_with_wide_shape_columns",
       "mean_energy_axis_interpolation": "offline_C1_shape_family; active_table_uses_error_controlled_materialized_mean_nodes",
-      "mean_energy_cases": 47,
-      "mean_energy_relative_error_max": 9.786615962070755e-13,
+      "mean_energy_cases": 54,
+      "mean_energy_relative_error_max": 9.752199048307375e-13,
       "nonnegative_minimum": 0.0,
-      "normalization_error_max": 3.3306690738754696e-16,
+      "normalization_error_max": 4.440892098500626e-16,
       "representation": "dimensionless_shape_preserving_c1_convex",
-      "sha256": "715c384034e3d694e521ad7e0c5383ed26dd3271b4c1055cabb86964bf6197f4",
+      "sha256": "e3350b69e227b5b607def869cc436ec754cc5a94ffeeb0d36d86c3b2f2a61792",
       "shape_columns": [
         "shape_0000",
         "shape_0001",
@@ -664,14 +685,21 @@
         "shape_0043",
         "shape_0044",
         "shape_0045",
-        "shape_0046"
+        "shape_0046",
+        "shape_0047",
+        "shape_0048",
+        "shape_0049",
+        "shape_0050",
+        "shape_0051",
+        "shape_0052",
+        "shape_0053"
       ],
       "source_artifact": "eedf.csv",
-      "source_energy_max_eV": 156.04513631416003,
+      "source_energy_max_eV": 5347.6184616555565,
       "source_mean_energy_relative_error_limit": 0.001,
-      "source_mean_energy_relative_error_max": 0.00024172748371259422,
+      "source_mean_energy_relative_error_max": 5.131420050764768e-16,
       "source_reconstruction": "conservative_bin_probability_mass_to_finite_piecewise_f0",
-      "source_sha256": "05797addd957271d49c8b74ea20aa001d54cd493368eaeac259b01537d431cab",
+      "source_sha256": "c49ebeb47224a6079169b0faa0b6834c78a7be033c572255d423436f8dd34cdf",
       "source_support": {
         "policy": "full_source_support",
         "source_values_modified": false
@@ -725,7 +753,14 @@
         "shape_0043": "1",
         "shape_0044": "1",
         "shape_0045": "1",
-        "shape_0046": "1"
+        "shape_0046": "1",
+        "shape_0047": "1",
+        "shape_0048": "1",
+        "shape_0049": "1",
+        "shape_0050": "1",
+        "shape_0051": "1",
+        "shape_0052": "1",
+        "shape_0053": "1"
       }
     },
     "elastic_energy_loss.csv": {
@@ -758,7 +793,7 @@
         "symbol": "K_epsilon_el",
         "uncertainty": "deterministic_kinetic_solver"
       },
-      "sha256": "b71202a6856f388434e27275722e7053d3de1a49fefc2f745e1a77c1b682d4bc",
+      "sha256": "455d8e6006f4bcd4626a80af33937e5008c2ae1d7a491294a9f1c242df23b578",
       "units": {
         "E_over_N_Td": "Td",
         "E_over_N_V_m2": "V m^2",
@@ -801,10 +836,10 @@
         "uncertainty": "deterministic_kinetic_solver"
       },
       "projection": "reindex_native_points_without_interpolation",
-      "sha256": "b3f1fb4227fd5364a8c35ab6af7c6218a59126c76e71f0c11018d61db81613ce",
+      "sha256": "6a9d39158aa6349dd88e70b881ebaaf04c50ec83859d38c1cd68d47fb2d9710f",
       "source_table": {
         "file": "elastic_energy_loss.csv",
-        "sha256": "b71202a6856f388434e27275722e7053d3de1a49fefc2f745e1a77c1b682d4bc"
+        "sha256": "455d8e6006f4bcd4626a80af33937e5008c2ae1d7a491294a9f1c242df23b578"
       },
       "units": {
         "E_over_N_Td": "Td",
@@ -831,7 +866,7 @@
         "energy_loss_eV",
         "energy_loss_rate_coefficient_eV_m3_s"
       ],
-      "sha256": "75aa6184aed183dc0bb3fb0fb7e18cfc93dfe68886b6c922c132629f1749ecad",
+      "sha256": "64842fc9c744406bf1a86306b2a5f26bda34aac639395d87b0bb6ff5e8eaaee9",
       "units": {
         "E_over_N_Td": "Td",
         "E_over_N_V_m2": "V m^2",
@@ -848,7 +883,7 @@
         "E_over_N_V_m2",
         "mean_energy_eV"
       ],
-      "sha256": "7f7e75a19931f34ed3bb73a90ac1f12bdaeede7a85f1b961c344aca4807ce2c7",
+      "sha256": "25cbb48d63608777d24b66e1b3ed10ed4e4106dcdae8f4781fdbe8a3dcbed4a4",
       "units": {
         "E_over_N_Td": "Td",
         "E_over_N_V_m2": "V m^2",
@@ -886,7 +921,7 @@
         "solver_grid_limit_hit"
       ],
       "schema": "solver_quality.v2",
-      "sha256": "d7c2dfd436d8192b6970f7cdf151c844811d6178e84ef09aafb805f72f8efecc",
+      "sha256": "115788462437e8e5b65a0e828ac13d33d721b1ad762c8acef8d5f3f9b91439ca",
       "units": {
         "E_over_N_Td": "Td",
         "E_over_N_V_m2": "V m^2",
@@ -910,7 +945,7 @@
         "reduced_townsend_m2",
         "mixture_weighted_reduced_townsend_m2"
       ],
-      "sha256": "b4ea5b6a43cb8d76ab88a69ce033a2ec5d05cab5d7dd7a6e33bce4debd36aff8",
+      "sha256": "46f2b23f8dc0b210ea0911e31f381c14dc473cf229ea9d6a67a37c939ea0b823",
       "units": {
         "E_over_N_Td": "Td",
         "E_over_N_V_m2": "V m^2",
@@ -940,10 +975,10 @@
         "mixture_weighted_reduced_townsend_m2"
       ],
       "projection": "reindex_native_points_without_interpolation",
-      "sha256": "76d243ff920522f79e752547659a97c2843ec34254f6bc07861a6b68075bbd7f",
+      "sha256": "edfc5545b95352aac16d8e2c9ef6a08e044f81e522d583d435a5ae7c34b21ebc",
       "source_table": {
         "file": "rates_vs_en.csv",
-        "sha256": "b4ea5b6a43cb8d76ab88a69ce033a2ec5d05cab5d7dd7a6e33bce4debd36aff8"
+        "sha256": "46f2b23f8dc0b210ea0911e31f381c14dc473cf229ea9d6a67a37c939ea0b823"
       },
       "units": {
         "E_over_N_Td": "Td",
@@ -964,7 +999,7 @@
         "E_over_N_V_m2",
         "effective_townsend_m2"
       ],
-      "sha256": "93b4e8eebe5ae06079f2cb4ba7dd178b090816b1a17fd71216d2e63caadb25c0",
+      "sha256": "f9f48359958b454497cf1b25d0c405e295fc7e1ace20ff3c3598a6f8b04fdfb2",
       "units": {
         "E_over_N_Td": "Td",
         "E_over_N_V_m2": "V m^2",
@@ -990,7 +1025,7 @@
         "temporal_growth_frequency_s_inv",
         "reduced_temporal_growth_frequency_m3_s"
       ],
-      "sha256": "267143cbe0c605b02e28631a106047358d453871ec48012c094aa54083cdccc8",
+      "sha256": "8c1baff83a28be3693fdec26e454b89e3e9d84973d40aa1b76d21c0369efed83",
       "units": {
         "E_over_N_Td": "Td",
         "E_over_N_V_m2": "V m^2",
@@ -1028,10 +1063,10 @@
         "reduced_temporal_growth_frequency_m3_s"
       ],
       "projection": "reindex_native_points_without_interpolation",
-      "sha256": "219a76f385cf51d9a7d295ca6dac111f2f81217151b9e3594b7db245edfa510f",
+      "sha256": "154bccc6de67a0ba37175ec97bf3293e9e4a8c0025e4470b16a6e5d22bc2ca3e",
       "source_table": {
         "file": "transport_vs_en.csv",
-        "sha256": "267143cbe0c605b02e28631a106047358d453871ec48012c094aa54083cdccc8"
+        "sha256": "8c1baff83a28be3693fdec26e454b89e3e9d84973d40aa1b76d21c0369efed83"
       },
       "units": {
         "E_over_N_Td": "Td",
@@ -1133,21 +1168,28 @@
     "shape_0044": "1",
     "shape_0045": "1",
     "shape_0046": "1",
+    "shape_0047": "1",
+    "shape_0048": "1",
+    "shape_0049": "1",
+    "shape_0050": "1",
+    "shape_0051": "1",
+    "shape_0052": "1",
+    "shape_0053": "1",
     "temporal_growth_frequency_s_inv": "1/s",
     "threshold_eV": "eV"
   },
   "valid_ranges": {
     "E_over_N_Td": [
       0.05,
-      500.0
+      4000.0
     ],
     "E_over_N_V_m2": [
       4.9999999999999997e-23,
-      4.999999999999999e-19
+      3.9999999999999995e-18
     ],
     "mean_energy_eV": [
       0.5764851748759381,
-      10.385812182813083
+      59.88362056248497
     ]
   }
 }

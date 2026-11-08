@@ -681,7 +681,7 @@ def _validate_reactions(
     contract: GecIcpMphContract,
     failures: list[str],
 ) -> None:
-    canonical = load_canonical_ground_cross_sections()
+    canonical = load_canonical_ground_cross_sections(mapping.model.cross_sections)
     mapped = {name: getattr(mapping.reactions, name) for name in _REACTION_SIGNATURES}
     active = {item.tag: item for item in contract.reactions if item.enabled}
     if set(active) != set(mapped.values()):

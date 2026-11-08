@@ -1,0 +1,6 @@
+% Model,Untitled.mph
+% Version,COMSOL 6.4.0.429
+% Date,"Nov 8 2026, 12:03"
+% Table,Table 3 - 
+% Time (s),axisymmetric plasma volume (m^3),electron inventory (1),electron mean-energy inventory (eV),argon metastable inventory (1),argon ion inventory (1),plasma RF resistive deposition (W)
+0.01,0.005492535578962569,1.901713196725481E14,1.4298580265700375E15,3.163780511323404E15,1.902071244886054E14,1392.653124399238

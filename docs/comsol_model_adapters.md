@@ -21,9 +21,9 @@ and species time integration remain in the consuming plasma model. See the
 
 | Adapter | Package | Run command | Map | Target contract |
 | --- | --- | --- | --- | --- |
-| 1D positive column | `swarm_workflow/comsol/models/positive_column/` | `run-positive-column` | `Model/maps/positive_column_external.yaml` | `docs/comsol_workflow.md` |
+| 1D positive column | `swarm_workflow/comsol/models/positive_column/` | `run-positive-column`, `export-positive-column` | `Model/maps/positive_column_external.yaml` | `docs/comsol_workflow.md` |
 | Argon GEC-CCP | `swarm_workflow/comsol/models/gec_ccp/` | `run-gec-ccp` | `comsol_modes/maps/argon_gec_ccp_*.yaml` | `docs/comsol_gec_ccp.md` |
-| Argon GEC-ICP | `swarm_workflow/comsol/models/gec_icp/` | `run-gec-icp` | `comsol_modes/maps/argon_gec_icp_*.yaml` | `docs/comsol_gec_icp.md` |
+| Argon GEC-ICP | `swarm_workflow/comsol/models/gec_icp/` | `run-gec-icp`, `export-gec-icp` | `comsol_modes/maps/argon_gec_icp_*.yaml` | `docs/comsol_gec_icp.md` |
 
 No adapter is a generic fallback. A different COMSOL ICP, CCP, positive-column,
 global, fluid, or hybrid model needs its own adapter when its MPH tags,

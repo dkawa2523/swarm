@@ -4,8 +4,8 @@ Electron-swarm solver comparison tools, simulator-neutral reaction coefficients,
 and numerically qualified input workflows for COMSOL plasma models.
 
 [Download COMSOL models through Git LFS](comsol_models/README.md). The inventory
-separates original MPH files, historical Swarm-configured ICP models, and
-current inputs that have not yet been applied to an MPH.
+includes the current Swarm-configured positive-column, GEC-CCP, and GEC-ICP
+models with their inputs, accepted results, and COMSOL Desktop study names.
 
 ## Run a comparison
 

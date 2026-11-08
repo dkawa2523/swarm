@@ -14,6 +14,7 @@ class GecIcpContractError(RuntimeError):
 class GecIcpModelSpec:
     input_mph: Path
     output_mph: Path
+    cross_sections: Path
     component: str
     geometry: str
     mesh: str

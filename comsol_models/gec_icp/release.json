@@ -1,0 +1,214 @@
+{
+  "schema": "swarm.configured_comsol_model.v1",
+  "package_version": "0.12.0",
+  "model_adapter": "gec_icp",
+  "source_solver": "two_term",
+  "physical_target_accepted": true,
+  "acceptance_scope": "declared_restricted_lmea_closure",
+  "acceptance_record": "results/run_status.json",
+  "operating_conditions": {
+    "power_W": 1500,
+    "pressure_Pa": 2.66644,
+    "gas_temperature_K": 300.0,
+    "frequency_Hz": 13560000,
+    "final_time_s": 0.01
+  },
+  "case_count": 14,
+  "valid_ranges": {
+    "E_over_N_Td": [
+      1.0,
+      3000.0
+    ],
+    "E_over_N_V_m2": [
+      1e-21,
+      3e-18
+    ],
+    "mean_energy_eV": [
+      2.4579916793125083,
+      42.561793837012424
+    ]
+  },
+  "comsol_version": "6.4.0.429",
+  "gui_recompute": {
+    "source_csv_paths_unavailable": true,
+    "studies": [
+      {
+        "tag": "std1",
+        "label": "Study 1",
+        "solve_seconds": 56
+      }
+    ]
+  },
+  "source_model": {
+    "file": "comsol_modes/argon_gec_icp.mph",
+    "size_bytes": 23229086,
+    "sha256": "2ad9dc5ad4631bf855463a449a89f561b4e70c6004c2650d0a0c304666d7b556"
+  },
+  "model": {
+    "file": "argon_gec_icp_two_term.mph",
+    "size_bytes": 29906775,
+    "sha256": "d2ae24b51f0b0a6dc1d0f9ed7f5ff730505ce28f8f770ac17206defc1fbbc139"
+  },
+  "files": [
+    {
+      "file": "bundle/collision_rate_kernels.csv",
+      "size_bytes": 8521,
+      "sha256": "dc8e22fe8410085dce9d83ae1c9f8783907a8b4784a14c42341085555a06d845"
+    },
+    {
+      "file": "bundle/comsol_functions/sw_meanE.csv",
+      "size_bytes": 632,
+      "sha256": "b44b5da51d8e580b5c7aa556acc2ee7b178ef6fc32523568346d821aaa81afa4"
+    },
+    {
+      "file": "bundle/comsol_functions/sw_muN.csv",
+      "size_bytes": 700,
+      "sha256": "31bcf3b7e8991bc1ed4d48507e37f844ad913a6e5a85c771aaaaf37ee4599960"
+    },
+    {
+      "file": "bundle/eedf.csv",
+      "size_bytes": 912267,
+      "sha256": "0d4bd0fdb95041035ac799747c8c25f8e3e53ab9c92b45421eef1c247957bb44"
+    },
+    {
+      "file": "bundle/eedf_f0_comsol_2d.csv",
+      "size_bytes": 3296263,
+      "sha256": "2d179ac18b41218f7391337269c0635e6b31e0aefbf72e19eaf6449e5e9d5278"
+    },
+    {
+      "file": "bundle/eedf_f0_vs_mean_energy.csv",
+      "size_bytes": 352231,
+      "sha256": "ed44c18eae24dc5ec5204870989fa310e924da60d534729edb2105c35f277b4d"
+    },
+    {
+      "file": "bundle/elastic_energy_loss.csv",
+      "size_bytes": 1842,
+      "sha256": "22e46f1da41b05b3146b2a4c49a75b532505b06bfc42d4594f1e81c5ce4af6c6"
+    },
+    {
+      "file": "bundle/elastic_energy_loss_vs_mean_energy.csv",
+      "size_bytes": 1842,
+      "sha256": "32345f91de4c7798c2813ccccf54c7749c726357f58f93c3600f0030bf8e3450"
+    },
+    {
+      "file": "bundle/energy_loss.csv",
+      "size_bytes": 3825,
+      "sha256": "99badf084d411b4ed02e101d8d75b4da6bb11061c4e109d5002848366fe21d2a"
+    },
+    {
+      "file": "bundle/manifest.json",
+      "size_bytes": 34295,
+      "sha256": "1eb7b2c60b3f854eb9b1b1d16c099242871c60726fc806483e98b1e81ca3e92c"
+    },
+    {
+      "file": "bundle/mean_energy_vs_en.csv",
+      "size_bytes": 692,
+      "sha256": "5b10d5e794d6b519ba0fc3ed220f0cfae2b65e7967cdc79da728f462eee42c06"
+    },
+    {
+      "file": "bundle/quality.csv",
+      "size_bytes": 3642,
+      "sha256": "75c533b0e8a2cd8cb2e89c1cf0b5dfe413fac2709dd226a9dfee161411c31999"
+    },
+    {
+      "file": "bundle/rates_vs_en.csv",
+      "size_bytes": 7502,
+      "sha256": "75a08ab15859892b555d963b4324a7381a1bf7dc1f0a6bdb672ddc94661210a6"
+    },
+    {
+      "file": "bundle/rates_vs_mean_energy.csv",
+      "size_bytes": 7502,
+      "sha256": "2c061fc06565a35b9b346ae1cb5816c304d3d8cc54a25978b81daee374147df4"
+    },
+    {
+      "file": "bundle/townsend_vs_en.csv",
+      "size_bytes": 754,
+      "sha256": "baac3a612c86122fc1d8c7f69dc6c4629f9d2a91dff565d922badccb29fbe2c7"
+    },
+    {
+      "file": "bundle/transport_vs_en.csv",
+      "size_bytes": 4497,
+      "sha256": "ccd361124077485994d75242982d53d7c31958d8544de4ec0eeb3774bf032c4e"
+    },
+    {
+      "file": "bundle/transport_vs_mean_energy.csv",
+      "size_bytes": 4497,
+      "sha256": "6f465640d25cdcec7263f749fffe77c3ef3b9434cbdd37e5620d0410f6178eea"
+    },
+    {
+      "file": "mapping.yaml",
+      "size_bytes": 1358,
+      "sha256": "f3053380d4fcc9c4fadca8f2156ee13520dfa2fee75f3811a2760ae60827b5f7"
+    },
+    {
+      "file": "plots/icp_time_history.png",
+      "size_bytes": 268882,
+      "sha256": "4fe25c16a0dab64169c73f53d96ad38fa6e6c670b58ca22ad5ec343fdc70cce2"
+    },
+    {
+      "file": "results/coil_power_common_time.csv",
+      "size_bytes": 171,
+      "sha256": "fc7a311289304b8a8284d8084a7affc84eb6c087e3d61e75eb7bd8fa79789972"
+    },
+    {
+      "file": "results/coil_power_terminal.csv",
+      "size_bytes": 156,
+      "sha256": "141bea1f694b0eb28dbe61410f53f187143bb1f57e916cccad43e99b1282767d"
+    },
+    {
+      "file": "results/coil_power_time_series.csv",
+      "size_bytes": 1123,
+      "sha256": "35645f89d3523ec1e79cd42f74464cc0e4add6b1655cc71b62706aa1f64d9bb0"
+    },
+    {
+      "file": "results/comparison_export_manifest.json",
+      "size_bytes": 6869,
+      "sha256": "df990ac86cc0701012245284e47c0282e74c86115ce538213e69620a838904a3"
+    },
+    {
+      "file": "results/fields_common_time.csv",
+      "size_bytes": 641186,
+      "sha256": "581979660d31929ace1ab47c97ffc35ff30b4e15f0585285f28b268b46336e59"
+    },
+    {
+      "file": "results/fields_terminal.csv",
+      "size_bytes": 641156,
+      "sha256": "89bc3514f91140ea05b046ff5c92a2b1d449aa4e66c4d3de91fde4da0b68df56"
+    },
+    {
+      "file": "results/run_status.json",
+      "size_bytes": 27455,
+      "sha256": "b6f6a1e1a9d6fd0980e52dd37bc90a2f7cb1544fc66df769d0fc0488dbaa5ecf"
+    },
+    {
+      "file": "results/solution_times.csv",
+      "size_bytes": 654,
+      "sha256": "ac958a078c4e77cca8f7f269b49ef4a579b4cabb08cfdd2a5c44b4741e834d8a"
+    },
+    {
+      "file": "results/volume_common_time.csv",
+      "size_bytes": 422,
+      "sha256": "a28f796da7271feeddf1c0f1c93de80626778cfc04db452af3c3bb9d3fb391bf"
+    },
+    {
+      "file": "results/volume_terminal.csv",
+      "size_bytes": 422,
+      "sha256": "bcb755436946e03783d66315eeb48221443b03fb50b65b185cd1a9f9e00b8977"
+    },
+    {
+      "file": "results/volume_time_series.csv",
+      "size_bytes": 4066,
+      "sha256": "75362b43390ca341ad942fb0f1c260f4fe4cb2f9728c272dcb77e6c6d36df894"
+    },
+    {
+      "file": "swarm.yaml",
+      "size_bytes": 966,
+      "sha256": "1d347cf3a070571767b99a5a08a8478dfa4dfafc17bd6bf63b6fdd593eacc96b"
+    },
+    {
+      "file": "swarm_results.sqlite",
+      "size_bytes": 1892352,
+      "sha256": "79643354aacb316f00b9b6c039f9fe55c0cb3d667ceca3b383036576f7c668fb"
+    }
+  ]
+}

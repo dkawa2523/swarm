@@ -6,14 +6,18 @@ import csv
 import hashlib
 import json
 import math
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 from typing import Any
 
+from swarm_workflow.comsol.models.gec_ccp.contracts import GecCcpWorkflowError
 from swarm_workflow.comsol.models.gec_ccp.plots import contracts as _contracts
 from swarm_workflow.comsol.models.gec_ccp.validation.bundle_context import (
     GEC_OPTIONAL_PROVENANCE_HASH_KEYS,
     GEC_PROVENANCE_HASH_KEYS,
+)
+from swarm_workflow.comsol.models.gec_ccp.validation.provenance import (
+    verify_bundle_artifacts,
 )
 
 def _validated_plot_provenance(
@@ -81,27 +85,14 @@ def _validated_plot_provenance(
     ):
         raise _contracts.GecCcpPlotError("COMSOL runtime identity is missing")
     output_mph = status.get("output_mph")
-    try:
-        output_mph_path = Path(str(output_mph["path"])).resolve()
-        output_mph_sha256 = hashlib.sha256(
-            output_mph_path.read_bytes()
-        ).hexdigest()
-    except (KeyError, TypeError, OSError) as exc:
-        raise _contracts.GecCcpPlotError("COMSOL output MPH provenance is invalid") from exc
-    if output_mph.get("sha256") != output_mph_sha256:
-        raise _contracts.GecCcpPlotError("COMSOL output MPH has changed since the solve")
+    if not isinstance(output_mph, dict) or not re.fullmatch(
+        r"[0-9a-f]{64}", str(output_mph.get("sha256", ""))
+    ):
+        raise _contracts.GecCcpPlotError("COMSOL output MPH provenance is invalid")
     plan_bundle = plan.get("bundle")
     closure = plan.get("closure")
     if not isinstance(plan_bundle, dict) or not isinstance(closure, dict):
         raise _contracts.GecCcpPlotError("GEC CCP plan lacks bundle or closure metadata")
-    try:
-        planned_bundle = Path(str(plan_bundle["path"])).resolve()
-    except (KeyError, TypeError, OSError) as exc:
-        raise _contracts.GecCcpPlotError("GEC CCP plan bundle path is invalid") from exc
-    if planned_bundle != bundle:
-        raise _contracts.GecCcpPlotError(
-            f"plot bundle differs from solved bundle: {bundle} != {planned_bundle}"
-        )
     manifest_path = bundle / "manifest.json"
     if (
         not manifest_path.is_file()
@@ -132,6 +123,10 @@ def _validated_plot_provenance(
         raise _contracts.GecCcpPlotError(
             "plot bundle quality policy differs from solved bundle"
         )
+    try:
+        verify_bundle_artifacts(bundle, bundle_manifest)
+    except (GecCcpWorkflowError, OSError) as exc:
+        raise _contracts.GecCcpPlotError(str(exc)) from exc
     electron_transport = closure.get("electron_transport")
     reaction_model = closure.get("reaction_model")
     if electron_transport not in {
@@ -218,18 +213,18 @@ def _validated_result_artifacts(
     for raw_path in expected_raw:
         if not isinstance(raw_path, str) or not raw_path:
             raise _contracts.GecCcpPlotError("GEC CCP expected result set is invalid")
-        candidate = Path(raw_path)
-        resolved = (
-            candidate.resolve()
-            if candidate.is_absolute()
-            else (root / candidate).resolve()
-        )
-        try:
-            relative = resolved.relative_to(root).as_posix()
-        except ValueError as exc:
-            raise _contracts.GecCcpPlotError(
-                "GEC CCP expected result is outside the result directory"
-            ) from exc
+        candidate = PurePosixPath(raw_path.replace("\\", "/"))
+        # Producer paths end in the fixed export group and CSV filename.
+        # Status paths and file digests are checked under the supplied result root.
+        if candidate.is_absolute() or PureWindowsPath(raw_path).is_absolute():
+            candidate = PurePosixPath(*candidate.parts[-2:])
+        if (
+            len(candidate.parts) != 2
+            or candidate.parts[0] not in {"swarm_tables", "builtin_druyvesteyn"}
+            or candidate.suffix != ".csv"
+        ):
+            raise _contracts.GecCcpPlotError("GEC CCP expected result path is invalid")
+        relative = candidate.as_posix()
         if relative in expected:
             raise _contracts.GecCcpPlotError("GEC CCP expected result set contains duplicates")
         expected.add(relative)

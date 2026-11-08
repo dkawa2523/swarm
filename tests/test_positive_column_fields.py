@@ -5,10 +5,12 @@ import io
 from dataclasses import replace
 import os
 from pathlib import Path
+from types import SimpleNamespace
 from swarm_workflow.comsol.models.positive_column.results import (
     FIELD_CSV_MARKER,
     copy_comsol_csv,
     read_mapped_results,
+    read_positive_column_results,
 )
 import shutil
 import subprocess
@@ -33,6 +35,44 @@ from swarm_workflow.comsol.models.positive_column.workflow import (
     prepare_positive_column_run,
     PositiveColumnWorkflowError,
 )
+
+
+def test_cli_exports_saved_mph_without_a_bundle_or_solve(tmp_path, monkeypatch):
+    from swarm_workflow.cli import main
+    from swarm_workflow.comsol.models.positive_column import workflow
+
+    path, _ = _write_positive_column_repo(tmp_path)
+    raw = yaml.safe_load(path.read_text())
+    raw["bundle"]["path"] = "absent-bundle"
+    raw["results"]["fields"] = [{"name": "x", "expression": "x", "unit": "m"}]
+    path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    model = tmp_path / "saved.mph"
+    model.write_bytes(b"saved solution")
+    log = tmp_path / "comsol.txt"
+    fields = result_csv("x\n0.1\n")
+    log.write_text(
+        f"{FIELD_CSV_MARKER}_BEGIN\n{fields}{FIELD_CSV_MARKER}_END\n",
+        encoding="utf-8",
+    )
+
+    def execute(context, source, **options):
+        assert context.input_mph == model
+        assert context.bundle_path is None
+        assert options["operation"] == "positive_column_export"
+        assert "loadCopy" in source and ".run()" not in source and ".save(" not in source
+        return SimpleNamespace(
+            stdout_paths=(log,), comsol_version="6.4", comsol_build="429"
+        )
+
+    monkeypatch.setattr(workflow, "execute_comsol_java_source", execute)
+    output = tmp_path / "exported"
+    main(["export-positive-column", str(path), str(model), "--output", str(output)])
+    artifact = read_positive_column_results(output / "positive_column_export.json")
+    assert artifact.rows[0]["x"] == pytest.approx(0.1)
+    assert artifact.units == {"x": "m"}
+    assert artifact.metadata["stage"] == "export-positive-column"
+    assert "quality_passed" not in artifact.metadata
+    assert model.read_bytes() == b"saved solution"
 
 
 @pytest.mark.parametrize(

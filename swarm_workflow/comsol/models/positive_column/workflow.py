@@ -8,16 +8,19 @@ from dataclasses import asdict, replace
 import json
 import math
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 import yaml
 
+from swarm_workflow._io import write_json
 from ...runtime import (
     ComsolAdapterError,
     ComsolExecutionSummary,
     execute_comsol_java_source,
     execute_generated_comsol_java,
 )
+from ...runtime.artifacts import sha256_file
 from .config import (
     CLOSURE_QUANTITIES,
     ComsolMappingError,
@@ -46,7 +49,7 @@ from .contracts import (
 )
 from . import bundle as _bundle
 from . import audit as _audit
-from .results import FIELD_CSV_MARKER, copy_comsol_csv, read_mapped_results
+from .results import FIELD_CSV_MARKER, RESULT_SCHEMA, copy_comsol_csv, read_mapped_results
 from .result_units import canonical_unit
 
 
@@ -72,6 +75,85 @@ REQUIRED_RESULT_FIELDS = (
     "gas_pressure",
 )
 REQUIRED_CLOSURE_ITEMS = CLOSURE_QUANTITIES
+
+
+def export_positive_column_solution(
+    mapping_path: str | Path,
+    saved_mph: str | Path,
+    *,
+    output_directory: str | Path,
+    comsol_executable: str | Path | None = None,
+) -> Path:
+    """Read mapped fields from a saved solution and bind the CSV to its source."""
+    mapping = load_comsol_mapping(mapping_path)
+    selection = mapping.results
+    if selection is None:
+        raise PositiveColumnWorkflowError(
+            "saved-solution export requires results in the mapping"
+        )
+    model = Path(saved_mph).resolve()
+    if not model.is_file():
+        raise PositiveColumnWorkflowError(f"saved MPH does not exist: {model}")
+    digest = sha256_file(model)
+    output = Path(output_directory).resolve()
+    try:
+        output.mkdir(parents=True)
+    except FileExistsError as exc:
+        raise PositiveColumnWorkflowError(
+            f"export output directory already exists: {output}"
+        ) from exc
+    context = replace(
+        comsol_run_context(mapping),
+        input_mph=model,
+        output_mph=model,
+        bundle_path=None,
+        log_path=output / "logs",
+    )
+    source = generate_field_export_java_source(
+        replace(mapping, model=replace(mapping.model, output_mph=model)),
+        class_name=RESULT_EXPORT_CLASS,
+    )
+    execution = execute_comsol_java_source(
+        context,
+        source,
+        class_name=RESULT_EXPORT_CLASS,
+        operation="positive_column_export",
+        comsol_executable=comsol_executable,
+        study=mapping.model.study,
+    )
+    field_units = {field.name: field.unit for field in selection.fields}
+    with TemporaryDirectory(dir=output) as temporary:
+        csv_path = Path(temporary) / RESULTS_CSV
+        if not copy_comsol_csv(
+            execution.stdout_paths[-1], csv_path, marker=FIELD_CSV_MARKER
+        ):
+            raise PositiveColumnWorkflowError(
+                f"COMSOL emitted no complete field CSV; see {execution.log_dir}"
+            )
+        result = read_mapped_results(csv_path, selection)
+        if set(result.units) != set(field_units):
+            raise PositiveColumnWorkflowError(
+                "result CSV omitted configured output fields"
+            )
+        if sha256_file(model) != digest:
+            raise PositiveColumnWorkflowError("saved MPH changed during export")
+        csv_path.replace(output / RESULTS_CSV)
+    summary = output / "positive_column_export.json"
+    write_json(summary, {
+        "artifact_schema": RESULT_SCHEMA,
+        "status": "completed",
+        "stage": "export-positive-column",
+        "source_mph": {"path": str(model), "sha256": digest},
+        "result_csv": RESULTS_CSV,
+        "result_csv_sha256": result.metadata["csv_sha256"],
+        "result_selection": {
+            "dataset": selection.dataset,
+            "solutions": selection.solutions,
+            "field_units": field_units,
+        },
+        "comsol": {"version": execution.comsol_version, "build": execution.comsol_build},
+    })
+    return summary
 
 
 def execute_apply_comsol(

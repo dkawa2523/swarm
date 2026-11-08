@@ -208,13 +208,22 @@ and field units. Move both files together. Python users can call
 `swarm_workflow.comsol.models.positive_column.results.read_positive_column_results`
 to obtain canonical `.rows`, `.units`, and original `.metadata` without COMSOL.
 
+To extract fields from an existing MPH, use the same map's `results` section.
+The command reads the saved dataset and writes `positive_column_export.json`
+with the MPH hash, selected solution identities, units, and the CSV hash.
+The export records field values independently of closure acceptance.
+
+```powershell
+swarm-workflow export-positive-column comsol_models/positive_column/mapping.yaml comsol_models/positive_column/positive_column_two_term.mph --output outputs/positive_column_saved
+```
+
 The API shape and solution metadata follow the official
 [Eval reference](https://doc.comsol.com/6.3/doc/com.comsol.help.comsol/comsol_api_results.52.047.html)
 and [SolutionInfo API](https://doc.comsol.com/6.4/doc/com.comsol.help.comsol/api/com/comsol/model/SolutionInfo.html).
 Software tests execute a two-solution/three-point fixture. In licensed COMSOL
 6.4.0.429 the exporter read 801 points at the last saved time of the 200 V case.
-The physical audit rejected that run because the bounded table ended at 500 Td
-and the saved solution reached 3887.69 Td.
+The current accepted solve spans 0.1791–4649.70 Td within the 0.0002–5000 Td
+input table. Exporting the saved MPH reproduced the same CSV bytes.
 
 Each new execution replaces any prior completed summary with `running` before
 preflight. A preflight rejection writes `blocked`; a later stage failure writes
@@ -250,11 +259,11 @@ local-equilibrium or drift-diffusion validity at high field.
 swarm-workflow compare-positive-column external\positive_column_run_summary.json reference\positive_column_run_summary.json --output outputs\comparison_01 --plot
 ```
 
-The inputs are completed results from the current adapter. Bare CSVs and old
-summaries are rejected: do a new current-adapter execution, rather than adding
-unit or acceptance labels to historical data. This interface compares, for
-example, two meshes or formulations. A standalone export of a built-in
-reference MPH is not yet connected to this result interface.
+The comparison requires unit-bearing result summaries with verified gas
+context. For example, two accepted runs can compare mesh resolutions or
+formulations. The standalone export supports reading any mapped saved fields.
+Using it for a physics comparison still requires independent gas-context
+evidence for the saved model.
 
 If a result contains multiple saved solutions, pass `--external-solution N`
 and `--reference-solution M` using the original COMSOL solution indices.

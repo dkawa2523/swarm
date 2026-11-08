@@ -51,6 +51,7 @@ def _model_mapping_payload() -> dict[str, Any]:
         "model": {
             "input_mph": "input.mph",
             "output_mph": "unused-contract-output.mph",
+            "cross_sections": "argon.csv",
             "component": "comp1",
             "geometry": "geom1",
             "mesh": "mesh1",
@@ -142,6 +143,7 @@ def _write_run_mapping(
     root = tmp_path / "maps"
     root.mkdir(parents=True, exist_ok=True)
     (root / "input.mph").touch()
+    (root / "argon.csv").touch()
     (root / "model.yaml").write_text(
         yaml.safe_dump(_model_mapping_payload(), sort_keys=False),
         encoding="utf-8",

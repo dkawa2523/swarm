@@ -1,8 +1,28 @@
-# COMSOL models and Swarm inputs
+# COMSOL モデルと Swarm 入力
+
+## 設定済みMPH
+
+現行の `two_term` で計算した純Arの入力を組み込み、COMSOL **6.4.0.429** で下記の条件の受入検査を通過しました。
+元の入力CSVを一時的に移動し、別フォルダに置いたMPHをCOMSOL Desktopから開いて再計算しました。
+
+| モデル | 開くMPH | 受入条件 | GUIで選ぶスタディ |
+| --- | --- | --- | --- |
+| 正柱 | [positive_column_two_term.mph](positive_column/positive_column_two_term.mph) | 200 V、13.3322 Pa、293.15 K | **Study 1**（8秒） |
+| GEC-CCP | [argon_gec_ccp_two_term.mph](gec_ccp/argon_gec_ccp_two_term.mph) | 1 W、300 K | **Time Periodic Study2**（235秒）、次に **Time Periodic to Time Dependent**（3秒） |
+| GEC-ICP | [argon_gec_icp_two_term.mph](gec_icp/argon_gec_icp_two_term.mph) | 1500 W、13.56 MHz、2.66644 Pa、300 K、0.01 s | **Study 1**（56秒） |
+
+MPHを開き、表のスタディをモデルビルダーで選んで **Compute** を押します。
+CCPの外部Swarm用周期スタディのタグは `std3` です。変換 `std2` で電極波形を物理時刻で表示できます。
+CCPの補間関数はEEDFのCSV見出し1行を読み飛ばす警告を出しました。
+
+各 `release.json` に配布ファイルのバイト数とSHA-256、運転条件、GUI結果、受入記録をまとめています。
+正柱は局所エネルギー近似でCOMSOLが平均エネルギーを解き、Swarmの輸送係数とTownsend係数を使います。
+CCPとICPはSwarmのFunction EEDFと移動度を使い、COMSOLが拡散、エネルギー、RF場と重粒子を扱います。
+受入は表の条件と各モデルの閉包に対する判定です。入力表の範囲と物理的な利用範囲はそれぞれ確認してください。
 
 ## ダウンロード
 
-MPH、保存済みSwarm SQLiteと大きなEEDF表はGit LFSで管理する。Git LFSをインストールした環境で:
+MPH、SQLite、大きなEEDFと位相データはGit LFSで管理します。
 
 ```powershell
 git lfs install
@@ -12,125 +32,50 @@ git lfs pull
 git lfs fsck
 ```
 
-MPHの実体と入力CSVを取得するため、GitHubのソースZIPではなく上の手順を使う。
-CSV/JSON/YAMLのバイト列は改行変換から保護し、記録済みSHA-256を保つ。
+個別に取得する場合はMPHのダウンロードリンクを使います。`raw.githubusercontent.com` が
+`version https://git-lfs.github.com/spec/v1` で始まる短いファイルを返した場合はLFSの参照テキストです。
+サイズとSHA-256を `release.json`、元モデルは `sources.json`、過去のICPは `archive.json` で照合できます。
+GUIが停止する場合は、取得ファイルのサイズ、COMSOLの完全なビルド番号、エラー表示を確認します。
+描画で落ちる場合はソフトウェア描画で切り分けられます。[COMSOLの描画トラブル対策](https://www.comsol.com/support/knowledgebase/933)
 
-1件ずつ取得する場合は、このページのMPHリンクを使う。リンクはGit LFSの実体を返す
-ダウンロード先に固定している。`raw.githubusercontent.com` のURLから取得したものはMPHの拡張子でも
-数百バイトの参照テキストの場合がある。先頭が
-`version https://git-lfs.github.com/spec/v1`ならモデル本体ではない。
-例えばGEC-CCPのMPH実体は **24,506,900バイト**。Rawから返る参照は133バイト。
+## 入力と解析用出力
 
-### GUIでの再計算確認
+モデルごとのフォルダに、Swarmの設定 `swarm.yaml`、計算済みSQLite、COMSOL用 `bundle/`、
+モデルの設定 `mapping.yaml`、保存済み解と解析データを収録しました。
 
-2026-11-08に配布リンクから7件を取り直し、SHA-256と内部CRCを確認した。
-WindowsのCOMSOL 6.4.0.429で各MPHを開き、下記の既存スタディを選んで **Compute** を実行した。
-時間はCOMSOLのメッセージ欄に表示された計算時間。
-
-| MPH | 実行したスタディ | GUIの結果 |
+| フォルダ | SwarmのE/N点 | 解析用データ |
 | --- | --- | --- |
-| argon_gec_icp_two_term_function_eedf.mph | Study 1 | 64秒、0.01 sの電子密度 |
-| argon_gec_icp_monte_carlo_function_eedf.mph | Study 1 | 74秒、0.01 sの電子密度 |
-| argon_gec_ccp.mph | Time Periodic Study | 236秒、周期平均電子密度 |
-| argon_gec_icp.mph | Study 1 | 43秒、0.001 sの電子密度 |
-| positive_column_1d.mph | Study 1 | 4秒、電子密度 |
-| positive_column_1d_boltzmann.mph | Computed EEDF | 346秒、EEDF |
-| boltzmann_argon.mph | 0.76Td w/N=0 | 1秒、EEDF |
+| [positive_column](positive_column/) | 45点、0.0002–5000 Td | 最終保存解の801点。電子密度、平均エネルギー、電位、電流、生成項。EEDFと輸送の図 |
+| [gec_ccp](gec_ccp/) | 54点、0.05–4000 Td | 軸方向・半径方向・領域の周期平均、位相分布、電極波形、EEDFと空間分布の図 |
+| [gec_icp](gec_icp/) | 14点、1–3000 Td | 0.001 sと0.01 sの空間分布、26時刻の電子・Ar*・Ar+粒子数、平均エネルギー・電力の図 |
 
-設定済みICPの2件はEEDFを内包しており、保存時の設定で再計算した。補間表の先頭にあるCSV見出し
-1行をCOMSOLが読み飛ばす警告が出た。このPCでは元のCSVパスも有効だった。
-CCPはCOMSOLの元モデルに含まれる入力で実行した。MPHは配布時のバイト列のまま保存している。
-
-### GUIで開くと停止・クラッシュする場合
-
-まず取得したファイルのサイズと`SHA-256`を、元モデルは`sources.json`、保存済みICPは
-各`archive.json`と照合する。配布元と別フォルダへGitHubから取得した7件について、
-バイト列の一致とMPH内部全メンバーのCRCを確認した。これはGUIでの読込・再計算確認とは別である。
-
-次にCOMSOLの完全なバージョン番号と、MPH内に記録された保存時のビルドを確認する。
-設定済みICPは **6.4.0.429** で保存されている。こちらのPCには6.4.0.378と6.4.0.429の
-インストールが混在しているため、ファイル関連付けと実際に起動する実行ファイルの確認も必要。
-ビルド差だけでクラッシュ原因と断定しない。
-
-COMSOLが起動してからモデル表示時に落ちる場合、通常のDesktop起動コマンドに
-`-3drend sw`を付けてソフトウェア描画で切り分けられる。
-これは[COMSOL公式の描画トラブル対策](https://www.comsol.com/support/knowledgebase/933)であり、
-MPHや物理設定の変更ではない。起動時のライセンス期限切れは、MPH読込時のクラッシュと区別する。
-問題のファイル名、サイズ、COMSOLのビルド、停止時のメッセージまたは該当ログを残して調査する。
-
-GitHubのZIPにLFS実体が含まれるかはリポジトリ設定に依存する。
-[GitHub公式説明](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/managing-git-lfs-objects-in-archives-of-your-repository)を参照。
-
-## 保存済みの設定済みMPH
-
-次の2件は2026-09-13 UTCの計算済みICPモデルを変更せず保存したもの。
-最終solve出力のSHA-256、内包EEDFと元CSVの一致を確認した。
-`archive.json`にMPH・元入力・当時の計算証跡のハッシュをまとめている。
-
-| Swarm入力 | 開くMPH | 大きさ | 保存時のCOMSOL | 状態 |
-| --- | --- | --- | --- | --- |
-| two_term | [ICP two-term](https://media.githubusercontent.com/media/dkawa2523/swarm/ecfd83fd3032da8cb6be6ef46933b246edef9d10/comsol_models/saved/gec_icp_two_term/argon_gec_icp_two_term_function_eedf.mph) | 29.9 MB | 6.4.0.429 | 過去の計算済みモデル |
-| monte_carlo | [ICP Monte Carlo](https://media.githubusercontent.com/media/dkawa2523/swarm/ecfd83fd3032da8cb6be6ef46933b246edef9d10/comsol_models/saved/gec_icp_monte_carlo/argon_gec_icp_monte_carlo_function_eedf.mph) | 31.8 MB | 6.4.0.429 | 過去の計算済みモデル |
-
-**これらは0.12.0で再設定・再計算したモデルではない。** 当時の受入結果と、現在の互換性・物理受入は分けて記録している。
-MPHにはインポート済みEEDFと解が保存されている。元の絶対パス表示は残しているため、
-外部ファイルを再インポートする際は同梱の`bundle/`へ参照先を指定し直す。
-同梱のformat-v1 bundleは当時の証跡であり、現行アダプタに入力しない。
-
-正柱の旧`Model/work/positive_column_1d_swarm_template.mph`は参照CSVが存在しないため、
-配布する設定済みMPHには含めていない。CCPの設定済みMPHは見つからなかった。
-
-## 0.12.0で新しく計算した入力
-
-次のディレクトリには、現行コードで収束した点だけを保存したSQLite、
-format-v2 COMSOL bundle、単一Swarm YAMLとモデル別マッピングがある。
-`preparation.json`がファイルのハッシュ・入力範囲・停止理由を記録する。
-
-| ディレクトリ | 点数 | E/N [Td] | 現在の状態 |
-| --- | --- | --- | --- |
-| [positive_column](positive_column/) | 26 | 0.0444–500 | 反映・読み戻し・解の出力を確認。200 Vは範囲外で受入停止 |
-| [gec_ccp](gec_ccp/) | 47 | 0.05–500 | bundle生成済み、アダプタの入力ハッシュ連鎖検査で停止 |
-| [gec_icp](gec_icp/) | 10 | 1–300 | 元の作業場所で準備通過。別フォルダでは断面積のパス依存ハッシュで停止 |
-
-**0.12.0の入力を使った受入済みMPHは未配布。**
-`preparation.json`のライセンス期限切れは入力を準備した時点の記録。
-更新後の正柱では、293.15 K、13.3322 Pa、200 Vの作業コピーで反映と188点の読み戻し、
-終端解のCSV出力801行を確認した。終端のE/Nは0.04862–3887.69 Tdで、
-入力表の上限500 Tdを超えるため、アダプタは受入を拒否した。
-
-これらは範囲を限定した入力例であり、従来のモデルの全運転範囲を資格付けするデータではない。
-元の広範囲計算は未収束で停止し、追跡したICPでは1000 Tdで600反復の上限に達した。
-未収束値の採用や古いデータへの置換は行っていない。範囲外の物理利用を認めるものではない。
-粒子・組成の時間発展、RF場と空間方程式は引き続きCOMSOLが所有する。
-
-必要な入力検査の修正と対象条件を覆う表の準備後、モデル別に実行する。
-出力は`outputs/configured_models/<model>/`に書かれ、上の過去のMPHを上書きしない。
-生成Javaの絶対パスは元の準備時点の記録なので、別の場所では`--dry-run`で再生成する。
+`swarm-workflow run` に `swarm.yaml` を渡すと、出力先の新しいSQLiteに計算します。
+`build-tables` と `export-comsol` で新しい表を作れます。配布のSQLiteは元の計算を確認するための読み取り用です。
+各 `run-*` の `--dry-run` は実行前の入力検査とJava生成を行います。
 
 ```powershell
-py -3 -m swarm_workflow.cli run-positive-column comsol_models/positive_column/mapping.yaml --dry-run
+py -3 -m swarm_workflow.cli run-positive-column comsol_models/positive_column/mapping.yaml --pressure-Pa 13.3322 --dry-run
 py -3 -m swarm_workflow.cli run-gec-ccp comsol_models/gec_ccp/mapping.yaml --dry-run
 py -3 -m swarm_workflow.cli run-gec-icp comsol_models/gec_icp/mapping.yaml --dry-run
 ```
 
-CCPの上記コマンドは現時点で明示的に停止する。ICPもGitHubから別フォルダへ取得すると停止する。
-ICPの断面積ファイル自体のSHA-256は元と同じだが、アダプタが比較する複合ハッシュに
-絶対パスが含まれるためである。`gec_icp/evidence/relocation_preflight.json`に検証結果を記録した。
-検査を外したり、bundleの由来を書き換えて進めたりしない。
-`--dry-run`を外すと設定だけでなくモデルの計算も行うため、入力範囲・運転条件を確認して実行する。
-Swarmを再計算する場合は各ディレクトリの`swarm.yaml`を`swarm-workflow run`に渡す。
-保存済み`swarm_results.sqlite`は元結果の読み取り用コピーであり、別の場所への移動に合わせて改変していない。
-bundleは既存の`build-tables`、`export-comsol`で新しい出力ディレクトリへ再生成する。
+`export-positive-column` と `export-gec-icp` は保存解を読み、指定した結果を新しい出力フォルダに保存します。
+`plot-gec-ccp` は `bundle/` と `results/` から図を作れます。
+組成の時間発展はプラズマモデルが解きます。ここでのICPの時系列はCOMSOLの保存解です。
+具体的な設定とコマンドは[正柱](../docs/comsol_workflow.md)、[CCP](../docs/comsol_gec_ccp.md)、[ICP](../docs/comsol_gec_icp.md)を参照してください。
+
+## 過去の計算済みICP
+
+2026-09-13 UTCにCOMSOL 6.4.0.429で保存したモデルです。format-v1の元入力は当時の証跡として同梱しています。
+元のCSVパスが表示されるため、表を再インポートするときは同梱の `bundle/` を指定してください。
+
+- [ICP two-term](https://media.githubusercontent.com/media/dkawa2523/swarm/ecfd83fd3032da8cb6be6ef46933b246edef9d10/comsol_models/saved/gec_icp_two_term/argon_gec_icp_two_term_function_eedf.mph)
+- [ICP Monte Carlo](https://media.githubusercontent.com/media/dkawa2523/swarm/ecfd83fd3032da8cb6be6ef46933b246edef9d10/comsol_models/saved/gec_icp_monte_carlo/argon_gec_icp_monte_carlo_function_eedf.mph)
 
 ## 元モデル
 
-次の5件もGit LFSで配布する。既存マッピングが参照するパスを維持している。
-
-- [positive_column_1d.mph](https://media.githubusercontent.com/media/dkawa2523/swarm/ecfd83fd3032da8cb6be6ef46933b246edef9d10/Model/positive_column_1d.mph): 正柱アダプタの元モデル。
-- [argon_gec_ccp.mph](https://media.githubusercontent.com/media/dkawa2523/swarm/ecfd83fd3032da8cb6be6ef46933b246edef9d10/comsol_modes/argon_gec_ccp.mph): CCPアダプタの元モデル。
-- [argon_gec_icp.mph](https://media.githubusercontent.com/media/dkawa2523/swarm/ecfd83fd3032da8cb6be6ef46933b246edef9d10/comsol_modes/argon_gec_icp.mph): ICPアダプタの元モデル。
-- [positive_column_1d_boltzmann.mph](https://media.githubusercontent.com/media/dkawa2523/swarm/ecfd83fd3032da8cb6be6ef46933b246edef9d10/Model/positive_column_1d_boltzmann.mph): COMSOL組込Boltzmann参照。
-- [boltzmann_argon.mph](https://media.githubusercontent.com/media/dkawa2523/swarm/ecfd83fd3032da8cb6be6ef46933b246edef9d10/Model/boltzmann_argon.mph): COMSOLの空間一様Boltzmann参照。
-
-元モデルの存在は外部Swarm入力の設定済みを意味しない。
-詳細な責任分担と受入条件は[モデル別アダプタ](../docs/comsol_model_adapters.md)を参照。
+- [positive_column_1d.mph](https://media.githubusercontent.com/media/dkawa2523/swarm/ecfd83fd3032da8cb6be6ef46933b246edef9d10/Model/positive_column_1d.mph) 正柱の元モデル
+- [argon_gec_ccp.mph](https://media.githubusercontent.com/media/dkawa2523/swarm/ecfd83fd3032da8cb6be6ef46933b246edef9d10/comsol_modes/argon_gec_ccp.mph) CCPの元モデル
+- [argon_gec_icp.mph](https://media.githubusercontent.com/media/dkawa2523/swarm/ecfd83fd3032da8cb6be6ef46933b246edef9d10/comsol_modes/argon_gec_icp.mph) ICPの元モデル
+- [positive_column_1d_boltzmann.mph](https://media.githubusercontent.com/media/dkawa2523/swarm/ecfd83fd3032da8cb6be6ef46933b246edef9d10/Model/positive_column_1d_boltzmann.mph) 正柱のCOMSOL組込Boltzmann参照
+- [boltzmann_argon.mph](https://media.githubusercontent.com/media/dkawa2523/swarm/ecfd83fd3032da8cb6be6ef46933b246edef9d10/Model/boltzmann_argon.mph) 空間一様のCOMSOL組込Boltzmann参照

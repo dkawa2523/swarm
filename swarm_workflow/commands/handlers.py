@@ -32,12 +32,18 @@ from swarm_workflow.comsol.models.gec_ccp.plots.workflow import (
     plot_gec_ccp_solver_comparison,
 )
 from swarm_workflow.comsol.models.gec_icp import (
+    GecIcpBundleError,
+    GecIcpComparisonExportError,
     GecIcpWorkflowError,
+    execute_gec_icp_comparison_export,
     execute_gec_icp_run,
     format_gec_icp_plan,
     format_gec_icp_summary,
+    prepare_gec_icp_comparison_export,
     prepare_gec_icp_run,
 )
+from swarm_workflow.comsol.models.gec_icp.contracts import GecIcpContractError
+from swarm_workflow.comsol.models.gec_icp.mapping import load_gec_icp_mapping
 from swarm_workflow.comsol.models.positive_column import (
     ComsolCompareError,
     ComsolMappingError,
@@ -45,6 +51,7 @@ from swarm_workflow.comsol.models.positive_column import (
     PositiveColumnWorkflowError,
     compare_comsol_profiles,
     execute_positive_column_run,
+    export_positive_column_solution,
     format_comsol_comparison,
     format_positive_column_plan,
     format_positive_column_summary,
@@ -291,6 +298,19 @@ def run_positive_column_command(
         parser.error(str(exc))
 
 
+def export_positive_column_command(args: Any, parser: argparse.ArgumentParser) -> None:
+    try:
+        summary = export_positive_column_solution(
+            args.mapping,
+            args.saved_mph,
+            output_directory=args.output,
+            comsol_executable=args.comsol,
+        )
+    except (ComsolAdapterError, ComsolMappingError, PositiveColumnWorkflowError) as exc:
+        parser.error(str(exc))
+    print(f"exported saved positive-column solution: {summary}")
+
+
 def run_gec_ccp_command(args: Any, parser: argparse.ArgumentParser) -> None:
     try:
         if args.dry_run:
@@ -327,8 +347,32 @@ def run_gec_icp_command(args: Any, parser: argparse.ArgumentParser) -> None:
             comsol_executable=args.comsol,
         )
         print(format_gec_icp_summary(summary))
-    except (GecIcpWorkflowError, ComsolAdapterError) as exc:
+    except (
+        GecIcpBundleError,
+        GecIcpContractError,
+        GecIcpWorkflowError,
+        ComsolAdapterError,
+    ) as exc:
         parser.error(str(exc))
+
+
+def export_gec_icp_command(args: Any, parser: argparse.ArgumentParser) -> None:
+    try:
+        mapping = load_gec_icp_mapping(args.model_mapping)
+        args.output.mkdir(parents=True)
+        plan = prepare_gec_icp_comparison_export(
+            mapping,
+            case_id="saved",
+            input_mph=args.saved_mph,
+            output_directory=args.output,
+            common_time_s=args.time_s,
+        )
+        execute_gec_icp_comparison_export(mapping, plan, comsol_executable=args.comsol)
+    except FileExistsError:
+        parser.error(f"export output directory already exists: {args.output}")
+    except (GecIcpComparisonExportError, GecIcpContractError, ComsolAdapterError) as exc:
+        parser.error(str(exc))
+    print(f"exported saved GEC ICP solution: {plan.manifest_path}")
 
 
 def plot_gec_ccp_command(args: Any, parser: argparse.ArgumentParser) -> None:

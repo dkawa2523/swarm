@@ -1,9 +1,19 @@
-# Bounded input-configuration example; not full operating-range qualification.
 schema_version: 2
 run:
   solvers:
   - id: two_term
   e_over_n_Td:
+  - 0.0002
+  - 0.0005
+  - 0.00075
+  - 0.001
+  - 0.0015
+  - 0.002
+  - 0.003
+  - 0.005
+  - 0.01
+  - 0.02
+  - 0.03
   - 0.0444
   - 0.05
   - 0.075
@@ -30,7 +40,15 @@ run:
   - 200
   - 300
   - 500
-  case_prefix: ar_comsol_benchmark_2026__configured_example_bounded
+  - 750
+  - 1000
+  - 1500
+  - 2000
+  - 3000
+  - 4000
+  - 4572.507809122825
+  - 5000
+  case_prefix: ar_comsol_benchmark_2026
 conditions:
   gas_temperature_K: 293.15
   pressure_Pa: 13.3322
@@ -52,16 +70,12 @@ physics:
     energy_sharing: equal
   energy_grid_policy:
     tail_probability_target: 1.0e-09
-    max_eV_limit: 1000.0
+    max_eV_limit: 10000.0
 feature_policy:
   unsupported: fail
   degraded: record
 output:
-  directory: ../../outputs/configured_models/positive_column/cases
+  directory: ../../outputs/configured_models/positive_column/swarm_cases
   base_name: argon_positive_column_two_term
 campaign:
-  database: ../../outputs/configured_models/positive_column/swarm_bounded.sqlite
-  quality:
-    mobility_rse: 0.2
-    diffusion_rse: 0.3
-    major_rate_rse: 0.5
+  database: ../../outputs/configured_models/positive_column/swarm_results.sqlite

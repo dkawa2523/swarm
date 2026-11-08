@@ -1,0 +1,6 @@
+% Model,Untitled.mph
+% Version,COMSOL 6.4.0.429
+% Date,"Nov 8 2026, 12:03"
+% Table,Table - 
+% electron volume source (1/s),argon ion volume source (1/s),electron absorbed power (W),electron collisional signed power (W),external elastic signed power (W),axisymmetric plasma volume (m^3)
+2.5745821432794944E16,2.574582143279495E16,0.7976245281064975,-0.7467431645627288,-0.009522682058850727,0.002601916572336025

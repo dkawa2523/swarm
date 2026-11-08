@@ -1,0 +1,162 @@
+{
+  "case_id": "saved",
+  "error": null,
+  "execution": {
+    "command_json": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\logs\\gec_icp_comparison_saved_20261108_120347\\command.json",
+    "comsol_build": "429",
+    "comsol_version": "6.4",
+    "log_dir": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\logs\\gec_icp_comparison_saved_20261108_120347",
+    "operation": "gec_icp_comparison_saved",
+    "provenance_json": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\logs\\gec_icp_comparison_saved_20261108_120347\\provenance.json",
+    "result_json": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\logs\\gec_icp_comparison_saved_20261108_120347\\result.json",
+    "return_codes": [
+      0,
+      0
+    ],
+    "total_time_s": 12.365078299990273
+  },
+  "expected_outputs": [
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\solution_times.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\fields_common_time.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\volume_common_time.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\coil_power_common_time.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\fields_terminal.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\volume_terminal.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\coil_power_terminal.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\volume_time_series.csv",
+    "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\coil_power_time_series.csv"
+  ],
+  "field_expressions": [
+    {
+      "description": "electron density",
+      "expression": "plas.ne",
+      "unit": "1/m^3"
+    },
+    {
+      "description": "mean electron energy",
+      "expression": "e_const*plas.ebar",
+      "unit": "eV"
+    },
+    {
+      "description": "argon metastable number density",
+      "expression": "plas.n_wArs",
+      "unit": "1/m^3"
+    },
+    {
+      "description": "argon ion number density",
+      "expression": "plas.n_wAr_1p",
+      "unit": "1/m^3"
+    },
+    {
+      "description": "RF resistive power deposition density",
+      "expression": "mf.Qrh",
+      "unit": "W/m^3"
+    }
+  ],
+  "generated_java": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\SwarmGecIcpComparisonExport.java",
+  "input_mph": {
+    "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\gui_detached\\argon_gec_icp_two_term.mph",
+    "post_execution_sha256": "d2ae24b51f0b0a6dc1d0f9ed7f5ff730505ce28f8f770ac17206defc1fbbc139",
+    "sha256": "d2ae24b51f0b0a6dc1d0f9ed7f5ff730505ce28f8f770ac17206defc1fbbc139",
+    "size_bytes": 29906775
+  },
+  "model_mapping": {
+    "dataset": "dset1",
+    "path": "C:\\Users\\user\\Desktop\\swarm_5\\comsol_modes\\maps\\argon_gec_icp_model.yaml",
+    "sha256": "287e1330444d58072504be151f211a67b23240f8794c2cf0d010e3a26c528ac1",
+    "solution": "sol1"
+  },
+  "mutation_contract": "loadCopy_only; no study.run, clearSolutionData, or model.save",
+  "outputs": [
+    {
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\solution_times.csv",
+      "sha256": "ac958a078c4e77cca8f7f269b49ef4a579b4cabb08cfdd2a5c44b4741e834d8a",
+      "size_bytes": 654
+    },
+    {
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\fields_common_time.csv",
+      "sha256": "581979660d31929ace1ab47c97ffc35ff30b4e15f0585285f28b268b46336e59",
+      "size_bytes": 641186
+    },
+    {
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\volume_common_time.csv",
+      "sha256": "a28f796da7271feeddf1c0f1c93de80626778cfc04db452af3c3bb9d3fb391bf",
+      "size_bytes": 422
+    },
+    {
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\coil_power_common_time.csv",
+      "sha256": "fc7a311289304b8a8284d8084a7affc84eb6c087e3d61e75eb7bd8fa79789972",
+      "size_bytes": 171
+    },
+    {
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\fields_terminal.csv",
+      "sha256": "89bc3514f91140ea05b046ff5c92a2b1d449aa4e66c4d3de91fde4da0b68df56",
+      "size_bytes": 641156
+    },
+    {
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\volume_terminal.csv",
+      "sha256": "bcb755436946e03783d66315eeb48221443b03fb50b65b185cd1a9f9e00b8977",
+      "size_bytes": 422
+    },
+    {
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\coil_power_terminal.csv",
+      "sha256": "141bea1f694b0eb28dbe61410f53f187143bb1f57e916cccad43e99b1282767d",
+      "size_bytes": 156
+    },
+    {
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\volume_time_series.csv",
+      "sha256": "75362b43390ca341ad942fb0f1c260f4fe4cb2f9728c272dcb77e6c6d36df894",
+      "size_bytes": 4066
+    },
+    {
+      "path": "C:\\Users\\user\\Desktop\\swarm_5\\outputs\\i3b2_20261108\\relocated\\gec_icp_export\\coil_power_time_series.csv",
+      "sha256": "35645f89d3523ec1e79cd42f74464cc0e4add6b1655cc71b62706aa1f64d9bb0",
+      "size_bytes": 1123
+    }
+  ],
+  "read_only": true,
+  "schema_version": 1,
+  "stage": "execute-gec-icp-comparison-export",
+  "status": "completed",
+  "time_selection": {
+    "common": {
+      "mode": "exact_transient_interpolation",
+      "time_s": 0.001
+    },
+    "terminal": {
+      "mode": "last_saved_solution"
+    }
+  },
+  "volume_expressions": [
+    {
+      "description": "axisymmetric plasma volume",
+      "expression": "1",
+      "unit": "m^3"
+    },
+    {
+      "description": "electron inventory",
+      "expression": "plas.ne",
+      "unit": "1"
+    },
+    {
+      "description": "electron mean-energy inventory",
+      "expression": "plas.ne*e_const*plas.ebar",
+      "unit": "eV"
+    },
+    {
+      "description": "argon metastable inventory",
+      "expression": "plas.n_wArs",
+      "unit": "1"
+    },
+    {
+      "description": "argon ion inventory",
+      "expression": "plas.n_wAr_1p",
+      "unit": "1"
+    },
+    {
+      "description": "plasma RF resistive deposition",
+      "expression": "mf.Qrh",
+      "unit": "W"
+    }
+  ]
+}

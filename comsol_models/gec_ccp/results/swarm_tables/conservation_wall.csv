@@ -1,0 +1,6 @@
+% Model,Untitled.mph
+% Version,COMSOL 6.4.0.429
+% Date,"Nov 8 2026, 12:03"
+% Table,Table 2 - 
+% signed electron particle weak boundary term (1/s),argon ion wall weak term (1/s),signed electron energy weak boundary term (W),random-motion electron energy wall loss (W),secondary-electron energy wall input (W),thermionic-electron energy wall input (W),strong-trace electron particle flux diagnostic (1/s),strong-trace electron energy flux diagnostic (W)
+-2.5748376826689144E16,-2.5745918768333804E16,-0.04139649276323998,0.043071222847782344,0.0016747300845423511,0,2.5576337964473572E16,0.04671256267141204

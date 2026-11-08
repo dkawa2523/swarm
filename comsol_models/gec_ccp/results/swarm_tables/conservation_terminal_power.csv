@@ -1,0 +1,6 @@
+% Model,Untitled.mph
+% Version,COMSOL 6.4.0.429
+% Date,"Nov 8 2026, 12:03"
+% Table,Table 3 - 
+% terminal power (W),prescribed power (W),terminal power constraint residual (W),period-averaged terminal current (A)
+0.999999899859974,1,-1.0014002604918915E-7,1.9240927437314303E-9

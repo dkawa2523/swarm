@@ -231,7 +231,8 @@ def read_positive_column_results(summary_path: str | Path) -> PositiveColumnResu
     path = Path(summary_path).resolve()
     if path.suffix.lower() != ".json":
         raise PositiveColumnWorkflowError(
-            "pass the positive_column_run_summary.json; bare CSV has no trustworthy units or selection metadata"
+            "pass the positive_column_run_summary.json or positive_column_export.json "
+            "to supply field units and solution selection"
         )
     encoded = path.read_bytes()
     metadata = json.loads(encoded)

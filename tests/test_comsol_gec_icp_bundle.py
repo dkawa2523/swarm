@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import csv
+from functools import partial
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -24,7 +25,7 @@ from swarm_workflow.comsol.input.function_eedf import (
 from swarm_workflow.selection import MC_QUALIFICATION_TABLE
 from swarm_workflow.comsol.models.gec_icp import (
     GecIcpBundleError,
-    validate_gec_icp_bundle,
+    validate_gec_icp_bundle as validate_bundle,
 )
 from swarm_workflow.quality.solver import (
     PROPAGATOR_CORE_QUALIFICATION_FILE,
@@ -58,6 +59,10 @@ BOLTZMANN_J_K = 1.380649e-23
 CANONICAL_ARGON_CROSS_SECTIONS = (
     ROOT / "examples" / "cross_sections" / "argon_application_library.csv"
 )
+RECORDED_CROSS_SECTIONS_PATH = "/producer/inputs/argon_application_library.csv"
+validate_gec_icp_bundle = partial(
+    validate_bundle, cross_section_csv=CANONICAL_ARGON_CROSS_SECTIONS
+)
 
 
 @pytest.mark.parametrize("source", SOURCE_CHOICES)
@@ -65,10 +70,13 @@ def test_gec_icp_accepts_each_qualified_function_eedf_source(
     tmp_path: Path, source: str
 ) -> None:
     bundle = _write_bundle(tmp_path, source)
+    relocated_csv = tmp_path / "relocated.csv"
+    relocated_csv.write_bytes(CANONICAL_ARGON_CROSS_SECTIONS.read_bytes())
 
     evidence = validate_gec_icp_bundle(
         bundle,
         source,
+        cross_section_csv=relocated_csv,
         expected_transport_definition="flux",
         expected_mc_qualification_profile=(
             MC_QUALIFICATION_FUNCTION_EEDF_RESTRICTED_LMEA
@@ -159,19 +167,18 @@ def test_gec_icp_rejects_transport_definition_mismatch(tmp_path: Path) -> None:
         )
 
 
-def test_gec_icp_rejects_noncanonical_cross_section_provenance(
+def test_gec_icp_rejects_changed_cross_section_bytes(
     tmp_path: Path,
 ) -> None:
     bundle = _write_bundle(tmp_path, "two_term")
-    manifest = _manifest(bundle)
-    manifest["hashes"]["cross_sections_sha256"] = "f" * 64
-    _write_manifest(bundle, manifest)
+    changed = tmp_path / "changed.csv"
+    changed.write_bytes(CANONICAL_ARGON_CROSS_SECTIONS.read_bytes() + b"\n")
 
     with pytest.raises(
         GecIcpBundleError,
-        match="does not match the repository canonical",
+        match="do not match bundle cross_sections_sha256",
     ):
-        validate_gec_icp_bundle(bundle, "two_term")
+        validate_gec_icp_bundle(bundle, "two_term", cross_section_csv=changed)
 
 
 def test_gec_icp_rejects_noncanonical_active_function_eedf(tmp_path: Path) -> None:
@@ -454,6 +461,7 @@ def _write_bundle(root: Path, source: str) -> Path:
             "species": [{"species": "Ar", "fraction": 1.0, "mass_amu": 39.948}],
         },
         "hashes": hashes,
+        "input_evidence": {RECORDED_CROSS_SECTIONS_PATH: {"attribution_status": "not_provided"}},
         "mc_sampling_plan": mc_sampling_plan,
         "mc_qualification": mc_qualification,
         "solver_qualification": solver_qualification,
@@ -657,7 +665,7 @@ def _refresh_table_digest(bundle: Path, name: str) -> None:
 def _canonical_cross_sections_hash() -> str:
     file_digest = _digest(CANONICAL_ARGON_CROSS_SECTIONS)
     digest = sha256()
-    digest.update(str(CANONICAL_ARGON_CROSS_SECTIONS.resolve()).encode("utf-8"))
+    digest.update(RECORDED_CROSS_SECTIONS_PATH.encode("utf-8"))
     digest.update(b"\0")
     digest.update(file_digest.encode("ascii"))
     digest.update(b"\0")

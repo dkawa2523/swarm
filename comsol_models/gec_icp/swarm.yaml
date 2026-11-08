@@ -1,4 +1,3 @@
-# Bounded input-configuration example; not full operating-range qualification.
 schema_version: 2
 run:
   solvers:
@@ -14,7 +13,11 @@ run:
   - 50.0
   - 100.0
   - 300.0
-  case_prefix: argon_gec_icp_two_term__configured_example_bounded
+  - 1000.0
+  - 1500.0
+  - 2500.0
+  - 3000.0
+  case_prefix: argon_gec_icp_two_term
 conditions:
   gas_temperature_K: 300.0
   pressure_Pa: 2.66644
@@ -41,11 +44,7 @@ feature_policy:
   unsupported: fail
   degraded: record
 output:
-  directory: ../../outputs/configured_models/gec_icp/cases
+  directory: ../../outputs/configured_models/gec_icp/swarm_cases
   base_name: argon_gec_icp_two_term
 campaign:
-  database: ../../outputs/configured_models/gec_icp/swarm_bounded.sqlite
-  quality:
-    mobility_rse: 0.2
-    diffusion_rse: 0.3
-    major_rate_rse: 0.5
+  database: ../../outputs/configured_models/gec_icp/swarm_results.sqlite

@@ -14,10 +14,7 @@ from swarm_workflow.selection import (
     COMPOSITE_QUALITY_COLUMNS,
     COMPOSITE_QUALITY_SCHEMA,
 )
-from swarm_workflow.comsol.models.gec_icp import (
-    GecIcpBundleError,
-    validate_gec_icp_bundle,
-)
+from swarm_workflow.comsol.models.gec_icp import GecIcpBundleError
 from swarm_workflow.comsol.models.gec_icp.run_contracts import GecIcpWorkflowError
 from swarm_workflow.comsol.models.gec_icp.run_mapping import (
     load_gec_icp_run_mapping,
@@ -29,6 +26,7 @@ from test_comsol_gec_icp_bundle import (
     _manifest,
     _write_bundle,
     _write_manifest,
+    validate_gec_icp_bundle,
 )
 from test_comsol_gec_icp_run import (
     _run_mapping_payload,

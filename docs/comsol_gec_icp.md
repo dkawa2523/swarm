@@ -126,6 +126,23 @@ py -3 -m swarm_workflow.cli run-gec-icp comsol_modes\maps\argon_gec_icp_propagat
 
 Use `--dry-run` on `run-gec-icp` to validate topology, hashes, physical
 context, support, and qualifications without starting a licensed solve.
+The model map's `model.cross_sections` selects the Argon CSV relative to
+the map. Preflight verifies the CSV bytes against the producer's recorded
+source identity, so the original checkout path is unnecessary.
+
+## Saved-solution output
+
+```powershell
+swarm-workflow export-gec-icp comsol_modes/maps/argon_gec_icp_model.yaml comsol_models/gec_icp/argon_gec_icp_two_term.mph --time-s 0.001 --output outputs/gec_icp_saved
+```
+
+The exporter reads the declared dataset from the supplied MPH. It writes
+spatial fields at the specified physical time and at the terminal saved time,
+plus the saved-time axes, integrated particle inventories, electron energy,
+and RF power. The exact-time profile uses COMSOL's transient interpolation
+within the saved time range. The manifest records units, source and output
+hashes. The [configured distribution](../comsol_models/README.md) includes
+these CSVs and a time-history plot for the 0.01 s two-term run.
 
 ## Acceptance and historical measurements
 

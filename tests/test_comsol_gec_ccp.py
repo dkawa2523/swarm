@@ -5090,6 +5090,7 @@ def _write_fixture(root: Path) -> tuple[Path, Path]:
                     "workflow_config_sha256": "c" * 64,
                     "calculation_sha256": "a" * 64,
                     "cross_sections_sha256": "b" * 64,
+                    "solver_implementations_sha256": "d" * 64,
                 },
                 "quality_thresholds": quality_thresholds_payload(QualityThresholds()),
                 "source_policy": {

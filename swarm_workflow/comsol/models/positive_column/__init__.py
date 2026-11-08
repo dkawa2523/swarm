@@ -15,6 +15,7 @@ from .contracts import (
 )
 from .workflow import (
     execute_positive_column_run,
+    export_positive_column_solution,
     format_positive_column_plan,
     format_positive_column_summary,
     prepare_positive_column_run,
@@ -30,6 +31,7 @@ __all__ = (
     "PositiveColumnWorkflowError",
     "compare_comsol_profiles",
     "execute_positive_column_run",
+    "export_positive_column_solution",
     "format_comsol_comparison",
     "format_positive_column_plan",
     "format_positive_column_summary",

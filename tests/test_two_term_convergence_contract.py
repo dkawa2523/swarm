@@ -15,7 +15,7 @@ from electron_swarm.solvers.two_term.models import (
     TimePeriodicDistributionResult,
 )
 
-from product_helpers import base_product_config, write_config
+from product_helpers import ROOT, base_product_config, write_config
 
 
 def _solver(tmp_path, data: dict[str, Any]) -> TwoTermSolver:
@@ -84,8 +84,6 @@ def test_capped_pure_elastic_distribution_has_exact_zero_creation_and_converges(
         solver.solver_config.convergence.residual_tolerance
     )
 
-
-
 def test_low_field_ionization_tail_converges_without_relaxing_tolerances(tmp_path) -> None:
     solver = _solver(tmp_path, base_product_config(tmp_path, ["two_term"]))
     native = solver.solve_native_distribution(10.0)
@@ -93,6 +91,29 @@ def test_low_field_ionization_tail_converges_without_relaxing_tolerances(tmp_pat
     assert native.diagnostics.iterations < solver.solver_config.convergence.max_iterations
     assert native.diagnostics.residual <= native.diagnostics.residual_effective_tolerance
     assert native.diagnostics.growth_frequency_s == pytest.approx(0.25592, rel=1e-4)
+    assert np.dot(native.eedf_eV_inv, native.widths_eV) == pytest.approx(1.0)
+
+
+def test_high_field_ionization_converges_with_resolved_tail(tmp_path) -> None:
+    data = base_product_config(tmp_path, ["two_term"])
+    data["conditions"].update(gas_temperature_K=293.15, pressure_Pa=13.3322)
+    data["cross_sections"]["files"][0]["path"] = str(
+        ROOT / "examples" / "cross_sections" / "argon_application_library.csv"
+    )
+    data["physics"]["energy_grid_policy"].update(
+        threshold_refinement=True,
+        tail_probability_target=1e-9,
+        max_eV_limit=10000.0,
+    )
+    solver = _solver(tmp_path, data)
+    native = solver.solve_native_distribution(1000.0)
+    diagnostics = native.diagnostics
+
+    assert diagnostics.converged
+    assert diagnostics.residual <= diagnostics.residual_requested_tolerance
+    assert diagnostics.tail_probability <= 1e-9
+    assert diagnostics.edge_to_peak <= 1e-10
+    assert diagnostics.growth_frequency_s == pytest.approx(4.8123e7, rel=0.003)
     assert np.dot(native.eedf_eV_inv, native.widths_eV) == pytest.approx(1.0)
 
 

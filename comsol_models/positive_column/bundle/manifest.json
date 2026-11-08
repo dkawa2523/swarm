@@ -3,28 +3,28 @@
     "canonicalization_source": {
       "file": "eedf.csv",
       "role": "raw_swarm_eedf_audit_and_canonicalization_source",
-      "sha256": "aad40fd87c605e333ef0845307363b7d1e663a944f64df08d2af4eb875bae471"
+      "sha256": "dcc9a846b66337313236bfc968e4cc643f00ad1c621844e76e069b5a73e46bfb"
     },
     "comsol_input": {
       "file": "eedf_f0_comsol_2d.csv",
       "role": "canonical_comsol_function_eedf_input",
-      "sha256": "30f9163dd1d64c90c7a19be7861c880bc925eb912524c7f2102f8de2f636244d"
+      "sha256": "86577295ccca40071092fb7db50081158d80433913f5bbe1bbe0d6a3c105cfb6"
     },
     "raw_audit": {
       "file": "eedf.csv",
       "role": "raw_swarm_eedf_audit_and_canonicalization_source",
-      "sha256": "aad40fd87c605e333ef0845307363b7d1e663a944f64df08d2af4eb875bae471"
+      "sha256": "dcc9a846b66337313236bfc968e4cc643f00ad1c621844e76e069b5a73e46bfb"
     }
   },
   "evidence": null,
   "evidence_scope": "numerical_source_tables",
   "format_version": 2,
   "hashes": {
-    "calculation_sha256": "8686e206f01fd4c826d2d2e98b940a320e2c30cb1c413b6fd310bae1462246d8",
+    "calculation_sha256": "b0905a60278802752cbe68f2f97feeb5ecd0f18734c38e4be4747eb622eb59a5",
     "cross_sections_sha256": "a70cd71afa33710fbb4189b82fb61612f75f492ba1dc7e626789e759f70ea921",
-    "solver_implementations_sha256": "1dba7585d39364df218c485137d1289d342d3c4e6f472932ee00ba0a995dc588",
-    "source_database_sha256": "9b1647a1af36eed98788a82a8792dd7799e3aa381a58db397404c96d3907b2f2",
-    "workflow_config_sha256": "2d99d50d7912a62587dab8f9f18c42f31cb0e8a632f0509c882c25500dbef210"
+    "solver_implementations_sha256": "938ea0ad5bde9a1744f16586592bf75246fe21121595c6203ae673d589bdced2",
+    "source_database_sha256": "657ccad13183682680fa729276f70640e5a5aeebcb427cdf3cf6da7d3bea9d8d",
+    "workflow_config_sha256": "83e0e31f23133dad4aa5eada351e5cae22bbbbe0c6a07f676312875d4d466667"
   },
   "implementation": {
     "execution_schema": "swarm.execution_pipeline_sha256.v1",
@@ -36,7 +36,7 @@
       "python": "3.13.12",
       "scipy": "1.17.1"
     },
-    "source_sha256": "9d92cf866c3bdade1ecc3e6e977166d6d44e611380f064c215dd481807f6362c"
+    "source_sha256": "4a781f4732d8edea48115612e316bef6fcd11efc0dab0600f7da23d0324c4a9e"
   },
   "input_evidence": {
     "C:\\Users\\user\\Desktop\\swarm_5\\examples\\cross_sections\\argon_application_library.csv": {
@@ -109,11 +109,11 @@
   },
   "quality_policy": {
     "evaluation": {
-      "diffusion_rse": 0.3,
+      "diffusion_rse": 0.05,
       "eedf_normalization_error": 1e-06,
       "major_rate_fraction": 0.01,
-      "major_rate_rse": 0.5,
-      "mobility_rse": 0.2,
+      "major_rate_rse": 0.05,
+      "mobility_rse": 0.02,
       "required_rate_min_process_peak_fraction": 0.0,
       "required_rate_rse": {
         "process": {},
@@ -123,14 +123,14 @@
         }
       }
     },
-    "evaluation_sha256": "bbb2f101fb36fad5a5dad8c733e1edf205bfe0f3b6fdd54834c4d062810ac9a2",
+    "evaluation_sha256": "17b39705042bcf93fd04488a253a8b62b356b3fafdf431fbab9573a9613c848c",
     "quality_only_reevaluation": false,
     "source": {
-      "diffusion_rse": 0.3,
+      "diffusion_rse": 0.05,
       "eedf_normalization_error": 1e-06,
       "major_rate_fraction": 0.01,
-      "major_rate_rse": 0.5,
-      "mobility_rse": 0.2,
+      "major_rate_rse": 0.05,
+      "mobility_rse": 0.02,
       "required_rate_min_process_peak_fraction": 0.0,
       "required_rate_rse": {
         "process": {},
@@ -140,19 +140,19 @@
         }
       }
     },
-    "source_sha256": "bbb2f101fb36fad5a5dad8c733e1edf205bfe0f3b6fdd54834c4d062810ac9a2"
+    "source_sha256": "17b39705042bcf93fd04488a253a8b62b356b3fafdf431fbab9573a9613c848c"
   },
   "quality_summary": {
     "failed_points": 0,
     "passed": true,
-    "total_points": 26
+    "total_points": 45
   },
   "quality_thresholds": {
-    "diffusion_rse": 0.3,
+    "diffusion_rse": 0.05,
     "eedf_normalization_error": 1e-06,
     "major_rate_fraction": 0.01,
-    "major_rate_rse": 0.5,
-    "mobility_rse": 0.2,
+    "major_rate_rse": 0.05,
+    "mobility_rse": 0.02,
     "required_rate_min_process_peak_fraction": 0.0,
     "required_rate_rse": {
       "process": {},
@@ -260,7 +260,7 @@
       }
     },
     "two_term_transport_kernel": {
-      "anchor_points": 26,
+      "anchor_points": 45,
       "correction_applied_every_anchor": true,
       "effective_momentum_model": "nu_m_eff(epsilon)=nu_m(epsilon)+growth_frequency",
       "evidence_columns": [
@@ -274,7 +274,7 @@
       ],
       "growth_frequency_s_inv": [
         1.4750315852546543e-09,
-        13152169.038742874
+        354179324.76539236
       ],
       "growth_frequency_source": "converged_temporal_growth_eigenvalue",
       "minimum_momentum_cross_section_m2": 1e-24,
@@ -318,7 +318,7 @@
         "mean_energy_eV"
       ],
       "derived_for_comsol_interpolation": true,
-      "sha256": "430e253e46e6632a44a9aca32288655dd9ca0fb2f5fc79915a1ad5fd2e9bf46e",
+      "sha256": "a26a74a6813196a54706368e5c7a98774f304fc25df3abea006d09c77329f879",
       "units": {
         "E_over_N_V_m2": "V m^2",
         "mean_energy_eV": "eV"
@@ -332,7 +332,7 @@
         "reduced_mobility_m2_V_s_m3"
       ],
       "derived_for_comsol_interpolation": true,
-      "sha256": "868d4b3f8cc7b31bbf6ca100214e15143fccbdd40205ac542f31bb021c014a13",
+      "sha256": "4e04321adcf05e9a2e5413b3c24c7a812f80bae9a8554c688b3ccdc4e8ef521b",
       "units": {
         "E_over_N_V_m2": "V m^2",
         "reduced_mobility_m2_V_s_m3": "1/(V m s)"
@@ -350,7 +350,7 @@
         "eedf",
         "pooled_effective_sample_count"
       ],
-      "sha256": "aad40fd87c605e333ef0845307363b7d1e663a944f64df08d2af4eb875bae471",
+      "sha256": "dcc9a846b66337313236bfc968e4cc643f00ad1c621844e76e069b5a73e46bfb",
       "units": {
         "E_over_N_Td": "Td",
         "E_over_N_V_m2": "V m^2",
@@ -365,6 +365,17 @@
       "adaptive_energy_axis": true,
       "adaptive_mean_energy_axis": true,
       "anchor_mean_energy_eV": [
+        0.03795590091383399,
+        0.038997587788052214,
+        0.040895746185875145,
+        0.04414200086464123,
+        0.05592335886740852,
+        0.07505671440834445,
+        0.12533658775099377,
+        0.20896619195961103,
+        0.30372984551166365,
+        0.3983596096939319,
+        0.4668625519817964,
         0.5479369014673368,
         0.5761443886315717,
         0.6883461531065052,
@@ -379,18 +390,26 @@
         3.4614025377913196,
         4.193101427268132,
         5.008294252734267,
-        5.259459873779456,
-        5.358593188287505,
-        5.50362146211832,
-        5.63244411351041,
-        5.863954595996617,
-        6.246596272795917,
-        6.622523390541811,
-        6.931402793209437,
-        7.446980868396552,
-        7.89725998304465,
-        8.729913397087383,
-        10.385812106330404
+        5.259459873779271,
+        5.358593188287617,
+        5.5036214621194715,
+        5.632444113510241,
+        5.8639545960040484,
+        6.24659627287656,
+        6.622523390869285,
+        6.931402794219011,
+        7.446980870358657,
+        7.89725998707484,
+        8.729913406762025,
+        10.385929326934036,
+        12.642855614101016,
+        15.165989199302436,
+        20.949406664195077,
+        27.53000696466808,
+        42.561793818739915,
+        59.883620544976175,
+        70.88396875142512,
+        79.65350352120343
       ],
       "argument": "electron_energy_eV,mean_energy_eV",
       "argument_order": [
@@ -418,9 +437,9 @@
       "definition": "physical f0(E,m) on independently adaptive energy and mean-energy axes; every solver anchor is retained and nonnegative row projection preserves normalization and mean energy",
       "electron_energy_range_eV": [
         0.0,
-        156.04513516613503
+        7094.2983324482875
       ],
-      "energy_grid_points": 1237,
+      "energy_grid_points": 1035,
       "energy_support_policy": "full_source_support_no_solver_specific_tail_cutoff",
       "format": "csv",
       "grid_axis_order": [
@@ -428,47 +447,47 @@
         "mean_energy_eV"
       ],
       "grid_shape": [
-        151,
-        1237
+        331,
+        1035
       ],
       "interpolation_contract": "tensor_product_linear on error-controlled axes; every materialized mean row has unit normalization and first moment equal to its mean, so linear mean interpolation preserves both moments",
       "materialized_mean_nodes_include_all_solver_anchors": true,
       "mean_axis_rate_importance_fraction": 0.001,
-      "mean_axis_rate_scaled_error_max": 0.0049518961492154455,
+      "mean_axis_rate_scaled_error_max": 0.004901168775630186,
       "mean_axis_rate_scaled_error_tolerance": 0.005,
-      "mean_axis_shape_total_variation_error_max": 0.00481293078256753,
+      "mean_axis_shape_total_variation_error_max": 0.004974243051287184,
       "mean_axis_shape_total_variation_tolerance": 0.005,
       "mean_energy_axis": "error_controlled_c1_materialization_with_solver_anchors",
-      "mean_energy_grid_points": 151,
+      "mean_energy_grid_points": 331,
       "mean_energy_range_eV": [
-        0.5479369014673368,
-        10.385812106330404
+        0.03795590091383399,
+        79.65350352120343
       ],
       "mean_energy_support_policy": "no_clamp_no_synthetic_extension; values outside the tabulated range require new solver anchors",
-      "projected_mean_energy_relative_error_max": 9.8209165183443e-14,
+      "projected_mean_energy_relative_error_max": 9.923749818130024e-14,
       "projected_nonnegative_minimum": 0.0,
       "projected_normalization_error_max": 2.220446049250313e-16,
       "projection_evidence_artifact": "eedf_f0_vs_mean_energy.csv",
-      "projection_evidence_sha256": "2d81af94808629091fca4935a04308d3f51ac67629b43ec797107d6abc4864a7",
+      "projection_evidence_sha256": "b2f95648ba866f48a43f1a49857da38a8ff7b3d7b03b123431d2a5cc670b2a99",
       "rate_error_norm": "abs(projected-reference)/max(reference,global_kernel_peak*importance_fraction); values_unmodified",
       "rate_importance_fraction": 1e-12,
       "rate_kernel_count": 3,
-      "rate_scaled_error_max": 0.004142750836525733,
+      "rate_scaled_error_max": 0.0017918338492725519,
       "rate_scaled_error_tolerance": 0.005,
       "representation": "physical_2d_adaptive_moment_rate_projected",
       "row_order": "mean_energy_major_then_electron_energy",
-      "sha256": "30f9163dd1d64c90c7a19be7861c880bc925eb912524c7f2102f8de2f636244d",
-      "shape_total_variation_error_max": 0.0002523021255496703,
+      "sha256": "86577295ccca40071092fb7db50081158d80433913f5bbe1bbe0d6a3c105cfb6",
+      "shape_total_variation_error_max": 0.003015635490918759,
       "shape_total_variation_tolerance": 0.005,
-      "solver_anchor_mean_energy_count": 26,
+      "solver_anchor_mean_energy_count": 45,
       "source_artifact": "eedf.csv",
-      "source_energy_max_eV": 156.04513516613503,
-      "source_sha256": "aad40fd87c605e333ef0845307363b7d1e663a944f64df08d2af4eb875bae471",
+      "source_energy_max_eV": 7073.501648489573,
+      "source_sha256": "dcc9a846b66337313236bfc968e4cc643f00ad1c621844e76e069b5a73e46bfb",
       "source_support": {
         "policy": "full_source_support",
         "source_values_modified": false
       },
-      "support_expansion_beyond_source_eV": 0.0,
+      "support_expansion_beyond_source_eV": 20.79668395871431,
       "units": {
         "eepf_eV_m32": "1/eV^(3/2)",
         "electron_energy_eV": "eV",
@@ -477,6 +496,17 @@
     },
     "eedf_f0_vs_mean_energy.csv": {
       "anchor_mean_energy_eV": [
+        0.03795590091383399,
+        0.038997587788052214,
+        0.040895746185875145,
+        0.04414200086464123,
+        0.05592335886740852,
+        0.07505671440834445,
+        0.12533658775099377,
+        0.20896619195961103,
+        0.30372984551166365,
+        0.3983596096939319,
+        0.4668625519817964,
         0.5479369014673368,
         0.5761443886315717,
         0.6883461531065052,
@@ -491,18 +521,26 @@
         3.4614025377913196,
         4.193101427268132,
         5.008294252734267,
-        5.259459873779456,
-        5.358593188287505,
-        5.50362146211832,
-        5.63244411351041,
-        5.863954595996617,
-        6.246596272795917,
-        6.622523390541811,
-        6.931402793209437,
-        7.446980868396552,
-        7.89725998304465,
-        8.729913397087383,
-        10.385812106330404
+        5.259459873779271,
+        5.358593188287617,
+        5.5036214621194715,
+        5.632444113510241,
+        5.8639545960040484,
+        6.24659627287656,
+        6.622523390869285,
+        6.931402794219011,
+        7.446980870358657,
+        7.89725998707484,
+        8.729913406762025,
+        10.385929326934036,
+        12.642855614101016,
+        15.165989199302436,
+        20.949406664195077,
+        27.53000696466808,
+        42.561793818739915,
+        59.883620544976175,
+        70.88396875142512,
+        79.65350352120343
       ],
       "argument": "electron_energy_eV,mean_energy_eV",
       "argument_order": [
@@ -538,22 +576,41 @@
         "shape_0022",
         "shape_0023",
         "shape_0024",
-        "shape_0025"
+        "shape_0025",
+        "shape_0026",
+        "shape_0027",
+        "shape_0028",
+        "shape_0029",
+        "shape_0030",
+        "shape_0031",
+        "shape_0032",
+        "shape_0033",
+        "shape_0034",
+        "shape_0035",
+        "shape_0036",
+        "shape_0037",
+        "shape_0038",
+        "shape_0039",
+        "shape_0040",
+        "shape_0041",
+        "shape_0042",
+        "shape_0043",
+        "shape_0044"
       ],
       "constraint_invariant": "each h_i has integral(sqrt(x)*h_i,dx)=1 and integral(x^(3/2)*h_i,dx)=1",
       "definition": "x=electron_energy_eV/mean_energy_eV; h_i(x)=mean_energy_i^(3/2)*f0_i(mean_energy_i*x); each h_i is a moment-preserving anchor shape",
       "derived_for_comsol_interpolation": true,
-      "dimensionless_energy_grid_points": 1258,
+      "dimensionless_energy_grid_points": 1277,
       "energy_axis_interpolation": "shape_preserving_piecewise_cubic_Hermite_C1",
       "format": "csv",
       "grid": "common_dimensionless_energy_with_wide_shape_columns",
       "mean_energy_axis_interpolation": "offline_C1_shape_family; active_table_uses_error_controlled_materialized_mean_nodes",
-      "mean_energy_cases": 26,
-      "mean_energy_relative_error_max": 9.224843111610426e-13,
+      "mean_energy_cases": 45,
+      "mean_energy_relative_error_max": 9.906520048730272e-13,
       "nonnegative_minimum": 0.0,
       "normalization_error_max": 2.220446049250313e-16,
       "representation": "dimensionless_shape_preserving_c1_convex",
-      "sha256": "2d81af94808629091fca4935a04308d3f51ac67629b43ec797107d6abc4864a7",
+      "sha256": "b2f95648ba866f48a43f1a49857da38a8ff7b3d7b03b123431d2a5cc670b2a99",
       "shape_columns": [
         "shape_0000",
         "shape_0001",
@@ -580,14 +637,33 @@
         "shape_0022",
         "shape_0023",
         "shape_0024",
-        "shape_0025"
+        "shape_0025",
+        "shape_0026",
+        "shape_0027",
+        "shape_0028",
+        "shape_0029",
+        "shape_0030",
+        "shape_0031",
+        "shape_0032",
+        "shape_0033",
+        "shape_0034",
+        "shape_0035",
+        "shape_0036",
+        "shape_0037",
+        "shape_0038",
+        "shape_0039",
+        "shape_0040",
+        "shape_0041",
+        "shape_0042",
+        "shape_0043",
+        "shape_0044"
       ],
       "source_artifact": "eedf.csv",
-      "source_energy_max_eV": 156.04513516613503,
+      "source_energy_max_eV": 7073.501648489573,
       "source_mean_energy_relative_error_limit": 0.001,
-      "source_mean_energy_relative_error_max": 0.0002543217292732647,
+      "source_mean_energy_relative_error_max": 2.954263512837682e-16,
       "source_reconstruction": "conservative_bin_probability_mass_to_finite_piecewise_f0",
-      "source_sha256": "aad40fd87c605e333ef0845307363b7d1e663a944f64df08d2af4eb875bae471",
+      "source_sha256": "dcc9a846b66337313236bfc968e4cc643f00ad1c621844e76e069b5a73e46bfb",
       "source_support": {
         "policy": "full_source_support",
         "source_values_modified": false
@@ -620,7 +696,26 @@
         "shape_0022": "1",
         "shape_0023": "1",
         "shape_0024": "1",
-        "shape_0025": "1"
+        "shape_0025": "1",
+        "shape_0026": "1",
+        "shape_0027": "1",
+        "shape_0028": "1",
+        "shape_0029": "1",
+        "shape_0030": "1",
+        "shape_0031": "1",
+        "shape_0032": "1",
+        "shape_0033": "1",
+        "shape_0034": "1",
+        "shape_0035": "1",
+        "shape_0036": "1",
+        "shape_0037": "1",
+        "shape_0038": "1",
+        "shape_0039": "1",
+        "shape_0040": "1",
+        "shape_0041": "1",
+        "shape_0042": "1",
+        "shape_0043": "1",
+        "shape_0044": "1"
       }
     },
     "elastic_energy_loss.csv": {
@@ -653,7 +748,7 @@
         "symbol": "K_epsilon_el",
         "uncertainty": "deterministic_kinetic_solver"
       },
-      "sha256": "f56308c980d7585ff9ce4c7b8f53717de161d28cd0f494e3f2c566d3111b4543",
+      "sha256": "f43bc1a198b4581fc6a35b9a05d13b4a4a35442d204e047f8c5f0db6daae5e50",
       "units": {
         "E_over_N_Td": "Td",
         "E_over_N_V_m2": "V m^2",
@@ -696,10 +791,10 @@
         "uncertainty": "deterministic_kinetic_solver"
       },
       "projection": "reindex_native_points_without_interpolation",
-      "sha256": "7c0bdeb49cfb7468d2b47722f618d7ec73774a0b6a5e0a9e7068dc160dc67e42",
+      "sha256": "61ac6fdb52ce11cec1d675e7b249357623c140811461e0e3f1b68df5942714df",
       "source_table": {
         "file": "elastic_energy_loss.csv",
-        "sha256": "f56308c980d7585ff9ce4c7b8f53717de161d28cd0f494e3f2c566d3111b4543"
+        "sha256": "f43bc1a198b4581fc6a35b9a05d13b4a4a35442d204e047f8c5f0db6daae5e50"
       },
       "units": {
         "E_over_N_Td": "Td",
@@ -726,7 +821,7 @@
         "energy_loss_eV",
         "energy_loss_rate_coefficient_eV_m3_s"
       ],
-      "sha256": "d534ad3a646a5ccb02a6853cc5b39ce848c5cfa2c526c60cc598c70a330eb971",
+      "sha256": "205ea1549a3232b0d5e14a87e98f89f674ef5e4e7972359a9f8ef4be28fdc05b",
       "units": {
         "E_over_N_Td": "Td",
         "E_over_N_V_m2": "V m^2",
@@ -743,7 +838,7 @@
         "E_over_N_V_m2",
         "mean_energy_eV"
       ],
-      "sha256": "7f1e765dd19b8892b84ca5846f3c1779a519a5433c80d594e66e7825f6ded302",
+      "sha256": "53117c0b24d3bf524dd92141908e853cd3a736252a2872dc861f757f5d5e94ce",
       "units": {
         "E_over_N_Td": "Td",
         "E_over_N_V_m2": "V m^2",
@@ -781,7 +876,7 @@
         "solver_grid_limit_hit"
       ],
       "schema": "solver_quality.v2",
-      "sha256": "236db7024d989bfbe93ea1c18499b3c0cea92f901ec928cf5d2e15ae282ac69c",
+      "sha256": "92bcd20193fd7177ede09f116caf8eb3688e9f4e09cf4df66a0f1d64d268113c",
       "units": {
         "E_over_N_Td": "Td",
         "E_over_N_V_m2": "V m^2",
@@ -805,7 +900,7 @@
         "reduced_townsend_m2",
         "mixture_weighted_reduced_townsend_m2"
       ],
-      "sha256": "857669aeaea6e5ad8255a710c69decd1252ca11a26ff809b1e6fd438d851f343",
+      "sha256": "1df8526f963205b5160701bdc6a5a3c7e5aa26347f85f5eaca42c4909fc42ece",
       "units": {
         "E_over_N_Td": "Td",
         "E_over_N_V_m2": "V m^2",
@@ -835,10 +930,10 @@
         "mixture_weighted_reduced_townsend_m2"
       ],
       "projection": "reindex_native_points_without_interpolation",
-      "sha256": "d7dc96fa554706b42ad28d48edf898f8e42c009bc69280f5faf83522721b30a8",
+      "sha256": "70853c839928f65268330962c7884810dca310baf5f1510c850f390c3170c728",
       "source_table": {
         "file": "rates_vs_en.csv",
-        "sha256": "857669aeaea6e5ad8255a710c69decd1252ca11a26ff809b1e6fd438d851f343"
+        "sha256": "1df8526f963205b5160701bdc6a5a3c7e5aa26347f85f5eaca42c4909fc42ece"
       },
       "units": {
         "E_over_N_Td": "Td",
@@ -859,7 +954,7 @@
         "E_over_N_V_m2",
         "effective_townsend_m2"
       ],
-      "sha256": "791ca6c1a212a77c1e775128e70b514536b30323410aa9cf05e586835d1d0583",
+      "sha256": "a2fd6b3bf0ed22a9844056fa04d2a30fe3cdda5e801b8e15f6f85b0cbf23a0bc",
       "units": {
         "E_over_N_Td": "Td",
         "E_over_N_V_m2": "V m^2",
@@ -885,7 +980,7 @@
         "temporal_growth_frequency_s_inv",
         "reduced_temporal_growth_frequency_m3_s"
       ],
-      "sha256": "26e3844da9c82a1c64078559f15eff8e27cb8ff7c2e03d4805762df61bb9bc64",
+      "sha256": "7462a406fcc73af90d37af8b1b9585eeac584486c8a4a958f19be22e3c94dded",
       "units": {
         "E_over_N_Td": "Td",
         "E_over_N_V_m2": "V m^2",
@@ -923,10 +1018,10 @@
         "reduced_temporal_growth_frequency_m3_s"
       ],
       "projection": "reindex_native_points_without_interpolation",
-      "sha256": "c3b2bc9ded6b4f7e2417985da68a6a3879b088f089977e785337eaa7c6b5339d",
+      "sha256": "2b74a7467123f6a888ec958880a11c178fc2e7900033a70a65422b73273ee08e",
       "source_table": {
         "file": "transport_vs_en.csv",
-        "sha256": "26e3844da9c82a1c64078559f15eff8e27cb8ff7c2e03d4805762df61bb9bc64"
+        "sha256": "7462a406fcc73af90d37af8b1b9585eeac584486c8a4a958f19be22e3c94dded"
       },
       "units": {
         "E_over_N_Td": "Td",
@@ -1007,21 +1102,40 @@
     "shape_0023": "1",
     "shape_0024": "1",
     "shape_0025": "1",
+    "shape_0026": "1",
+    "shape_0027": "1",
+    "shape_0028": "1",
+    "shape_0029": "1",
+    "shape_0030": "1",
+    "shape_0031": "1",
+    "shape_0032": "1",
+    "shape_0033": "1",
+    "shape_0034": "1",
+    "shape_0035": "1",
+    "shape_0036": "1",
+    "shape_0037": "1",
+    "shape_0038": "1",
+    "shape_0039": "1",
+    "shape_0040": "1",
+    "shape_0041": "1",
+    "shape_0042": "1",
+    "shape_0043": "1",
+    "shape_0044": "1",
     "temporal_growth_frequency_s_inv": "1/s",
     "threshold_eV": "eV"
   },
   "valid_ranges": {
     "E_over_N_Td": [
-      0.0444,
-      500.0
+      0.0002,
+      5000.0
     ],
     "E_over_N_V_m2": [
-      4.44e-23,
-      4.999999999999999e-19
+      1.9999999999999998e-25,
+      4.9999999999999996e-18
     ],
     "mean_energy_eV": [
-      0.5479369014673368,
-      10.385812106330404
+      0.03795590091383399,
+      79.65350352120343
     ]
   }
 }

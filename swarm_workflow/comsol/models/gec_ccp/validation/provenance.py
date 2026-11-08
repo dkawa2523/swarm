@@ -73,7 +73,7 @@ def validate_manifest(
         mc_tail_estimator_schema,
         quality_thresholds,
     ) = _validate_manifest_provenance(mapping, manifest, source=source)
-    tables, artifact_digests = _verify_manifest_artifacts(mapping, manifest)
+    tables, artifact_digests = verify_bundle_artifacts(mapping.bundle.path, manifest)
     return ManifestEvidence(
         path=manifest_path,
         manifest=manifest,
@@ -292,15 +292,14 @@ def _validate_manifest_provenance(
             re.fullmatch(r"[0-9a-f]{64}", str(hashes.get(name, ""))) is None
             for name in GEC_PROVENANCE_HASH_KEYS
         )
-        or (
-            "source_database_sha256" in hashes
-            and re.fullmatch(r"[0-9a-f]{64}", str(hashes["source_database_sha256"]))
-            is None
+        or any(
+            name in hashes and re.fullmatch(r"[0-9a-f]{64}", str(hashes[name])) is None
+            for name in ("solver_implementations_sha256", "source_database_sha256")
         )
     ):
         raise GecCcpWorkflowError(
             "bundle manifest requires the canonical SHA-256 chain for "
-            "workflow config, base config, and cross sections"
+            "workflow config, calculation, and cross sections"
         )
     sampling_plan = None
     estimator_schema = None
@@ -416,14 +415,14 @@ def _mc_provenance(
     )
 
 
-def _verify_manifest_artifacts(
-    mapping: GecCcpMapping, manifest: dict[str, Any]
+def verify_bundle_artifacts(
+    bundle: Path, manifest: dict[str, Any]
 ) -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
     tables = manifest.get("tables")
     if not isinstance(tables, dict) or not tables:
         raise GecCcpWorkflowError("bundle manifest.tables must be a mapping")
     artifact_digests: dict[str, str] = {}
-    bundle_root = mapping.bundle.path.resolve()
+    bundle_root = bundle.resolve()
     for name, metadata in tables.items():
         relative_name = PurePosixPath(name) if isinstance(name, str) else None
         if (

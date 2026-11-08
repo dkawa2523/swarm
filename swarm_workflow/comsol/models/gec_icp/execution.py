@@ -73,12 +73,7 @@ def execute_gec_icp_run(
         )
         native_eedf = analyze_comsol_eedf_audit(
             plan.native_eedf_audit,
-            cross_section_csv=(
-                _repo_root(plan.mapping.path)
-                / "examples"
-                / "cross_sections"
-                / "argon_application_library.csv"
-            ),
+            cross_section_csv=plan.mapping.model_mapping.model.cross_sections,
         )
         native_eedf["status"] = "passed" if native_eedf["passed"] else "failed"
         native_path = plan.output_directory / "comsol_eedf_audit.json"
@@ -266,13 +261,6 @@ def _status_payload(
             for item in (executions or [])
         ],
     }
-
-
-def _repo_root(start: Path) -> Path:
-    for candidate in (start.parent, *start.parents):
-        if (candidate / "pyproject.toml").is_file():
-            return candidate
-    raise GecIcpWorkflowError("could not locate repository root")
 
 
 __all__ = ["execute_gec_icp_run"]

@@ -29,6 +29,7 @@ GEC_OPTIONAL_PROVENANCE_HASH_KEYS = (
     "mc_seed_derivation_schema_version",
     "mc_solver_source_sha256",
     "propagator_solver_source_sha256",
+    "solver_implementations_sha256",
     "source_database_sha256",
 )
 

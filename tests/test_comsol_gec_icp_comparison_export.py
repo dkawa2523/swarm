@@ -29,6 +29,7 @@ def _model(input_mph: Path, output_mph: Path) -> GecIcpModelSpec:
     return GecIcpModelSpec(
         input_mph=input_mph,
         output_mph=output_mph,
+        cross_sections=input_mph.with_suffix(".csv"),
         component="comp1",
         geometry="geom1",
         mesh="mesh1",

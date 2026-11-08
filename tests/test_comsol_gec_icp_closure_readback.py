@@ -29,6 +29,7 @@ def _mapping(tmp_path: Path) -> Any:
     )
     model = SimpleNamespace(
         input_mph=tmp_path / "input.mph",
+        cross_sections=tmp_path / "argon.csv",
         component="comp1",
         plasma_physics="plas",
         plasma_feature="pes1",
@@ -323,7 +324,6 @@ def _mock_execution(
         "assess_gec_icp_convergence",
         lambda *args, **kwargs: {"passed": True, "gates": {}},
     )
-    monkeypatch.setattr(execution, "_repo_root", lambda path: plan.mapping.root)
     return operations
 
 

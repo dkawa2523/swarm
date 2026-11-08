@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 from scipy import sparse
+from scipy.optimize import brentq
 from scipy.sparse import linalg as spla
 
 from electron_swarm.core.config import SwarmConfig
@@ -250,16 +251,10 @@ def solve_native_on_grid(
     else:
         p = normalize_eedf(np.clip(initial, 0.0, None), widths)
 
-    growth = 0.0
-    residual = np.inf
-    residual_effective_tolerance = cfg.convergence.residual_tolerance
-    residual_roundoff_bound = 0.0
-    residual_backward_error = np.inf
-    residual_roundoff_limited = False
-    converged = False
-    iterations = 0
-    for it in range(cfg.convergence.max_iterations):
-        iterations = it + 1
+    net_creation = block.net_creation_frequency_s_inv
+    identity = sparse.identity(len(widths), format="csr")
+
+    def solve_at_growth(growth: float) -> tuple[np.ndarray, sparse.csr_matrix]:
         if use_pt_momentum:
             effective_momentum = temporal_growth_effective_momentum_frequency(
                 block.collisions.nu_m,
@@ -275,7 +270,7 @@ def solve_native_on_grid(
             op = (energy_flux + block.collision_matrix).tocsr()
         else:
             op = block.matrix
-        shifted = op - growth * sparse.identity(op.shape[0], format="csr")
+        shifted = op - growth * identity
         p_new = solve_normalized(shifted, widths)
         if cfg.convergence.clip_negative:
             # The exponential scheme is positivity preserving for the
@@ -283,14 +278,29 @@ def solve_native_on_grid(
             # sparse-solver roundoff and high-energy extrapolation noise.
             p_new = np.clip(p_new, 0.0, None)
             p_new = normalize_eedf(p_new, widths)
+        return p_new, op
+
+    def growth_imbalance(candidate: float) -> float:
+        density, _ = solve_at_growth(candidate)
+        return weighted_integral(net_creation * density, widths) - candidate
+
+    growth = 0.0
+    residual = np.inf
+    residual_effective_tolerance = cfg.convergence.residual_tolerance
+    residual_roundoff_bound = 0.0
+    residual_backward_error = np.inf
+    residual_roundoff_limited = False
+    converged = False
+    iterations = 0
+    while iterations < cfg.convergence.max_iterations:
+        p_new, op = solve_at_growth(growth)
+        iterations += 1
         lp = op @ p_new
         # Conservative field/recoil terms cancel analytically. Summing their
         # large discrete actions invents roundoff-scale growth and can keep
         # the eigenvalue iteration moving even for a purely elastic gas.
         # Use the number source assembled from the same reaction transfers.
-        new_growth = weighted_integral(
-            block.net_creation_frequency_s_inv * p_new, widths
-        )
+        new_growth = weighted_integral(net_creation * p_new, widths)
         eig_res = lp - new_growth * p_new
         residual_numerator = float(np.sum(np.abs(eig_res) * widths))
         residual_denominator = max(
@@ -320,10 +330,6 @@ def solve_native_on_grid(
             abs(new_growth), abs(growth), 1.0
         )
         p = p_new
-        growth = (
-            cfg.convergence.relaxation * new_growth
-            + (1.0 - cfg.convergence.relaxation) * growth
-        )
         if (
             shape_change < cfg.convergence.tolerance
             and growth_change < cfg.convergence.eigenvalue_tolerance
@@ -332,6 +338,32 @@ def solve_native_on_grid(
             converged = True
             growth = new_growth
             break
+        if (
+            iterations == 1
+            and cfg.convergence.max_iterations > 6
+            and use_pt_momentum
+            and cfg.convergence.clip_negative
+            and new_growth > cfg.convergence.eigenvalue_tolerance
+            and residual > residual_effective_tolerance
+            and np.all(net_creation >= 0)
+        ):
+            # For a normalized nonnegative EEDF, the net creation moment
+            # lies between zero and the maximum local creation frequency.
+            # Use that bracket to seed the same full eigenproblem checks.
+            upper = float(np.max(net_creation)) * (1.0 + 1.0e-12)
+            root, search = brentq(
+                growth_imbalance, 0.0, upper, xtol=1.0e-13, rtol=1.0e-13,
+                maxiter=min(64, cfg.convergence.max_iterations - 5),
+                full_output=True, disp=False,
+            )
+            iterations += search.function_calls
+            if search.converged:
+                growth = float(root)
+                continue
+        growth = (
+            cfg.convergence.relaxation * new_growth
+            + (1.0 - cfg.convergence.relaxation) * growth
+        )
 
     tail = tail_probability(p, widths, cfg)
     edge_to_peak = float(p[-1] / max(np.max(p), _EPS))

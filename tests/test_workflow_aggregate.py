@@ -480,7 +480,7 @@ def test_conservative_rebin_preserves_probability_mass() -> None:
 @pytest.mark.parametrize(
     "solver", ["two_term", "multi_term", "monte_carlo", "propagator"]
 )
-def test_reported_eedf_cells_keep_exact_widths_during_aggregation(
+def test_reported_eedf_cells_keep_exact_centers_and_widths_during_aggregation(
     tmp_path: Path,
     solver: str,
 ) -> None:
@@ -532,9 +532,9 @@ def test_reported_eedf_cells_keep_exact_widths_during_aggregation(
         ).fetchall()
 
     expected_cells = (
-        (0.0, 1.0, 0.5, 1.0),
+        (0.0, 1.0, 0.0, 1.0),
         (1.0, 2.0, 1.5, 1.0),
-        (2.0, 12.0, 7.0, 10.0),
+        (2.0, 12.0, 12.0, 10.0),
     )
     for row, expected in zip(rows, expected_cells, strict=True):
         assert tuple(row[:4]) == pytest.approx(expected)

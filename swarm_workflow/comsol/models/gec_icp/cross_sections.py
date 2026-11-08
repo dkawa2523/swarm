@@ -4,18 +4,11 @@ from __future__ import annotations
 
 import csv
 from dataclasses import dataclass
-from hashlib import sha256
 import math
 from pathlib import Path
 
 from .contracts import GecIcpContractError
 
-
-_REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
-CANONICAL_ARGON_CROSS_SECTIONS = (
-    _REPOSITORY_ROOT / "examples" / "cross_sections" / "argon_application_library.csv"
-)
-COMSOL_ARGON_IMPORT_REFERENCE = _REPOSITORY_ROOT / "Model" / "Ar_xsecs.txt"
 
 _GROUND_SIGNATURES = {
     "elastic": ("Ar", "e+Ar=>e+Ar", "elastic", 0.0),
@@ -43,27 +36,9 @@ class CanonicalGroundCrossSection:
     cross_section_m2: tuple[float, ...]
 
 
-def canonical_cross_sections_combined_sha256() -> str:
-    """Return the exporter-compatible combined hash for the canonical CSV."""
-
-    path = CANONICAL_ARGON_CROSS_SECTIONS
-    if not path.is_file():
-        raise GecIcpContractError(
-            f"canonical Argon cross-section CSV is missing: {path}"
-        )
-    file_digest = sha256(path.read_bytes()).hexdigest()
-    digest = sha256()
-    digest.update(str(path.resolve()).encode("utf-8"))
-    digest.update(b"\0")
-    digest.update(file_digest.encode("ascii"))
-    digest.update(b"\0")
-    return digest.hexdigest()
-
-
-def load_canonical_ground_cross_sections() -> dict[str, CanonicalGroundCrossSection]:
+def load_canonical_ground_cross_sections(path: Path) -> dict[str, CanonicalGroundCrossSection]:
     """Load the three ground-state Argon processes used by the ICP MPH."""
 
-    path = CANONICAL_ARGON_CROSS_SECTIONS
     try:
         with path.open("r", encoding="utf-8-sig", newline="") as stream:
             reader = csv.DictReader(stream)
@@ -147,12 +122,3 @@ def load_canonical_ground_cross_sections() -> dict[str, CanonicalGroundCrossSect
             cross_section_m2=tuple(value for _, value in values),
         )
     return result
-
-
-__all__ = [
-    "CANONICAL_ARGON_CROSS_SECTIONS",
-    "COMSOL_ARGON_IMPORT_REFERENCE",
-    "CanonicalGroundCrossSection",
-    "canonical_cross_sections_combined_sha256",
-    "load_canonical_ground_cross_sections",
-]
