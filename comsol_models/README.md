@@ -7,9 +7,9 @@
 
 | モデル | 開くMPH | 受入条件 | GUIで選ぶスタディ |
 | --- | --- | --- | --- |
-| 正柱 | [positive_column_two_term.mph](positive_column/positive_column_two_term.mph) | 200 V、13.3322 Pa、293.15 K | **Study 1**（8秒） |
-| GEC-CCP | [argon_gec_ccp_two_term.mph](gec_ccp/argon_gec_ccp_two_term.mph) | 1 W、300 K | **Time Periodic Study2**（235秒）、次に **Time Periodic to Time Dependent**（3秒） |
-| GEC-ICP | [argon_gec_icp_two_term.mph](gec_icp/argon_gec_icp_two_term.mph) | 1500 W、13.56 MHz、2.66644 Pa、300 K、0.01 s | **Study 1**（56秒） |
+| 正柱 | [positive_column_two_term.mph](https://media.githubusercontent.com/media/dkawa2523/swarm/10e05e76287ce403cd749b9356fbbd341d03b118/comsol_models/positive_column/positive_column_two_term.mph) | 200 V、13.3322 Pa、293.15 K | **Study 1**（8秒） |
+| GEC-CCP | [argon_gec_ccp_two_term.mph](https://media.githubusercontent.com/media/dkawa2523/swarm/10e05e76287ce403cd749b9356fbbd341d03b118/comsol_models/gec_ccp/argon_gec_ccp_two_term.mph) | 1 W、300 K | **Time Periodic Study2**（235秒）、次に **Time Periodic to Time Dependent**（3秒） |
+| GEC-ICP | [argon_gec_icp_two_term.mph](https://media.githubusercontent.com/media/dkawa2523/swarm/10e05e76287ce403cd749b9356fbbd341d03b118/comsol_models/gec_icp/argon_gec_icp_two_term.mph) | 1500 W、13.56 MHz、2.66644 Pa、300 K、0.01 s | **Study 1**（56秒） |
 
 MPHを開き、表のスタディをモデルビルダーで選んで **Compute** を押します。
 CCPの外部Swarm用周期スタディのタグは `std3` です。変換 `std2` で電極波形を物理時刻で表示できます。
@@ -60,7 +60,13 @@ py -3 -m swarm_workflow.cli run-gec-icp comsol_models/gec_icp/mapping.yaml --dry
 ```
 
 `export-positive-column` と `export-gec-icp` は保存解を読み、指定した結果を新しい出力フォルダに保存します。
-`plot-gec-ccp` は `bundle/` と `results/` から図を作れます。
+`plot-gec-ccp` は `bundle/` と `results/` から図を作れます。描画には `plot` オプション依存関係を使います。
+
+```powershell
+py -3 -m pip install ".[plot]"
+py -3 -m swarm_workflow.cli plot-gec-ccp --bundle comsol_models/gec_ccp/bundle --comsol-results comsol_models/gec_ccp/results --output outputs/gec_ccp_plots
+```
+
 組成の時間発展はプラズマモデルが解きます。ここでのICPの時系列はCOMSOLの保存解です。
 具体的な設定とコマンドは[正柱](../docs/comsol_workflow.md)、[CCP](../docs/comsol_gec_ccp.md)、[ICP](../docs/comsol_gec_icp.md)を参照してください。
 
